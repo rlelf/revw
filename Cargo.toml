@@ -1,0 +1,26 @@
+[package]
+name = "revw"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "revw"
+path = "src/main.rs"
+
+[lib]
+name = "revw"
+path = "src/lib.rs"
+
+[dependencies]
+ratatui = "0.29"
+crossterm = "0.29"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0", features = ["preserve_order"] }
+indexmap = "2.0"
+tokio = { version = "1.40", features = ["full"] }
+anyhow = "1.0"
+arboard = "3.4"
+notify = "8.2"
+clap = { version = "4.5", features = ["derive"] }
+chrono = "0.4"
+unicode-width = "0.2.0"
