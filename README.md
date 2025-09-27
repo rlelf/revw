@@ -5,7 +5,7 @@ Terminal JSON viewer/editor focused on the Relf JSON format, with simple Vim-lik
 ## Install
 
 ```bash
-cargo install --git https://github.com/mzerrey0hp/revw.git
+cargo install --git https://github.com/rlelf/revw.git
 ```
 
 ## Usage
