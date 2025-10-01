@@ -1,6 +1,6 @@
 use anyhow::Result;
 use crossterm::{
-    event::{self, Event, KeyCode, KeyModifiers, MouseEventKind, MouseButton},
+    event::{self, Event, KeyCode, KeyModifiers, MouseEventKind, MouseButton, KeyEventKind},
 };
 use std::time::Duration;
 
@@ -14,6 +14,11 @@ pub fn run_app<B: ratatui::backend::Backend>(terminal: &mut ratatui::Terminal<B>
         if event::poll(Duration::from_millis(100))? {
             match event::read()? {
                 Event::Key(key) => {
+                    // Filter out key repeat events on Windows to prevent duplicate input
+                    #[cfg(target_os = "windows")]
+                    if key.kind != KeyEventKind::Press {
+                        continue;
+                    }
                     if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('c') {
                         return Ok(());
                     }
@@ -226,6 +231,10 @@ pub fn run_app<B: ratatui::backend::Backend>(terminal: &mut ratatui::Terminal<B>
                                 if !app.command_buffer.is_empty() {
                                     app.command_buffer.pop();
                                     app.set_status(&format!(":{}", app.command_buffer));
+                                } else {
+                                    // Exit command mode when backspace on empty buffer
+                                    app.input_mode = InputMode::Normal;
+                                    app.set_status("");
                                 }
                             }
                             _ => {}

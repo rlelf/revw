@@ -930,6 +930,9 @@ impl App {
             let filename = cmd.strip_prefix("wq ").unwrap().trim().to_string();
             self.save_file_as(&filename);
             return true; // Signal to quit
+        } else if cmd == "r" {
+            // Refresh/reload the file
+            self.reload_file();
         } else if cmd == "ai" {
             // Add new inside entry at top
             self.append_inside();
@@ -973,6 +976,27 @@ impl App {
             Err(e) => {
                 self.set_status(&format!("Error saving: {}", e));
             }
+        }
+    }
+
+    pub fn reload_file(&mut self) {
+        if let Some(path) = self.file_path.clone() {
+            match fs::read_to_string(&path) {
+                Ok(content) => {
+                    self.json_input = content;
+                    self.is_modified = false;
+                    self.convert_json();
+                    self.content_cursor_line = 0;
+                    self.content_cursor_col = 0;
+                    self.scroll = 0;
+                    self.set_status(&format!("Reloaded: {}", path.display()));
+                }
+                Err(e) => {
+                    self.set_status(&format!("Error reloading: {}", e));
+                }
+            }
+        } else {
+            self.set_status("No file to reload");
         }
     }
 
