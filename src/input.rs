@@ -3,13 +3,52 @@ use crossterm::{
     event::{self, Event, KeyCode, KeyModifiers, MouseEventKind, MouseButton, KeyEventKind},
 };
 use std::time::Duration;
+use std::sync::mpsc::{self, Receiver, TryRecvError};
+use notify::{Watcher, RecursiveMode, Event as NotifyEvent};
 
 use crate::app::{App, InputMode, FormatMode};
 
 pub fn run_app<B: ratatui::backend::Backend>(terminal: &mut ratatui::Terminal<B>, mut app: App) -> Result<()> {
+    // Setup file watcher
+    let (tx, rx): (std::sync::mpsc::Sender<NotifyEvent>, Receiver<NotifyEvent>) = mpsc::channel();
+    let mut watcher = notify::recommended_watcher(move |res: Result<NotifyEvent, notify::Error>| {
+        if let Ok(event) = res {
+            let _ = tx.send(event);
+        }
+    })?;
+
+    // Watch the file if it exists
+    if let Some(ref path) = app.file_path {
+        let _ = watcher.watch(path, RecursiveMode::NonRecursive);
+    }
+
     loop {
         terminal.draw(|f| crate::ui::ui(f, &mut app))?;
         app.update_status();
+
+        // Check for file changes
+        if app.auto_reload && app.file_path.is_some() {
+            match rx.try_recv() {
+                Ok(event) => {
+                    // Check if it's a modify event
+                    if matches!(event.kind, notify::EventKind::Modify(_)) {
+                        // Ignore file changes within 1 second after saving (to avoid reloading our own save)
+                        let should_reload = if let Some(last_save) = app.last_save_time {
+                            last_save.elapsed() > Duration::from_millis(1000)
+                        } else {
+                            true
+                        };
+
+                        // Only reload if not modified by user and not recently saved
+                        if !app.is_modified && should_reload {
+                            app.reload_file();
+                        }
+                    }
+                }
+                Err(TryRecvError::Empty) => {},
+                Err(TryRecvError::Disconnected) => {},
+            }
+        }
 
         if event::poll(Duration::from_millis(100))? {
             match event::read()? {
@@ -22,9 +61,18 @@ pub fn run_app<B: ratatui::backend::Backend>(terminal: &mut ratatui::Terminal<B>
                     if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('c') {
                         return Ok(());
                     }
+                    if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('r') {
+                        app.redo();
+                        continue;
+                    }
 
                     match app.input_mode {
                         InputMode::Normal => match key.code {
+                            KeyCode::Char('u') => {
+                                if app.format_mode == FormatMode::Json {
+                                    app.undo();
+                                }
+                            }
                             KeyCode::Char('q') => return Ok(()),
                             KeyCode::Char('v') => app.paste_from_clipboard(),
                             KeyCode::Char('c') => app.copy_to_clipboard(),
@@ -164,7 +212,7 @@ pub fn run_app<B: ratatui::backend::Backend>(terminal: &mut ratatui::Terminal<B>
                             KeyCode::Char('N') => {
                                 app.prev_match();
                             }
-                            KeyCode::Char(c) if c == 'g' || app.vim_buffer.starts_with('g') => {
+                            KeyCode::Char(c) if c == 'g' || c == '-' || c == '+' || app.vim_buffer.starts_with('g') => {
                                 app.handle_vim_input(c);
                             }
                             _ => {
@@ -175,7 +223,15 @@ pub fn run_app<B: ratatui::backend::Backend>(terminal: &mut ratatui::Terminal<B>
                                 }
                             }
                         },
-                        InputMode::Insert => match key.code {
+                        InputMode::Insert => {
+                            // Check for Ctrl+[ to exit insert mode
+                            if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('[') {
+                                app.input_mode = InputMode::Normal;
+                                app.set_status("");
+                                continue;
+                            }
+
+                            match key.code {
                             KeyCode::Esc => {
                                 app.input_mode = InputMode::Normal;
                                 app.set_status("");
@@ -209,6 +265,7 @@ pub fn run_app<B: ratatui::backend::Backend>(terminal: &mut ratatui::Terminal<B>
                                 app.is_modified = true;
                             }
                             _ => {}
+                        }
                         },
                         InputMode::Command => match key.code {
                             KeyCode::Esc => {

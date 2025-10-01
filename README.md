@@ -42,6 +42,10 @@ revw --stdout file.json
 - `e` next word end
 - `b` previous word start
 - `dd` delete entry
+- `u` undo
+- `Ctrl+r` redo
+- `g-` undo
+- `g+` redo
 - `/` search
 - `n/N` next/prev match
 - `:ai` add inside
@@ -50,6 +54,8 @@ revw --stdout file.json
 - `:w` save
 - `:wq` save and quit
 - `:q` quit
+- `:e` reload file
+- `:ar` toggle auto-reload (default: on)
 - `:h` help
 
 ## Relf-Specific

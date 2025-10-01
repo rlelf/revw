@@ -53,6 +53,20 @@ pub struct App {
     pub search_buffer: String,
     pub search_matches: Vec<(usize, usize)>, // (line, col) positions
     pub current_match_index: Option<usize>,
+    // Undo/Redo functionality
+    pub undo_stack: Vec<UndoState>,
+    pub redo_stack: Vec<UndoState>,
+    // Auto-reload functionality
+    pub auto_reload: bool,
+    pub last_save_time: Option<Instant>,
+}
+
+#[derive(Clone)]
+pub struct UndoState {
+    pub json_input: String,
+    pub content_cursor_line: usize,
+    pub content_cursor_col: usize,
+    pub scroll: u16,
 }
 
 impl App {
@@ -83,6 +97,10 @@ impl App {
             search_buffer: String::new(),
             search_matches: Vec::new(),
             current_match_index: None,
+            undo_stack: Vec::new(),
+            redo_stack: Vec::new(),
+            auto_reload: true,
+            last_save_time: None,
         };
 
         app
@@ -431,6 +449,20 @@ impl App {
             }
             self.vim_buffer.clear();
             return true;
+        } else if self.vim_buffer == "g-" {
+            // Undo (vim-style)
+            if self.format_mode == FormatMode::Json {
+                self.undo();
+            }
+            self.vim_buffer.clear();
+            return true;
+        } else if self.vim_buffer == "g+" {
+            // Redo (vim-style)
+            if self.format_mode == FormatMode::Json {
+                self.redo();
+            }
+            self.vim_buffer.clear();
+            return true;
         } else if self.vim_buffer.len() >= 2 {
             self.vim_buffer.clear();
         }
@@ -439,12 +471,15 @@ impl App {
     }
 
     pub fn delete_current_entry(&mut self) {
+        // Save undo state before modification
+        self.save_undo_state();
+
         let lines = self.get_json_lines();
         match JsonOperations::delete_entry_at_cursor(&self.json_input, self.content_cursor_line, &lines) {
             Ok((formatted, message)) => {
                 self.json_input = formatted;
                 self.convert_json();
-                
+
                 // Adjust cursor position
                 let new_lines = self.get_json_lines();
                 if self.content_cursor_line >= new_lines.len() && !new_lines.is_empty() {
@@ -603,6 +638,10 @@ impl App {
                 "  e     - Move to next word end (like vim)".to_string(),
                 "  b     - Move to previous word start (like vim)".to_string(),
                 "  dd    - Delete current data entry".to_string(),
+                "  u     - Undo".to_string(),
+                "  Ctrl+r - Redo".to_string(),
+                "  g-    - Undo".to_string(),
+                "  g+    - Redo".to_string(),
                 "  h/j/k/l - Move cursor (vim-like)".to_string(),
                 "  :ai   - Add inside entry at top (date, context)".to_string(),
                 "  :ao   - Add outside entry (name, context, url, percentage)".to_string(),
@@ -610,6 +649,8 @@ impl App {
                 "  :w    - Save file".to_string(),
                 "  :wq   - Save and quit".to_string(),
                 "  :q    - Quit without saving".to_string(),
+                "  :e    - Reload file".to_string(),
+                "  :ar   - Toggle auto-reload (default: on)".to_string(),
                 "  :h    - Toggle this help".to_string(),
                 "  Esc   - Exit insert/command mode".to_string(),
                 "".to_string(),
@@ -641,23 +682,26 @@ impl App {
     
     pub fn insert_char(&mut self, c: char) {
         if self.format_mode == FormatMode::Json {
+            // Save undo state before modification
+            self.save_undo_state();
+
             let mut lines = self.get_json_lines();
             if lines.is_empty() {
                 lines.push(String::new());
                 self.content_cursor_line = 0;
                 self.content_cursor_col = 0;
             }
-            
+
             // Ensure cursor is within bounds
             if self.content_cursor_line >= lines.len() {
                 self.content_cursor_line = lines.len().saturating_sub(1);
             }
-            
+
             let line = &mut lines[self.content_cursor_line];
             let mut chars: Vec<char> = line.chars().collect();
             let pos = self.content_cursor_col.min(chars.len());
             chars.insert(pos, c);
-            
+
             // Update the line with the new character
             lines[self.content_cursor_line] = chars.into_iter().collect();
             self.content_cursor_col += 1;
@@ -668,6 +712,9 @@ impl App {
     
     pub fn insert_newline(&mut self) {
         if self.format_mode == FormatMode::Json {
+            // Save undo state before modification
+            self.save_undo_state();
+
             let mut lines = self.get_json_lines();
             if lines.is_empty() {
                 lines.push(String::new());
@@ -695,6 +742,9 @@ impl App {
     
     pub fn backspace(&mut self) {
         if self.format_mode == FormatMode::Json {
+            // Save undo state before modification
+            self.save_undo_state();
+
             let mut lines = self.get_json_lines();
             if lines.is_empty() {
                 return;
@@ -722,6 +772,9 @@ impl App {
     
     pub fn delete_char(&mut self) {
         if self.format_mode == FormatMode::Json {
+            // Save undo state before modification
+            self.save_undo_state();
+
             let mut lines = self.get_json_lines();
             if lines.is_empty() {
                 return;
@@ -930,9 +983,14 @@ impl App {
             let filename = cmd.strip_prefix("wq ").unwrap().trim().to_string();
             self.save_file_as(&filename);
             return true; // Signal to quit
-        } else if cmd == "r" {
+        } else if cmd == "e" {
             // Refresh/reload the file
             self.reload_file();
+        } else if cmd == "ar" {
+            // Toggle auto-reload
+            self.auto_reload = !self.auto_reload;
+            let status = if self.auto_reload { "Auto-reload enabled" } else { "Auto-reload disabled" };
+            self.set_status(status);
         } else if cmd == "ai" {
             // Add new inside entry at top
             self.append_inside();
@@ -954,6 +1012,7 @@ impl App {
             match fs::write(path, &self.json_input) {
                 Ok(()) => {
                     self.is_modified = false;
+                    self.last_save_time = Some(Instant::now());
                     self.set_status(&format!("Saved: {}", path.display()));
                 }
                 Err(e) => {
@@ -971,6 +1030,7 @@ impl App {
             Ok(()) => {
                 self.file_path = Some(path.clone());
                 self.is_modified = false;
+                self.last_save_time = Some(Instant::now());
                 self.set_status(&format!("Saved: {}", path.display()));
             }
             Err(e) => {
@@ -1041,6 +1101,69 @@ impl App {
                 self.set_status(&message);
             }
             Err(e) => self.set_status(&format!("Error: {}", e)),
+        }
+    }
+
+    pub fn save_undo_state(&mut self) {
+        let state = UndoState {
+            json_input: self.json_input.clone(),
+            content_cursor_line: self.content_cursor_line,
+            content_cursor_col: self.content_cursor_col,
+            scroll: self.scroll,
+        };
+        self.undo_stack.push(state);
+        // Clear redo stack when new change is made
+        self.redo_stack.clear();
+
+        // Limit undo stack size to 100 states
+        if self.undo_stack.len() > 100 {
+            self.undo_stack.remove(0);
+        }
+    }
+
+    pub fn undo(&mut self) {
+        if let Some(state) = self.undo_stack.pop() {
+            // Save current state to redo stack
+            let redo_state = UndoState {
+                json_input: self.json_input.clone(),
+                content_cursor_line: self.content_cursor_line,
+                content_cursor_col: self.content_cursor_col,
+                scroll: self.scroll,
+            };
+            self.redo_stack.push(redo_state);
+
+            // Restore previous state
+            self.json_input = state.json_input;
+            self.content_cursor_line = state.content_cursor_line;
+            self.content_cursor_col = state.content_cursor_col;
+            self.scroll = state.scroll;
+            self.convert_json();
+            self.set_status("Undo");
+        } else {
+            self.set_status("Already at oldest change");
+        }
+    }
+
+    pub fn redo(&mut self) {
+        if let Some(state) = self.redo_stack.pop() {
+            // Save current state to undo stack
+            let undo_state = UndoState {
+                json_input: self.json_input.clone(),
+                content_cursor_line: self.content_cursor_line,
+                content_cursor_col: self.content_cursor_col,
+                scroll: self.scroll,
+            };
+            self.undo_stack.push(undo_state);
+
+            // Restore next state
+            self.json_input = state.json_input;
+            self.content_cursor_line = state.content_cursor_line;
+            self.content_cursor_col = state.content_cursor_col;
+            self.scroll = state.scroll;
+            self.convert_json();
+            self.set_status("Redo");
+        } else {
+            self.set_status("Already at newest change");
         }
     }
 
