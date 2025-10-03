@@ -6,7 +6,7 @@ use std::time::Duration;
 use std::sync::mpsc::{self, Receiver, TryRecvError};
 use notify::{Watcher, RecursiveMode, Event as NotifyEvent};
 
-use crate::app::{App, InputMode, FormatMode};
+use crate::app::{App, InputMode, FormatMode, ScrollbarType};
 
 pub fn run_app<B: ratatui::backend::Backend>(terminal: &mut ratatui::Terminal<B>, mut app: App) -> Result<()> {
     // Setup file watcher
@@ -319,57 +319,164 @@ pub fn run_app<B: ratatui::backend::Backend>(terminal: &mut ratatui::Terminal<B>
                         },
                     }
                 }
-                Event::Mouse(mouse) => match mouse.kind {
+                Event::Mouse(mouse) => {
+                    match mouse.kind {
+                    MouseEventKind::ScrollLeft => {
+                        // Horizontal scroll left
+                        if app.format_mode == FormatMode::Relf {
+                            app.relf_hscroll_by(-8);
+                        } else if app.format_mode == FormatMode::Json {
+                            app.relf_hscroll_by(-8);
+                        }
+                    }
+                    MouseEventKind::ScrollRight => {
+                        // Horizontal scroll right
+                        if app.format_mode == FormatMode::Relf {
+                            app.relf_hscroll_by(8);
+                        } else if app.format_mode == FormatMode::Json {
+                            app.relf_hscroll_by(8);
+                        }
+                    }
                     MouseEventKind::ScrollUp => {
-                        if app.format_mode == FormatMode::Json {
-                            // Move cursor up if it is not at the top of the visible area; otherwise scroll
-                            let (cursor_visual_line, _) = app.calculate_cursor_visual_position();
-                            let visible_top = app.scroll;
-                            if cursor_visual_line > visible_top {
-                                app.move_cursor_up();
+                        // Don't scroll vertically if horizontal scrollbar is being dragged
+                        if app.dragging_scrollbar != Some(ScrollbarType::Horizontal) {
+                            if app.format_mode == FormatMode::Json {
+                                // Move cursor up if it is not at the top of the visible area; otherwise scroll
+                                let (cursor_visual_line, _) = app.calculate_cursor_visual_position();
+                                let visible_top = app.scroll;
+                                if cursor_visual_line > visible_top {
+                                    app.move_cursor_up();
+                                } else {
+                                    // Faster scrolling for vim-like feel
+                                    for _ in 0..5 {
+                                        app.scroll_up();
+                                    }
+                                }
                             } else {
-                                app.scroll_up();
-                                app.scroll_up();
-                                app.scroll_up();
+                                // Relf: clamp to content bounds
+                                let dec = 5u16;
+                                app.scroll = app.scroll.saturating_sub(dec);
                             }
-                        } else {
-                            // Relf: clamp to content bounds
-                            let dec = 3u16;
-                            app.scroll = app.scroll.saturating_sub(dec);
                         }
                     }
                     MouseEventKind::ScrollDown => {
-                        if app.format_mode == FormatMode::Json {
-                            // Move cursor down while within the visible area; otherwise scroll
-                            let (cursor_visual_line, _) = app.calculate_cursor_visual_position();
-                            let visible_height = app.get_visible_height();
-                            let visible_bottom = app.scroll.saturating_add(visible_height).saturating_sub(1);
-                            // Estimate total visual lines to avoid overshooting content
-                            let mut total_visual: u16 = 0;
-                            for l in app.json_input.lines() {
-                                total_visual = total_visual.saturating_add(app.calculate_visual_lines(l));
-                            }
-                            let last_visual = total_visual.saturating_sub(1);
-                            let effective_bottom = std::cmp::min(visible_bottom, last_visual);
-                            if cursor_visual_line < effective_bottom {
-                                app.move_cursor_down();
+                        // Don't scroll vertically if horizontal scrollbar is being dragged
+                        if app.dragging_scrollbar != Some(ScrollbarType::Horizontal) {
+                            if app.format_mode == FormatMode::Json {
+                                // Move cursor down while within the visible area; otherwise scroll
+                                let (cursor_visual_line, _) = app.calculate_cursor_visual_position();
+                                let visible_height = app.get_visible_height();
+                                let visible_bottom = app.scroll.saturating_add(visible_height).saturating_sub(1);
+                                // Estimate total visual lines to avoid overshooting content
+                                let mut total_visual: u16 = 0;
+                                for l in app.json_input.lines() {
+                                    total_visual = total_visual.saturating_add(app.calculate_visual_lines(l));
+                                }
+                                let last_visual = total_visual.saturating_sub(1);
+                                let effective_bottom = std::cmp::min(visible_bottom, last_visual);
+                                if cursor_visual_line < effective_bottom {
+                                    app.move_cursor_down();
+                                } else {
+                                    // Faster scrolling for vim-like feel
+                                    for _ in 0..5 {
+                                        app.scroll_down();
+                                    }
+                                }
                             } else {
-                                app.scroll_down();
-                                app.scroll_down();
-                                app.scroll_down();
+                                // Relf: clamp to last content page
+                                let inc = 5u16;
+                                let max_off = app.relf_content_max_scroll();
+                                let new_val = app.scroll.saturating_add(inc);
+                                app.scroll = std::cmp::min(new_val, max_off);
                             }
-                        } else {
-                            // Relf: clamp to last content page
-                            let inc = 3u16;
-                            let max_off = app.relf_content_max_scroll();
-                            let new_val = app.scroll.saturating_add(inc);
-                            app.scroll = std::cmp::min(new_val, max_off);
                         }
                     }
                     MouseEventKind::Down(MouseButton::Left) => {
-                        // Mouse click - no action
+                        // Handle mouse click on scrollbars
+                        let click_x = mouse.column;
+                        let click_y = mouse.row;
+
+                        // Check if click is on vertical scrollbar
+                        let terminal_width = terminal.size().map(|s| s.width).unwrap_or(80);
+                        let terminal_height = terminal.size().map(|s| s.height).unwrap_or(24);
+
+                        // Check horizontal scrollbar first
+                        let on_hscrollbar = click_y >= terminal_height.saturating_sub(2) && click_x > 0 && click_x < terminal_width - 1;
+                        let on_vscrollbar = click_x == terminal_width - 1 && click_y > 0 && click_y < terminal_height - 1;
+
+                        if on_hscrollbar {
+                            // Horizontal scrollbar clicked
+                            app.dragging_scrollbar = Some(ScrollbarType::Horizontal);
+                            let max_hscroll = if app.format_mode == FormatMode::Relf {
+                                app.relf_max_hscroll()
+                            } else {
+                                app.relf_max_hscroll()
+                            };
+
+                            if max_hscroll > 0 {
+                                let scrollbar_width = (terminal_width - 2) as f32;
+                                let click_ratio = (click_x - 1) as f32 / scrollbar_width;
+                                let new_hscroll = (max_hscroll as f32 * click_ratio) as u16;
+                                app.hscroll = new_hscroll.min(max_hscroll);
+                            }
+                        } else if on_vscrollbar {
+                            // Vertical scrollbar clicked
+                            app.dragging_scrollbar = Some(ScrollbarType::Vertical);
+                            let scrollbar_height = (terminal_height - 2) as f32;
+                            let click_ratio = (click_y - 1) as f32 / scrollbar_height;
+                            let new_scroll = (app.max_scroll as f32 * click_ratio) as u16;
+                            app.scroll = new_scroll.min(app.max_scroll);
+                        } else {
+                            // Not on any scrollbar
+                            app.dragging_scrollbar = None;
+                        }
+                    }
+                    MouseEventKind::Up(MouseButton::Left) => {
+                        // Release scrollbar drag
+                        app.dragging_scrollbar = None;
+                    }
+                    MouseEventKind::Drag(MouseButton::Left) => {
+                        // Only handle drag if we're already dragging a scrollbar
+                        match app.dragging_scrollbar {
+                            Some(ScrollbarType::Vertical) => {
+                                // Continue vertical scrollbar drag
+                                let click_y = mouse.row;
+                                let terminal_height = terminal.size().map(|s| s.height).unwrap_or(24);
+
+                                if click_y > 0 && click_y < terminal_height - 1 {
+                                    let scrollbar_height = (terminal_height - 2) as f32;
+                                    let click_ratio = (click_y - 1) as f32 / scrollbar_height;
+                                    let new_scroll = (app.max_scroll as f32 * click_ratio) as u16;
+                                    app.scroll = new_scroll.min(app.max_scroll);
+                                }
+                            }
+                            Some(ScrollbarType::Horizontal) => {
+                                // Continue horizontal scrollbar drag
+                                let click_x = mouse.column;
+                                let terminal_width = terminal.size().map(|s| s.width).unwrap_or(80);
+
+                                if click_x > 0 && click_x < terminal_width - 1 {
+                                    let max_hscroll = if app.format_mode == FormatMode::Relf {
+                                        app.relf_max_hscroll()
+                                    } else {
+                                        app.relf_max_hscroll()
+                                    };
+
+                                    if max_hscroll > 0 {
+                                        let scrollbar_width = (terminal_width - 2) as f32;
+                                        let click_ratio = (click_x - 1) as f32 / scrollbar_width;
+                                        let new_hscroll = (max_hscroll as f32 * click_ratio) as u16;
+                                        app.hscroll = new_hscroll.min(max_hscroll);
+                                    }
+                                }
+                            }
+                            None => {
+                                // Not dragging any scrollbar, ignore
+                            }
+                        }
                     }
                     _ => {}
+                    }
                 },
                 Event::Paste(_) => {
                     // Paste events not supported - use 'v' key instead

@@ -1,4 +1,5 @@
 use arboard::Clipboard;
+use serde_json::Value;
 use std::{
     fs,
     path::PathBuf,
@@ -59,6 +60,14 @@ pub struct App {
     // Auto-reload functionality
     pub auto_reload: bool,
     pub last_save_time: Option<Instant>,
+    // Scrollbar interaction state
+    pub dragging_scrollbar: Option<ScrollbarType>,
+}
+
+#[derive(Clone, Copy, PartialEq)]
+pub enum ScrollbarType {
+    Vertical,
+    Horizontal,
 }
 
 #[derive(Clone)]
@@ -101,6 +110,7 @@ impl App {
             redo_stack: Vec::new(),
             auto_reload: true,
             last_save_time: None,
+            dragging_scrollbar: None,
         };
 
         app
@@ -348,6 +358,150 @@ impl App {
                 Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
             },
             Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
+        }
+    }
+
+    pub fn copy_inside_data(&mut self) {
+        // In view mode (Relf), copy only the INSIDE section from rendered content
+        if self.format_mode == FormatMode::Relf {
+            if self.rendered_content.is_empty() {
+                self.set_status("Nothing to copy");
+                return;
+            }
+
+            // Find INSIDE section in rendered content
+            let mut inside_lines = Vec::new();
+            let mut in_inside_section = false;
+
+            for line in &self.rendered_content {
+                if line.trim() == "INSIDE" {
+                    in_inside_section = true;
+                    inside_lines.push(line.clone());
+                } else if line.trim() == "OUTSIDE" {
+                    in_inside_section = false;
+                } else if in_inside_section {
+                    inside_lines.push(line.clone());
+                }
+            }
+
+            if inside_lines.is_empty() {
+                self.set_status("No INSIDE section found");
+                return;
+            }
+
+            let content = inside_lines.join("\n");
+            match Clipboard::new() {
+                Ok(mut clipboard) => match clipboard.set_text(content) {
+                    Ok(()) => self.set_status("Copied INSIDE section to clipboard"),
+                    Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
+                },
+                Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
+            }
+            return;
+        }
+
+        // In JSON mode, copy with "inside: [...]" wrapper
+        match serde_json::from_str::<Value>(&self.json_input) {
+            Ok(json_value) => {
+                if let Some(obj) = json_value.as_object() {
+                    if let Some(inside) = obj.get("inside") {
+                        // Create wrapper object with "inside" key
+                        let mut wrapper = serde_json::Map::new();
+                        wrapper.insert("inside".to_string(), inside.clone());
+                        let wrapper_value = Value::Object(wrapper);
+
+                        match serde_json::to_string_pretty(&wrapper_value) {
+                            Ok(formatted) => {
+                                match Clipboard::new() {
+                                    Ok(mut clipboard) => match clipboard.set_text(formatted) {
+                                        Ok(()) => self.set_status("Copied inside data to clipboard"),
+                                        Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
+                                    },
+                                    Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
+                                }
+                            }
+                            Err(e) => self.set_status(&format!("Error formatting inside data: {}", e)),
+                        }
+                    } else {
+                        self.set_status("No 'inside' field found");
+                    }
+                } else {
+                    self.set_status("JSON is not an object");
+                }
+            }
+            Err(e) => self.set_status(&format!("Invalid JSON: {}", e)),
+        }
+    }
+
+    pub fn copy_outside_data(&mut self) {
+        // In view mode (Relf), copy only the OUTSIDE section from rendered content
+        if self.format_mode == FormatMode::Relf {
+            if self.rendered_content.is_empty() {
+                self.set_status("Nothing to copy");
+                return;
+            }
+
+            // Find OUTSIDE section in rendered content
+            let mut outside_lines = Vec::new();
+            let mut in_outside_section = false;
+
+            for line in &self.rendered_content {
+                if line.trim() == "OUTSIDE" {
+                    in_outside_section = true;
+                    outside_lines.push(line.clone());
+                } else if line.trim() == "INSIDE" {
+                    in_outside_section = false;
+                } else if in_outside_section {
+                    outside_lines.push(line.clone());
+                }
+            }
+
+            if outside_lines.is_empty() {
+                self.set_status("No OUTSIDE section found");
+                return;
+            }
+
+            let content = outside_lines.join("\n");
+            match Clipboard::new() {
+                Ok(mut clipboard) => match clipboard.set_text(content) {
+                    Ok(()) => self.set_status("Copied OUTSIDE section to clipboard"),
+                    Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
+                },
+                Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
+            }
+            return;
+        }
+
+        // In JSON mode, copy with "outside: [...]" wrapper
+        match serde_json::from_str::<Value>(&self.json_input) {
+            Ok(json_value) => {
+                if let Some(obj) = json_value.as_object() {
+                    if let Some(outside) = obj.get("outside") {
+                        // Create wrapper object with "outside" key
+                        let mut wrapper = serde_json::Map::new();
+                        wrapper.insert("outside".to_string(), outside.clone());
+                        let wrapper_value = Value::Object(wrapper);
+
+                        match serde_json::to_string_pretty(&wrapper_value) {
+                            Ok(formatted) => {
+                                match Clipboard::new() {
+                                    Ok(mut clipboard) => match clipboard.set_text(formatted) {
+                                        Ok(()) => self.set_status("Copied outside data to clipboard"),
+                                        Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
+                                    },
+                                    Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
+                                }
+                            }
+                            Err(e) => self.set_status(&format!("Error formatting outside data: {}", e)),
+                        }
+                    } else {
+                        self.set_status("No 'outside' field found");
+                    }
+                } else {
+                    self.set_status("JSON is not an object");
+                }
+            }
+            Err(e) => self.set_status(&format!("Invalid JSON: {}", e)),
         }
     }
 
@@ -631,6 +785,7 @@ impl App {
                 "  /     - Search forward".to_string(),
                 "  n     - Next search match".to_string(),
                 "  N     - Previous search match".to_string(),
+                "  :noh  - Clear search highlighting".to_string(),
                 "  q     - Quit".to_string(),
                 "".to_string(),
                 "JSON Edit Mode:".to_string(),
@@ -646,10 +801,13 @@ impl App {
                 "  :ai   - Add inside entry at top (date, context)".to_string(),
                 "  :ao   - Add outside entry (name, context, url, percentage)".to_string(),
                 "  :o    - Order entries (outside by %, inside by date)".to_string(),
+                "  :ci   - Copy only inside data to clipboard".to_string(),
+                "  :co   - Copy only outside data to clipboard".to_string(),
                 "  :w    - Save file".to_string(),
                 "  :wq   - Save and quit".to_string(),
                 "  :q    - Quit without saving".to_string(),
-                "  :e    - Reload file".to_string(),
+                "  :e    - Reload current file".to_string(),
+                "  :e <file> - Open a different file".to_string(),
                 "  :ar   - Toggle auto-reload (default: on)".to_string(),
                 "  :h    - Toggle this help".to_string(),
                 "  Esc   - Exit insert/command mode".to_string(),
@@ -986,6 +1144,11 @@ impl App {
         } else if cmd == "e" {
             // Refresh/reload the file
             self.reload_file();
+        } else if cmd.starts_with("e ") {
+            // Open a different file
+            let filename = cmd.strip_prefix("e ").unwrap().trim().to_string();
+            let path = PathBuf::from(filename);
+            self.load_file(path);
         } else if cmd == "ar" {
             // Toggle auto-reload
             self.auto_reload = !self.auto_reload;
@@ -999,6 +1162,15 @@ impl App {
         } else if cmd == "o" {
             // Order entries
             self.order_entries();
+        } else if cmd == "ci" {
+            // Copy inside data
+            self.copy_inside_data();
+        } else if cmd == "co" {
+            // Copy outside data
+            self.copy_outside_data();
+        } else if cmd == "noh" {
+            // Clear search highlighting
+            self.clear_search_highlight();
         } else if cmd == "h" {
             self.show_help();
         } else {
@@ -1190,6 +1362,13 @@ impl App {
             self.current_match_index = None;
             self.set_status(&format!("Pattern not found: {}", self.search_query));
         }
+    }
+
+    pub fn clear_search_highlight(&mut self) {
+        self.search_query.clear();
+        self.search_matches.clear();
+        self.current_match_index = None;
+        self.set_status("Search highlight cleared");
     }
 
     pub fn find_matches(&mut self) {
