@@ -344,6 +344,9 @@ pub fn run_app<B: ratatui::backend::Backend>(
                             KeyCode::Up | KeyCode::Char('k') => {
                                 if app.format_mode == FormatMode::Edit {
                                     app.move_cursor_up();
+                                } else if app.showing_help {
+                                    // Allow scrolling in help mode
+                                    app.scroll_up();
                                 } else if !app.relf_entries.is_empty() {
                                     // Move selection up in card view
                                     if app.selected_entry_index > 0 {
@@ -356,6 +359,9 @@ pub fn run_app<B: ratatui::backend::Backend>(
                             KeyCode::Down | KeyCode::Char('j') => {
                                 if app.format_mode == FormatMode::Edit {
                                     app.move_cursor_down();
+                                } else if app.showing_help {
+                                    // Allow scrolling in help mode
+                                    app.scroll_down();
                                 } else if !app.relf_entries.is_empty() {
                                     // Move selection down in card view
                                     if app.selected_entry_index + 1 < app.relf_entries.len() {
@@ -422,6 +428,9 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                         app.content_cursor_line = lines.len() - 1;
                                         app.content_cursor_col = 0;
                                     }
+                                } else if app.showing_help {
+                                    // Allow scrolling to bottom in help mode
+                                    app.scroll_to_bottom();
                                 } else if !app.relf_entries.is_empty() {
                                     // Jump to last card
                                     app.selected_entry_index = app.relf_entries.len() - 1;

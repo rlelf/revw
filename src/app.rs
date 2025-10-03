@@ -1218,6 +1218,9 @@ impl App {
                 self.scroll_to_top();
                 self.content_cursor_line = 0;
                 self.content_cursor_col = 0;
+            } else if self.showing_help {
+                // Allow scrolling to top in help mode
+                self.scroll_to_top();
             } else if !self.relf_entries.is_empty() {
                 // Jump to first card
                 self.selected_entry_index = 0;
@@ -1358,6 +1361,84 @@ impl App {
                 self.set_status(&message);
             }
             Err(e) => self.set_status(&e),
+        }
+    }
+
+    pub fn jump_to_first_outside(&mut self) {
+        if self.format_mode == FormatMode::Edit {
+            // In JSON mode, find the first outside entry
+            let lines = self.get_json_lines();
+            for (i, line) in lines.iter().enumerate() {
+                if line.trim_start().starts_with("\"outside\"") {
+                    // Move to the first entry after "outside": [
+                    if i + 1 < lines.len() {
+                        self.content_cursor_line = i + 1;
+                        self.content_cursor_col = 0;
+                        self.ensure_cursor_visible();
+                        self.set_status("Jumped to first OUTSIDE entry");
+                        return;
+                    }
+                }
+            }
+            self.set_status("No OUTSIDE entries found");
+        } else {
+            // In View mode, jump to first card in outside section
+            if let Ok(json_value) = serde_json::from_str::<Value>(&self.json_input) {
+                if let Some(obj) = json_value.as_object() {
+                    if let Some(outside) = obj.get("outside") {
+                        if let Some(outside_array) = outside.as_array() {
+                            if !outside_array.is_empty() {
+                                self.selected_entry_index = 0;
+                                self.set_status("Jumped to first OUTSIDE entry");
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
+            self.set_status("No OUTSIDE entries found");
+        }
+    }
+
+    pub fn jump_to_first_inside(&mut self) {
+        if self.format_mode == FormatMode::Edit {
+            // In JSON mode, find the first inside entry
+            let lines = self.get_json_lines();
+            for (i, line) in lines.iter().enumerate() {
+                if line.trim_start().starts_with("\"inside\"") {
+                    // Move to the first entry after "inside": [
+                    if i + 1 < lines.len() {
+                        self.content_cursor_line = i + 1;
+                        self.content_cursor_col = 0;
+                        self.ensure_cursor_visible();
+                        self.set_status("Jumped to first INSIDE entry");
+                        return;
+                    }
+                }
+            }
+            self.set_status("No INSIDE entries found");
+        } else {
+            // In View mode, jump to first card in inside section
+            if let Ok(json_value) = serde_json::from_str::<Value>(&self.json_input) {
+                if let Some(obj) = json_value.as_object() {
+                    let outside_count = obj
+                        .get("outside")
+                        .and_then(|v| v.as_array())
+                        .map(|arr| arr.len())
+                        .unwrap_or(0);
+
+                    if let Some(inside) = obj.get("inside") {
+                        if let Some(inside_array) = inside.as_array() {
+                            if !inside_array.is_empty() && outside_count < self.relf_entries.len() {
+                                self.selected_entry_index = outside_count;
+                                self.set_status("Jumped to first INSIDE entry");
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
+            self.set_status("No INSIDE entries found");
         }
     }
 
@@ -1531,6 +1612,8 @@ impl App {
                 "  j/k/↑/↓ - Select card (or mouse wheel)".to_string(),
                 "  gg    - Select first card".to_string(),
                 "  G     - Select last card".to_string(),
+                "  :gi   - Jump to first INSIDE entry".to_string(),
+                "  :go   - Jump to first OUTSIDE entry".to_string(),
                 "  /     - Search forward (highlights and jumps to card)".to_string(),
                 "  n     - Next search match (jumps to card)".to_string(),
                 "  N     - Previous search match (jumps to card)".to_string(),
@@ -1559,6 +1642,8 @@ impl App {
                 "  g-    - Undo".to_string(),
                 "  g+    - Redo".to_string(),
                 "  h/j/k/l - Move cursor (vim-like)".to_string(),
+                "  :gi   - Jump to first INSIDE entry".to_string(),
+                "  :go   - Jump to first OUTSIDE entry".to_string(),
                 "  :ai   - Add inside entry at top (date, context)".to_string(),
                 "  :ao   - Add outside entry (name, context, url, percentage)".to_string(),
                 "  :o    - Order entries (outside by %, inside by date)".to_string(),
@@ -2031,6 +2116,12 @@ impl App {
         } else if cmd == "o" {
             // Order entries
             self.order_entries();
+        } else if cmd == "gi" {
+            // Jump to first INSIDE entry
+            self.jump_to_first_inside();
+        } else if cmd == "go" {
+            // Jump to first OUTSIDE entry
+            self.jump_to_first_outside();
         } else if cmd == "ci" {
             // Copy inside data
             self.copy_inside_data();

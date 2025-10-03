@@ -87,6 +87,8 @@ revw --stdout file.json
 - `j/k` or `↑/↓` select card (or mouse wheel)
 - `gg` select first card
 - `G` select last card
+- `:gi` jump to first INSIDE entry
+- `:go` jump to first OUTSIDE entry
 - `/` search forward
 - `n/N` next/prev match (jumps to card)
 - `:noh` clear search highlighting
@@ -149,6 +151,8 @@ revw --stdout file.json
 - `b` previous word start
 - `gg` jump to top
 - `G` jump to bottom
+- `:gi` jump to first INSIDE entry
+- `:go` jump to first OUTSIDE entry
 - Mouse wheel - scroll (drag disabled)
 
 **Editing:**
