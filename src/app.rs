@@ -1,3 +1,6 @@
+use super::json_ops::JsonOperations;
+use super::navigation::Navigator;
+use super::rendering::{RelfEntry, RelfLineStyle, RelfRenderResult, Renderer};
 use arboard::Clipboard;
 use serde_json::Value;
 use std::{
@@ -5,31 +8,39 @@ use std::{
     path::PathBuf,
     time::{Duration, Instant},
 };
-use super::rendering::Renderer;
-use super::navigation::Navigator;
-use super::json_ops::JsonOperations;
-
+use unicode_width::UnicodeWidthChar;
 
 #[derive(Clone, PartialEq)]
 pub enum InputMode {
     Normal,
     Insert,
-    Command,  // For vim-style commands like :w, :wq
-    Search,   // For vim-style search like /pattern
+    Command, // For vim-style commands like :w, :wq
+    Search,  // For vim-style search like /pattern
 }
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum FormatMode {
-    Relf,     // Default mode
-    Json,     // For editing
+    Relf, // Default mode
+    Json, // For editing
 }
 
 pub struct App {
     pub input_mode: InputMode,
     pub json_input: String,
     pub rendered_content: Vec<String>,
-    pub previous_content: Vec<String>,  // Store content before showing help
-    pub showing_help: bool,  // Track if help is being shown
+    pub relf_line_styles: Vec<RelfLineStyle>,
+    pub relf_visual_styles: Vec<RelfLineStyle>,
+    pub relf_entries: Vec<RelfEntry>,
+    pub selected_entry_index: usize, // Currently selected entry in Relf mode
+    pub editing_entry: bool, // Whether we're editing entry in overlay
+    pub edit_buffer: Vec<String>, // Buffer for editing entry fields
+    pub edit_field_index: usize, // Which field is being edited
+    pub edit_insert_mode: bool, // Whether in insert mode within overlay
+    pub edit_cursor_pos: usize, // Cursor position within current field
+    pub previous_content: Vec<String>, // Store content before showing help
+    pub previous_relf_styles: Vec<RelfLineStyle>,
+    pub previous_relf_visual_styles: Vec<RelfLineStyle>,
+    pub showing_help: bool, // Track if help is being shown
     pub scroll: u16,
     pub max_scroll: u16,
     pub status_message: String,
@@ -37,12 +48,12 @@ pub struct App {
     pub file_path: Option<PathBuf>,
     pub vim_buffer: String,
     pub format_mode: FormatMode,
-    pub command_buffer: String,  // For vim commands like :w, :wq
-    pub is_modified: bool,       // Track if content has been modified
-    pub content_cursor_line: usize,  // Current line in content
-    pub content_cursor_col: usize,   // Current column in content line
-    pub show_cursor: bool,       // Show/hide cursor in Normal mode
-    pub dd_count: usize,         // Count consecutive 'd' presses for dd command
+    pub command_buffer: String,     // For vim commands like :w, :wq
+    pub is_modified: bool,          // Track if content has been modified
+    pub content_cursor_line: usize, // Current line in content
+    pub content_cursor_col: usize,  // Current column in content line
+    pub show_cursor: bool,          // Show/hide cursor in Normal mode
+    pub dd_count: usize,            // Count consecutive 'd' presses for dd command
     // Current renderable content width (inner area). Used for accurate wrapping.
     pub content_width: u16,
     // Horizontal scroll offset (used mainly in Relf mode without wrapping)
@@ -84,7 +95,18 @@ impl App {
             input_mode: InputMode::Normal,
             json_input: String::new(),
             rendered_content: vec![],
+            relf_line_styles: Vec::new(),
+            relf_visual_styles: Vec::new(),
+            relf_entries: Vec::new(),
+            selected_entry_index: 0,
+            editing_entry: false,
+            edit_buffer: Vec::new(),
+            edit_field_index: 0,
+            edit_insert_mode: false,
+            edit_cursor_pos: 0,
             previous_content: vec![],
+            previous_relf_styles: Vec::new(),
+            previous_relf_visual_styles: Vec::new(),
             showing_help: false,
             scroll: 0,
             max_scroll: 0,
@@ -136,9 +158,11 @@ impl App {
     pub fn convert_json(&mut self) {
         if self.json_input.is_empty() {
             self.rendered_content = vec![];
+            self.relf_line_styles.clear();
+            self.relf_visual_styles.clear();
             return;
         }
-        
+
         // Reset help state when loading new content
         self.showing_help = false;
 
@@ -146,15 +170,28 @@ impl App {
             FormatMode::Json => {
                 // In JSON mode, always show raw content without any processing
                 self.rendered_content = self.render_json();
+                self.relf_line_styles.clear();
+                self.relf_visual_styles.clear();
                 self.scroll = 0;
                 self.set_status("");
             }
             FormatMode::Relf => {
                 // In Relf mode, try to parse JSON directly
-                self.rendered_content = self.render_relf();
+                let relf = self.render_relf();
+                self.rendered_content = relf.lines;
+                self.relf_line_styles = relf.styles;
+                self.relf_entries = relf.entries;
+                self.relf_visual_styles.clear();
                 self.scroll = 0;
-                if self.rendered_content.is_empty() ||
-                   (self.rendered_content.len() >= 2 && self.rendered_content[0].contains("Not valid JSON")) {
+                self.selected_entry_index = 0;
+
+                // Check if we have valid entries (new card-based rendering)
+                if !self.relf_entries.is_empty() {
+                    self.set_status("");
+                } else if self.rendered_content.is_empty()
+                    || (self.rendered_content.len() >= 2
+                        && self.rendered_content[0].contains("Not valid JSON"))
+                {
                     // Only set status if not already showing this message
                     if !self.status_message.contains("Not a JSON file") {
                         self.set_status("Not a JSON file - showing as text");
@@ -166,8 +203,7 @@ impl App {
         }
     }
 
-
-    fn render_relf(&self) -> Vec<String> {
+    fn render_relf(&self) -> RelfRenderResult {
         Renderer::render_relf(&self.json_input)
     }
 
@@ -184,23 +220,25 @@ impl App {
             .trim_matches('\'')
             .trim_matches('`')
             .trim();
-        
+
         // Fix common truncation issue: if path starts with "me/" instead of "/home/"
         let final_path_str = if cleaned_path_str.starts_with("me/") {
             let home_path = format!("/ho{}", cleaned_path_str);
-            self.set_status(&format!("Fixed truncated path: {} -> {}", cleaned_path_str, home_path));
+            self.set_status(&format!(
+                "Fixed truncated path: {} -> {}",
+                cleaned_path_str, home_path
+            ));
             home_path
         } else {
             cleaned_path_str.to_string()
         };
-        
+
         let fixed_path = PathBuf::from(final_path_str);
         let final_path_display = fixed_path.display().to_string();
-        
+
         match fs::read_to_string(&fixed_path) {
             Ok(content) => {
                 self.json_input = content;
-
 
                 self.file_path = Some(fixed_path.clone());
 
@@ -214,66 +252,80 @@ impl App {
         }
     }
 
-
     // Relf-mode navigation helpers
-    pub fn relf_is_entry_start(&self, line: &str) -> bool { Navigator::relf_is_entry_start(line) }
-    pub fn relf_is_boundary(&self, line: &str) -> bool { Navigator::relf_is_boundary(line) }
+    pub fn relf_is_entry_start(&self, line: &str) -> bool {
+        Navigator::relf_is_entry_start(line)
+    }
+    pub fn relf_is_boundary(&self, line: &str) -> bool {
+        Navigator::relf_is_boundary(line)
+    }
     pub fn relf_jump_down(&mut self) {
-        if self.rendered_content.is_empty() { return; }
+        if self.rendered_content.is_empty() {
+            return;
+        }
         let curr = self.scroll as usize;
         let mut i = curr.saturating_add(1);
         let lim = 12usize.min(self.get_visible_height() as usize); // keep jumps modest
         let mut steps = 0usize;
         // Prefer entry start first
         while i < self.rendered_content.len() && steps < lim {
-            if self.relf_is_entry_start(&self.rendered_content[i]) { 
+            if self.relf_is_entry_start(&self.rendered_content[i]) {
                 let max_scroll = self.relf_content_max_scroll();
                 self.scroll = (i as u16).min(max_scroll);
-                return; 
+                return;
             }
-            i += 1; steps += 1;
+            i += 1;
+            steps += 1;
         }
         // Fallback to other boundaries (blank/header)
         i = curr.saturating_add(1);
         steps = 0;
         while i < self.rendered_content.len() && steps < lim {
-            if self.relf_is_boundary(&self.rendered_content[i]) { 
+            if self.relf_is_boundary(&self.rendered_content[i]) {
                 let max_scroll = self.relf_content_max_scroll();
                 self.scroll = (i as u16).min(max_scroll);
-                return; 
+                return;
             }
-            i += 1; steps += 1;
+            i += 1;
+            steps += 1;
         }
         // Fallback: move down but never beyond the last content page
         let content_max = self.relf_content_max_scroll();
-        if self.scroll < content_max { self.scroll += 1; }
+        if self.scroll < content_max {
+            self.scroll += 1;
+        }
     }
 
     pub fn relf_jump_up(&mut self) {
-        if self.rendered_content.is_empty() { return; }
+        if self.rendered_content.is_empty() {
+            return;
+        }
         let lim = 12isize.min(self.get_visible_height() as isize);
         let mut i = self.scroll as isize - 1;
         let mut steps = 0isize;
         // Prefer entry start first
         while i >= 0 && steps < lim {
-            if self.relf_is_entry_start(&self.rendered_content[i as usize]) { 
+            if self.relf_is_entry_start(&self.rendered_content[i as usize]) {
                 let max_scroll = self.relf_content_max_scroll();
                 let target = i as u16;
                 self.scroll = std::cmp::min(target, max_scroll);
-                return; 
+                return;
             }
-            i -= 1; steps += 1;
+            i -= 1;
+            steps += 1;
         }
         // Fallback to other boundaries
-        i = self.scroll as isize - 1; steps = 0;
+        i = self.scroll as isize - 1;
+        steps = 0;
         while i >= 0 && steps < lim {
-            if self.relf_is_boundary(&self.rendered_content[i as usize]) { 
+            if self.relf_is_boundary(&self.rendered_content[i as usize]) {
                 let max_scroll = self.relf_content_max_scroll();
                 let target = i as u16;
                 self.scroll = std::cmp::min(target, max_scroll);
-                return; 
+                return;
             }
-            i -= 1; steps += 1;
+            i -= 1;
+            steps += 1;
         }
         self.scroll_up();
     }
@@ -283,9 +335,15 @@ impl App {
         let mut max_cols = 0usize;
         for l in &self.rendered_content {
             let cols = self.display_width_str(l);
-            if cols > max_cols { max_cols = cols; }
+            if cols > max_cols {
+                max_cols = cols;
+            }
         }
-        if max_cols > w { (max_cols - w) as u16 } else { 0 }
+        if max_cols > w {
+            (max_cols - w) as u16
+        } else {
+            0
+        }
     }
 
     pub fn relf_content_max_scroll(&self) -> u16 {
@@ -310,10 +368,13 @@ impl App {
             Ok(mut clipboard) => match clipboard.get_text() {
                 Ok(text) => {
                     let trimmed = text.trim();
-                    
+
                     // Check if it's a file path
-                    if trimmed.starts_with('/') || trimmed.starts_with("~/") || 
-                       trimmed.starts_with("./") || trimmed.starts_with("file://") {
+                    if trimmed.starts_with('/')
+                        || trimmed.starts_with("~/")
+                        || trimmed.starts_with("./")
+                        || trimmed.starts_with("file://")
+                    {
                         // Try to load as file
                         let path = if trimmed.starts_with("file://") {
                             PathBuf::from(trimmed.strip_prefix("file://").unwrap_or(trimmed))
@@ -411,16 +472,16 @@ impl App {
                         let wrapper_value = Value::Object(wrapper);
 
                         match serde_json::to_string_pretty(&wrapper_value) {
-                            Ok(formatted) => {
-                                match Clipboard::new() {
-                                    Ok(mut clipboard) => match clipboard.set_text(formatted) {
-                                        Ok(()) => self.set_status("Copied inside data to clipboard"),
-                                        Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
-                                    },
+                            Ok(formatted) => match Clipboard::new() {
+                                Ok(mut clipboard) => match clipboard.set_text(formatted) {
+                                    Ok(()) => self.set_status("Copied inside data to clipboard"),
                                     Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
-                                }
+                                },
+                                Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
+                            },
+                            Err(e) => {
+                                self.set_status(&format!("Error formatting inside data: {}", e))
                             }
-                            Err(e) => self.set_status(&format!("Error formatting inside data: {}", e)),
                         }
                     } else {
                         self.set_status("No 'inside' field found");
@@ -431,6 +492,135 @@ impl App {
             }
             Err(e) => self.set_status(&format!("Invalid JSON: {}", e)),
         }
+    }
+
+    pub fn start_editing_entry(&mut self) {
+        if let Some(entry) = self.relf_entries.get(self.selected_entry_index) {
+            self.edit_buffer = entry.lines.clone();
+            self.edit_field_index = 0;
+            self.editing_entry = true;
+            self.edit_insert_mode = false;
+            self.edit_cursor_pos = 0;
+        }
+    }
+
+    pub fn save_edited_entry(&mut self) {
+        // Save the edited entry back to JSON
+        if self.edit_buffer.is_empty() {
+            self.editing_entry = false;
+            return;
+        }
+
+        match serde_json::from_str::<Value>(&self.json_input) {
+            Ok(mut json_value) => {
+                if let Some(obj) = json_value.as_object_mut() {
+                    let mut current_idx = 0;
+                    let target_idx = self.selected_entry_index;
+                    let mut found = false;
+
+                    // Check outside section
+                    if let Some(outside) = obj.get_mut("outside") {
+                        if let Some(outside_array) = outside.as_array_mut() {
+                            if target_idx < current_idx + outside_array.len() {
+                                let local_idx = target_idx - current_idx;
+                                if let Some(entry_obj) = outside_array[local_idx].as_object_mut() {
+                                    // Update fields
+                                    if self.edit_buffer.len() >= 1 {
+                                        entry_obj.insert("name".to_string(), Value::String(self.edit_buffer[0].clone()));
+                                    }
+                                    if self.edit_buffer.len() >= 2 {
+                                        entry_obj.insert("context".to_string(), Value::String(self.edit_buffer[1].clone()));
+                                    }
+                                    if self.edit_buffer.len() >= 3 {
+                                        entry_obj.insert("url".to_string(), Value::String(self.edit_buffer[2].clone()));
+                                    }
+                                    if self.edit_buffer.len() >= 4 {
+                                        // Parse percentage
+                                        if let Ok(pct) = self.edit_buffer[3].trim_end_matches('%').parse::<i64>() {
+                                            entry_obj.insert("percentage".to_string(), Value::Number(pct.into()));
+                                        }
+                                    }
+                                    found = true;
+                                }
+                            } else {
+                                current_idx += outside_array.len();
+                            }
+                        }
+                    }
+
+                    // Check inside section
+                    if !found {
+                        if let Some(inside) = obj.get_mut("inside") {
+                            if let Some(inside_array) = inside.as_array_mut() {
+                                let local_idx = target_idx - current_idx;
+                                if local_idx < inside_array.len() {
+                                    if let Some(entry_obj) = inside_array[local_idx].as_object_mut() {
+                                        // Update fields (date and context for inside)
+                                        if self.edit_buffer.len() >= 1 {
+                                            entry_obj.insert("date".to_string(), Value::String(self.edit_buffer[0].clone()));
+                                        }
+                                        if self.edit_buffer.len() >= 2 {
+                                            entry_obj.insert("context".to_string(), Value::String(self.edit_buffer[1].clone()));
+                                        }
+                                        found = true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if found {
+                        match serde_json::to_string_pretty(&json_value) {
+                            Ok(formatted) => {
+                                self.json_input = formatted;
+                                self.is_modified = true;
+                                self.convert_json();
+                                self.set_status("Entry updated");
+                            }
+                            Err(e) => self.set_status(&format!("Error formatting JSON: {}", e)),
+                        }
+                    }
+                }
+            }
+            Err(e) => self.set_status(&format!("Invalid JSON: {}", e)),
+        }
+
+        self.editing_entry = false;
+    }
+
+    pub fn cancel_editing_entry(&mut self) {
+        self.editing_entry = false;
+        self.edit_buffer.clear();
+        self.edit_field_index = 0;
+        self.edit_insert_mode = false;
+        self.edit_cursor_pos = 0;
+    }
+
+    pub fn copy_selected_url(&mut self) {
+        // Copy URL from selected entry in Relf card mode
+        if self.format_mode == FormatMode::Relf && !self.relf_entries.is_empty() {
+            if let Some(entry) = self.relf_entries.get(self.selected_entry_index) {
+                // Find URL in entry lines (usually starts with "http")
+                let url = entry.lines.iter().find(|line| line.starts_with("http"));
+
+                if let Some(url_str) = url {
+                    match Clipboard::new() {
+                        Ok(mut clipboard) => match clipboard.set_text(url_str.clone()) {
+                            Ok(()) => self.set_status(&format!("Copied URL: {}", url_str)),
+                            Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
+                        },
+                        Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
+                    }
+                } else {
+                    self.set_status("No URL found in selected entry");
+                }
+            } else {
+                self.set_status("No entry selected");
+            }
+            return;
+        }
+
+        self.set_status("Not in card view mode");
     }
 
     pub fn copy_outside_data(&mut self) {
@@ -483,16 +673,16 @@ impl App {
                         let wrapper_value = Value::Object(wrapper);
 
                         match serde_json::to_string_pretty(&wrapper_value) {
-                            Ok(formatted) => {
-                                match Clipboard::new() {
-                                    Ok(mut clipboard) => match clipboard.set_text(formatted) {
-                                        Ok(()) => self.set_status("Copied outside data to clipboard"),
-                                        Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
-                                    },
+                            Ok(formatted) => match Clipboard::new() {
+                                Ok(mut clipboard) => match clipboard.set_text(formatted) {
+                                    Ok(()) => self.set_status("Copied outside data to clipboard"),
                                     Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
-                                }
+                                },
+                                Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
+                            },
+                            Err(e) => {
+                                self.set_status(&format!("Error formatting outside data: {}", e))
                             }
-                            Err(e) => self.set_status(&format!("Error formatting outside data: {}", e)),
                         }
                     } else {
                         self.set_status("No 'outside' field found");
@@ -508,8 +698,12 @@ impl App {
     pub fn clear_content(&mut self) {
         self.json_input.clear();
         self.rendered_content = vec![];
-        self.showing_help = false;  // Reset help state
-
+        self.relf_line_styles.clear();
+        self.relf_visual_styles.clear();
+        self.relf_entries.clear();
+        self.previous_relf_styles.clear();
+        self.previous_relf_visual_styles.clear();
+        self.showing_help = false; // Reset help state
 
         self.file_path = None;
         self.scroll = 0;
@@ -522,7 +716,7 @@ impl App {
         if self.status_message == message {
             return;
         }
-        
+
         self.status_message = message.to_string();
         self.status_time = Some(Instant::now());
     }
@@ -530,12 +724,14 @@ impl App {
     pub fn update_status(&mut self) {
         // Keep status messages visible much longer (30 seconds) especially for clipboard operations
         if let Some(time) = self.status_time {
-            let timeout = if self.status_message.contains("copied") || self.status_message.contains("Loaded:") {
+            let timeout = if self.status_message.contains("copied")
+                || self.status_message.contains("Loaded:")
+            {
                 Duration::from_secs(30) // Longer for important messages
             } else {
                 Duration::from_secs(15) // Still longer for other messages
             };
-            
+
             if time.elapsed() > timeout {
                 self.status_message = "".to_string();
                 self.status_time = None;
@@ -564,7 +760,7 @@ impl App {
             self.scroll = self.scroll.saturating_sub(self.get_visible_height());
         }
     }
-    
+
     pub fn page_down(&mut self) {
         // In JSON mode, move the cursor down by a full page of visual lines
         if self.format_mode == FormatMode::Json {
@@ -590,15 +786,28 @@ impl App {
         self.vim_buffer.push(c);
 
         if self.vim_buffer == "gg" {
-            self.scroll_to_top();
-            self.content_cursor_line = 0;
-            self.content_cursor_col = 0;
+            if self.format_mode == FormatMode::Json {
+                self.scroll_to_top();
+                self.content_cursor_line = 0;
+                self.content_cursor_col = 0;
+            } else if !self.relf_entries.is_empty() {
+                // Jump to first card
+                self.selected_entry_index = 0;
+            } else {
+                self.scroll_to_top();
+                self.content_cursor_line = 0;
+                self.content_cursor_col = 0;
+            }
             self.vim_buffer.clear();
             return true;
         } else if self.vim_buffer == "dd" {
-            // Delete current data entry in JSON mode
+            // Delete current data entry
             if self.format_mode == FormatMode::Json {
                 self.delete_current_entry();
+                self.is_modified = true;
+            } else if !self.relf_entries.is_empty() {
+                // Delete selected entry in card view
+                self.delete_selected_entry();
                 self.is_modified = true;
             }
             self.vim_buffer.clear();
@@ -624,12 +833,85 @@ impl App {
         false
     }
 
+    pub fn delete_selected_entry(&mut self) {
+        // Delete the selected entry from relf_entries by removing it from JSON
+        if self.relf_entries.is_empty() || self.selected_entry_index >= self.relf_entries.len() {
+            self.set_status("No entry to delete");
+            return;
+        }
+
+        match serde_json::from_str::<Value>(&self.json_input) {
+            Ok(mut json_value) => {
+                if let Some(obj) = json_value.as_object_mut() {
+                    // Count entries to find which section and index
+                    let mut current_idx = 0;
+                    let target_idx = self.selected_entry_index;
+                    let mut found = false;
+
+                    // Check outside section first
+                    if let Some(outside) = obj.get_mut("outside") {
+                        if let Some(outside_array) = outside.as_array_mut() {
+                            let outside_count = outside_array.len();
+                            if target_idx < current_idx + outside_count {
+                                let local_idx = target_idx - current_idx;
+                                outside_array.remove(local_idx);
+                                found = true;
+                            } else {
+                                current_idx += outside_count;
+                            }
+                        }
+                    }
+
+                    // Check inside section if not found
+                    if !found {
+                        if let Some(inside) = obj.get_mut("inside") {
+                            if let Some(inside_array) = inside.as_array_mut() {
+                                let local_idx = target_idx - current_idx;
+                                if local_idx < inside_array.len() {
+                                    inside_array.remove(local_idx);
+                                    found = true;
+                                }
+                            }
+                        }
+                    }
+
+                    if found {
+                        // Update JSON and re-render
+                        match serde_json::to_string_pretty(&json_value) {
+                            Ok(formatted) => {
+                                self.json_input = formatted;
+                                self.convert_json();
+
+                                // Adjust selected index
+                                if self.selected_entry_index >= self.relf_entries.len() && !self.relf_entries.is_empty() {
+                                    self.selected_entry_index = self.relf_entries.len() - 1;
+                                }
+
+                                self.set_status("Entry deleted");
+                            }
+                            Err(e) => self.set_status(&format!("Error formatting JSON: {}", e)),
+                        }
+                    } else {
+                        self.set_status("Could not find entry to delete");
+                    }
+                } else {
+                    self.set_status("JSON is not an object");
+                }
+            }
+            Err(e) => self.set_status(&format!("Invalid JSON: {}", e)),
+        }
+    }
+
     pub fn delete_current_entry(&mut self) {
         // Save undo state before modification
         self.save_undo_state();
 
         let lines = self.get_json_lines();
-        match JsonOperations::delete_entry_at_cursor(&self.json_input, self.content_cursor_line, &lines) {
+        match JsonOperations::delete_entry_at_cursor(
+            &self.json_input,
+            self.content_cursor_line,
+            &lines,
+        ) {
             Ok((formatted, message)) => {
                 self.json_input = formatted;
                 self.convert_json();
@@ -650,22 +932,32 @@ impl App {
     pub fn move_to_next_word_end(&mut self) {
         // Vim-like 'e': always make forward progress to the end of the next word
         let lines = self.get_json_lines();
-        if lines.is_empty() { return; }
+        if lines.is_empty() {
+            return;
+        }
 
         let is_word = Navigator::is_word_char;
         let line_chars: Vec<Vec<char>> = lines.iter().map(|l| l.chars().collect()).collect();
-        let mut li = self.content_cursor_line.min(line_chars.len().saturating_sub(1));
+        let mut li = self
+            .content_cursor_line
+            .min(line_chars.len().saturating_sub(1));
         let mut ci = self.content_cursor_col;
 
         // Iterator: advance one position forward from (li, ci)
         let next_pos = |mut li2: usize, ci2: usize| -> Option<(usize, usize, char)> {
-            if li2 >= line_chars.len() { return None; }
+            if li2 >= line_chars.len() {
+                return None;
+            }
             // move to next char on the same line
-            if ci2 + 1 < line_chars[li2].len() { return Some((li2, ci2 + 1, line_chars[li2][ci2 + 1])); }
+            if ci2 + 1 < line_chars[li2].len() {
+                return Some((li2, ci2 + 1, line_chars[li2][ci2 + 1]));
+            }
             // otherwise, jump to the first char of the next non-empty line
             li2 += 1;
             while li2 < line_chars.len() {
-                if !line_chars[li2].is_empty() { return Some((li2, 0, line_chars[li2][0])); }
+                if !line_chars[li2].is_empty() {
+                    return Some((li2, 0, line_chars[li2][0]));
+                }
                 li2 += 1;
             }
             None
@@ -687,7 +979,8 @@ impl App {
                 return;
             }
             // advance current position
-            li = nli; ci = nci;
+            li = nli;
+            ci = nci;
         }
 
         // Reached EOF: if we were inside a word, li,ci are at the last word char
@@ -704,40 +997,58 @@ impl App {
         }
         self.ensure_cursor_visible();
     }
-    
+
     pub fn move_to_previous_word_start(&mut self) {
         // Vim-like 'b': always make backward progress to the start of the previous word
         let lines = self.get_json_lines();
-        if lines.is_empty() { return; }
+        if lines.is_empty() {
+            return;
+        }
 
         let is_word = Navigator::is_word_char;
         let line_chars: Vec<Vec<char>> = lines.iter().map(|l| l.chars().collect()).collect();
-        let mut li = self.content_cursor_line.min(line_chars.len().saturating_sub(1));
+        let mut li = self
+            .content_cursor_line
+            .min(line_chars.len().saturating_sub(1));
         let mut ci = self.content_cursor_col;
 
         let prev_pos = |mut li2: usize, ci2: usize| -> Option<(usize, usize, char)> {
-            if li2 >= line_chars.len() { return None; }
-            if ci2 > 0 { return Some((li2, ci2 - 1, line_chars[li2][ci2 - 1])); }
-            if li2 == 0 { return None; }
+            if li2 >= line_chars.len() {
+                return None;
+            }
+            if ci2 > 0 {
+                return Some((li2, ci2 - 1, line_chars[li2][ci2 - 1]));
+            }
+            if li2 == 0 {
+                return None;
+            }
             li2 -= 1;
             while let Some(line) = line_chars.get(li2) {
-                if !line.is_empty() { return Some((li2, line.len() - 1, line[line.len() - 1])); }
-                if li2 == 0 { break; }
+                if !line.is_empty() {
+                    return Some((li2, line.len() - 1, line[line.len() - 1]));
+                }
+                if li2 == 0 {
+                    break;
+                }
                 li2 -= 1;
             }
             None
         };
 
-        if li == 0 && ci == 0 { return; }
+        if li == 0 && ci == 0 {
+            return;
+        }
 
         // Start scanning strictly before current position to guarantee progress
         let mut in_word = false;
-        let mut start_li = li; let mut start_ci = ci; // will hold the start index of the found word
+        let mut start_li = li;
+        let mut start_ci = ci; // will hold the start index of the found word
         let mut saw_any_word = false;
         while let Some((pli, pci, ch)) = prev_pos(li, ci) {
             if is_word(ch) {
                 saw_any_word = true;
-                start_li = pli; start_ci = pci; // keep updating until we leave the word
+                start_li = pli;
+                start_ci = pci; // keep updating until we leave the word
                 in_word = true;
             } else {
                 if in_word {
@@ -748,7 +1059,8 @@ impl App {
                     return;
                 }
             }
-            li = pli; ci = pci;
+            li = pli;
+            ci = pci;
         }
 
         // Reached BOF
@@ -761,38 +1073,55 @@ impl App {
         }
         self.ensure_cursor_visible();
     }
-    
+
     pub fn show_help(&mut self) {
         if self.showing_help {
             // Return to previous content
             self.rendered_content = self.previous_content.clone();
+            self.relf_line_styles = self.previous_relf_styles.clone();
+            self.relf_visual_styles = self.previous_relf_visual_styles.clone();
             self.showing_help = false;
             self.scroll = 0;
             self.set_status("");
         } else {
             // Save current content and show help
             self.previous_content = self.rendered_content.clone();
+            self.previous_relf_styles = self.relf_line_styles.clone();
+            self.previous_relf_visual_styles = self.relf_visual_styles.clone();
             self.rendered_content = vec![
                 "revw".to_string(),
                 "".to_string(),
-                "View Mode:".to_string(),
+                "View Mode (Card View):".to_string(),
                 "  v     - Paste file path or JSON content".to_string(),
                 "  c     - Copy rendered content to clipboard".to_string(),
                 "  r     - Toggle between Relf (default) and JSON mode".to_string(),
                 "  x     - Clear content and status".to_string(),
-                "  :h    - Toggle this help".to_string(),
-                "  j/k/↑/↓ - Scroll".to_string(),
-                "  /     - Search forward".to_string(),
-                "  n     - Next search match".to_string(),
-                "  N     - Previous search match".to_string(),
+                "  j/k/↑/↓ - Select card (or mouse wheel)".to_string(),
+                "  gg    - Select first card".to_string(),
+                "  G     - Select last card".to_string(),
+                "  /     - Search forward (highlights and jumps to card)".to_string(),
+                "  n     - Next search match (jumps to card)".to_string(),
+                "  N     - Previous search match (jumps to card)".to_string(),
                 "  :noh  - Clear search highlighting".to_string(),
+                "  :d    - Delete selected card".to_string(),
+                "  :cu   - Copy URL from selected card".to_string(),
+                "  Enter - Open edit overlay".to_string(),
+                "  :h    - Toggle this help".to_string(),
                 "  q     - Quit".to_string(),
+                "".to_string(),
+                "Edit Overlay (opened with Enter):".to_string(),
+                "  j/k/↑/↓ - Navigate fields".to_string(),
+                "  i     - Enter insert mode".to_string(),
+                "  Ctrl+[ - Exit insert mode".to_string(),
+                "  ←/→   - Move cursor (in insert mode)".to_string(),
+                "  Enter - Save changes".to_string(),
+                "  q/Esc - Cancel".to_string(),
                 "".to_string(),
                 "JSON Edit Mode:".to_string(),
                 "  i     - Insert mode".to_string(),
                 "  e     - Move to next word end (like vim)".to_string(),
                 "  b     - Move to previous word start (like vim)".to_string(),
-                "  dd    - Delete current data entry".to_string(),
+                "  :d    - Delete current data entry".to_string(),
                 "  u     - Undo".to_string(),
                 "  Ctrl+r - Redo".to_string(),
                 "  g-    - Undo".to_string(),
@@ -818,6 +1147,8 @@ impl App {
                 "  revw --output [file] - Output to file".to_string(),
                 "  revw --stdout [file] - Output to stdout".to_string(),
             ];
+            self.relf_line_styles = vec![RelfLineStyle::default(); self.rendered_content.len()];
+            self.relf_visual_styles.clear();
             self.showing_help = true;
             self.scroll = 0;
             self.set_status("Help (press :h to return)");
@@ -827,17 +1158,19 @@ impl App {
     pub fn get_json_lines(&self) -> Vec<String> {
         self.json_input.lines().map(|s| s.to_string()).collect()
     }
-    
+
     pub fn set_json_from_lines(&mut self, lines: Vec<String>) {
         self.json_input = lines.join("\n");
         // In JSON mode, update rendered content directly to preserve raw format
         if self.format_mode == FormatMode::Json {
             self.rendered_content = self.render_json();
+            self.relf_line_styles.clear();
+            self.relf_visual_styles.clear();
         } else {
             self.convert_json();
         }
     }
-    
+
     pub fn insert_char(&mut self, c: char) {
         if self.format_mode == FormatMode::Json {
             // Save undo state before modification
@@ -867,7 +1200,7 @@ impl App {
             self.ensure_cursor_visible();
         }
     }
-    
+
     pub fn insert_newline(&mut self) {
         if self.format_mode == FormatMode::Json {
             // Save undo state before modification
@@ -884,7 +1217,7 @@ impl App {
                 if self.content_cursor_line >= lines.len() {
                     self.content_cursor_line = lines.len().saturating_sub(1);
                 }
-                
+
                 let line = lines[self.content_cursor_line].clone();
                 let split_pos = self.content_cursor_col.min(line.len());
                 let (left, right) = line.split_at(split_pos);
@@ -897,7 +1230,7 @@ impl App {
             self.ensure_cursor_visible();
         }
     }
-    
+
     pub fn backspace(&mut self) {
         if self.format_mode == FormatMode::Json {
             // Save undo state before modification
@@ -927,7 +1260,7 @@ impl App {
             }
         }
     }
-    
+
     pub fn delete_char(&mut self) {
         if self.format_mode == FormatMode::Json {
             // Save undo state before modification
@@ -952,7 +1285,7 @@ impl App {
             }
         }
     }
-    
+
     pub fn move_cursor_left(&mut self) {
         if self.content_cursor_col > 0 {
             self.content_cursor_col -= 1;
@@ -965,7 +1298,7 @@ impl App {
         }
         self.ensure_cursor_visible();
     }
-    
+
     pub fn move_cursor_right(&mut self) {
         let lines = self.get_json_lines();
         if lines.is_empty() {
@@ -982,7 +1315,7 @@ impl App {
         }
         self.ensure_cursor_visible();
     }
-    
+
     pub fn move_cursor_up(&mut self) {
         if self.content_cursor_line > 0 {
             self.content_cursor_line -= 1;
@@ -994,45 +1327,49 @@ impl App {
         }
         self.ensure_cursor_visible();
     }
-    
+
     pub fn move_cursor_down(&mut self) {
         let lines = self.get_json_lines();
         if lines.is_empty() {
             return;
         }
-        
+
         // Keep cursor within actual content lines
         let content_lines = if self.format_mode == FormatMode::Json {
             lines.len()
         } else {
             self.rendered_content.len()
         };
-        
+
         // Move cursor down if there's content, otherwise just scroll screen
         if self.content_cursor_line + 1 < content_lines {
             // Normal cursor movement within content
             self.content_cursor_line += 1;
-            
-            let line_len = if self.format_mode == FormatMode::Json && self.content_cursor_line < lines.len() {
-                lines[self.content_cursor_line].chars().count()
-            } else if self.content_cursor_line < self.rendered_content.len() {
-                self.rendered_content[self.content_cursor_line].chars().count()
-            } else {
-                0
-            };
-            
+
+            let line_len =
+                if self.format_mode == FormatMode::Json && self.content_cursor_line < lines.len() {
+                    lines[self.content_cursor_line].chars().count()
+                } else if self.content_cursor_line < self.rendered_content.len() {
+                    self.rendered_content[self.content_cursor_line]
+                        .chars()
+                        .count()
+                } else {
+                    0
+                };
+
             self.content_cursor_col = self.content_cursor_col.min(line_len);
         } else {
             // Cursor is at last line, just scroll the screen down (Mario style)
             let virtual_padding = 10;
-            let max_scroll = (content_lines as u16 + virtual_padding).saturating_sub(self.get_visible_height());
+            let max_scroll =
+                (content_lines as u16 + virtual_padding).saturating_sub(self.get_visible_height());
             if self.scroll < max_scroll {
                 self.scroll += 1;
             }
         }
         self.ensure_cursor_visible();
     }
-    
+
     pub fn ensure_cursor_visible(&mut self) {
         let lines = self.get_json_lines();
         if lines.is_empty() {
@@ -1040,42 +1377,60 @@ impl App {
             self.content_cursor_col = 0;
             return;
         }
-        
+
         // Ensure cursor stays within actual content bounds
         let content_lines = if self.format_mode == FormatMode::Json {
             lines.len()
         } else {
             self.rendered_content.len()
         };
-        
+
         // Keep cursor within actual content lines (not in virtual padding)
         if self.content_cursor_line >= content_lines {
             self.content_cursor_line = content_lines.saturating_sub(1);
         }
 
         // Handle cursor column bounds
-        let line_len = if self.format_mode == FormatMode::Json && self.content_cursor_line < lines.len() {
-            lines[self.content_cursor_line].chars().count()
-        } else if self.content_cursor_line < self.rendered_content.len() {
-            self.rendered_content[self.content_cursor_line].chars().count()
-        } else { 0 };
-        if self.content_cursor_col > line_len { self.content_cursor_col = line_len; }
+        let line_len =
+            if self.format_mode == FormatMode::Json && self.content_cursor_line < lines.len() {
+                lines[self.content_cursor_line].chars().count()
+            } else if self.content_cursor_line < self.rendered_content.len() {
+                self.rendered_content[self.content_cursor_line]
+                    .chars()
+                    .count()
+            } else {
+                0
+            };
+        if self.content_cursor_col > line_len {
+            self.content_cursor_col = line_len;
+        }
 
         // Vertical scrolling
-        let cursor_line = if self.format_mode == FormatMode::Json { self.content_cursor_line as u16 } else { self.calculate_cursor_visual_position().0 };
+        let cursor_line = if self.format_mode == FormatMode::Json {
+            self.content_cursor_line as u16
+        } else {
+            self.calculate_cursor_visual_position().0
+        };
         let visible_height = self.get_visible_height();
         let scrolloff = 3u16;
-        if cursor_line < self.scroll { self.scroll = cursor_line; }
-        else if visible_height > 0 && cursor_line >= self.scroll + visible_height { self.scroll = cursor_line.saturating_sub(visible_height - 1); }
-        else if visible_height > scrolloff * 2 {
-            if cursor_line < self.scroll + scrolloff { self.scroll = cursor_line.saturating_sub(scrolloff); }
-            else if cursor_line > self.scroll + visible_height - scrolloff - 1 { self.scroll = cursor_line + scrolloff + 1 - visible_height; }
+        if cursor_line < self.scroll {
+            self.scroll = cursor_line;
+        } else if visible_height > 0 && cursor_line >= self.scroll + visible_height {
+            self.scroll = cursor_line.saturating_sub(visible_height - 1);
+        } else if visible_height > scrolloff * 2 {
+            if cursor_line < self.scroll + scrolloff {
+                self.scroll = cursor_line.saturating_sub(scrolloff);
+            } else if cursor_line > self.scroll + visible_height - scrolloff - 1 {
+                self.scroll = cursor_line + scrolloff + 1 - visible_height;
+            }
         }
 
         // Allow scrolling into virtual padding
         let virtual_padding = 10;
         let max_scroll = (content_lines as u16 + virtual_padding).saturating_sub(visible_height);
-        if self.scroll > max_scroll { self.scroll = max_scroll; }
+        if self.scroll > max_scroll {
+            self.scroll = max_scroll;
+        }
 
         // Horizontal follow for JSON mode
         if self.format_mode == FormatMode::Json {
@@ -1083,45 +1438,122 @@ impl App {
                 let current = &lines[self.content_cursor_line];
                 let col = self.prefix_display_width(current, self.content_cursor_col) as u16;
                 let w = self.get_content_width();
-                if col < self.hscroll { self.hscroll = col; }
-                else if col >= self.hscroll + w { self.hscroll = col - w + 1; }
+                if col < self.hscroll {
+                    self.hscroll = col;
+                } else if col >= self.hscroll + w {
+                    self.hscroll = col - w + 1;
+                }
             }
         }
     }
-    
+
     pub fn get_visible_height(&self) -> u16 {
         // Use the last measured inner content height from render pass
-        if self.visible_height > 0 { self.visible_height } else { 20 }
+        if self.visible_height > 0 {
+            self.visible_height
+        } else {
+            20
+        }
     }
-    
+
     pub fn get_content_width(&self) -> u16 {
         // Prefer the measured inner content width set during render.
         // Fallback to a reasonable default if unavailable.
-        if self.content_width > 2 { self.content_width.saturating_sub(0) } else { 80 }
+        if self.content_width > 2 {
+            self.content_width.saturating_sub(0)
+        } else {
+            80
+        }
     }
-    
+
     pub fn calculate_visual_lines(&self, text_line: &str) -> u16 {
         let width = self.get_content_width() as usize;
         Navigator::calculate_visual_lines(text_line, width)
     }
 
-    pub fn build_visual_lines(&self) -> Vec<String> {
-        let width = self.get_content_width() as usize;
-        if width == 0 {
+    pub fn build_visual_lines(&mut self) -> Vec<String> {
+        let raw_width = self.get_content_width();
+        if raw_width == 0 {
+            if self.format_mode == FormatMode::Relf {
+                self.relf_visual_styles = self.relf_line_styles.clone();
+            } else {
+                self.relf_visual_styles.clear();
+            }
             return self.rendered_content.clone();
         }
-        // In interactive modes, do not wrap: use horizontal pan
-        if self.format_mode == FormatMode::Relf || self.format_mode == FormatMode::Json {
+
+        let width = raw_width as usize;
+
+        if self.format_mode == FormatMode::Relf {
+            let mut wrapped_lines = Vec::new();
+            let mut visual_styles = Vec::new();
+
+            for (idx, line) in self.rendered_content.iter().enumerate() {
+                let style = self.relf_line_styles.get(idx).cloned().unwrap_or_default();
+
+                if line.is_empty() {
+                    wrapped_lines.push(String::new());
+                    visual_styles.push(style);
+                    continue;
+                }
+
+                let indent: String = line.chars().take_while(|c| c.is_whitespace()).collect();
+                let indent_width: usize = indent
+                    .chars()
+                    .map(|c| UnicodeWidthChar::width(c).unwrap_or(0))
+                    .sum();
+
+                let mut current_line = String::new();
+                let mut current_width = 0usize;
+
+                for ch in line.chars() {
+                    let ch_width = UnicodeWidthChar::width(ch).unwrap_or(0);
+
+                    if current_width + ch_width > width && !current_line.is_empty() {
+                        wrapped_lines.push(current_line.clone());
+                        visual_styles.push(style.clone());
+                        current_line.clear();
+                        current_width = 0;
+
+                        if !indent.is_empty() && indent_width < width {
+                            current_line.push_str(&indent);
+                            current_width = indent_width;
+                        }
+                    }
+
+                    current_line.push(ch);
+                    current_width += ch_width;
+                }
+
+                if !current_line.is_empty() {
+                    wrapped_lines.push(current_line);
+                    visual_styles.push(style);
+                }
+            }
+
+            self.relf_visual_styles = visual_styles;
+            return wrapped_lines;
+        }
+
+        if self.format_mode == FormatMode::Json {
+            self.relf_visual_styles.clear();
             return self.rendered_content.clone();
         }
+
         // Unused branch currently
+        self.relf_visual_styles.clear();
         self.rendered_content.clone()
     }
-    
+
     pub fn calculate_cursor_visual_position(&self) -> (u16, u16) {
         let lines = self.get_json_lines();
         let width = self.get_content_width() as usize;
-        Navigator::calculate_cursor_visual_position(&lines, self.content_cursor_line, self.content_cursor_col, width)
+        Navigator::calculate_cursor_visual_position(
+            &lines,
+            self.content_cursor_line,
+            self.content_cursor_col,
+            width,
+        )
     }
 
     pub fn execute_command(&mut self) -> bool {
@@ -1152,7 +1584,11 @@ impl App {
         } else if cmd == "ar" {
             // Toggle auto-reload
             self.auto_reload = !self.auto_reload;
-            let status = if self.auto_reload { "Auto-reload enabled" } else { "Auto-reload disabled" };
+            let status = if self.auto_reload {
+                "Auto-reload enabled"
+            } else {
+                "Auto-reload disabled"
+            };
             self.set_status(status);
         } else if cmd == "ai" {
             // Add new inside entry at top
@@ -1168,6 +1604,18 @@ impl App {
         } else if cmd == "co" {
             // Copy outside data
             self.copy_outside_data();
+        } else if cmd == "cu" {
+            // Copy URL from selected entry
+            self.copy_selected_url();
+        } else if cmd == "d" {
+            // Delete entry (works in both View and Edit mode)
+            if self.format_mode == FormatMode::Json {
+                self.delete_current_entry();
+                self.is_modified = true;
+            } else if !self.relf_entries.is_empty() {
+                self.delete_selected_entry();
+                self.is_modified = true;
+            }
         } else if cmd == "noh" {
             // Clear search highlighting
             self.clear_search_highlight();
@@ -1357,7 +1805,11 @@ impl App {
         if !self.search_matches.is_empty() {
             self.current_match_index = Some(0);
             self.jump_to_current_match();
-            self.set_status(&format!("Found {} matches for '{}'", self.search_matches.len(), self.search_query));
+            self.set_status(&format!(
+                "Found {} matches for '{}'",
+                self.search_matches.len(),
+                self.search_query
+            ));
         } else {
             self.current_match_index = None;
             self.set_status(&format!("Pattern not found: {}", self.search_query));
@@ -1373,7 +1825,37 @@ impl App {
 
     pub fn find_matches(&mut self) {
         self.search_matches.clear();
-        
+
+        // For card view, search within entry content
+        if self.format_mode == FormatMode::Relf && !self.relf_entries.is_empty() {
+            let query_lower = self.search_query.to_lowercase();
+
+            for (entry_idx, entry) in self.relf_entries.iter().enumerate() {
+                for (_line_idx, line) in entry.lines.iter().enumerate() {
+                    let line_lower = line.to_lowercase();
+                    let mut byte_pos = 0;
+
+                    while byte_pos < line_lower.len() {
+                        if let Some(match_pos) = line_lower[byte_pos..].find(&query_lower) {
+                            let actual_byte_pos = byte_pos + match_pos;
+                            // Convert byte position to char position
+                            let char_pos = line[..actual_byte_pos.min(line.len())].chars().count();
+                            // Store entry_idx in line position, and char position in col position
+                            self.search_matches.push((entry_idx, char_pos));
+                            // Move past this match, ensuring we stay on char boundary
+                            byte_pos = actual_byte_pos + query_lower.len();
+                            while byte_pos < line_lower.len() && !line_lower.is_char_boundary(byte_pos) {
+                                byte_pos += 1;
+                            }
+                        } else {
+                            break;
+                        }
+                    }
+                }
+            }
+            return;
+        }
+
         let search_content = if self.format_mode == FormatMode::Json {
             &self.get_json_lines()
         } else {
@@ -1381,15 +1863,26 @@ impl App {
         };
 
         let query_lower = self.search_query.to_lowercase();
-        
+
         for (line_idx, line) in search_content.iter().enumerate() {
             let line_lower = line.to_lowercase();
-            let mut start = 0;
-            
-            while let Some(pos) = line_lower[start..].find(&query_lower) {
-                let actual_pos = start + pos;
-                self.search_matches.push((line_idx, actual_pos));
-                start = actual_pos + 1;
+            let mut byte_pos = 0;
+
+            while byte_pos < line_lower.len() {
+                if let Some(match_pos) = line_lower[byte_pos..].find(&query_lower) {
+                    let actual_byte_pos = byte_pos + match_pos;
+                    // Convert byte position to char position for storage
+                    let char_pos = line[..actual_byte_pos.min(line.len())].chars().count();
+                    self.search_matches.push((line_idx, char_pos));
+                    // Move past this match, ensuring we stay on char boundary
+                    byte_pos = actual_byte_pos + query_lower.len();
+                    // If we're not on a char boundary, find the next one
+                    while byte_pos < line_lower.len() && !line_lower.is_char_boundary(byte_pos) {
+                        byte_pos += 1;
+                    }
+                } else {
+                    break;
+                }
             }
         }
     }
@@ -1408,10 +1901,15 @@ impl App {
         } else {
             current_idx + 1
         };
-        
+
         self.current_match_index = Some(next_idx);
         self.jump_to_current_match();
-        self.set_status(&format!("Match {} of {} for '{}'", next_idx + 1, self.search_matches.len(), self.search_query));
+        self.set_status(&format!(
+            "Match {} of {} for '{}'",
+            next_idx + 1,
+            self.search_matches.len(),
+            self.search_query
+        ));
     }
 
     pub fn prev_match(&mut self) {
@@ -1428,10 +1926,15 @@ impl App {
         } else {
             current_idx - 1
         };
-        
+
         self.current_match_index = Some(prev_idx);
         self.jump_to_current_match();
-        self.set_status(&format!("Match {} of {} for '{}'", prev_idx + 1, self.search_matches.len(), self.search_query));
+        self.set_status(&format!(
+            "Match {} of {} for '{}'",
+            prev_idx + 1,
+            self.search_matches.len(),
+            self.search_query
+        ));
     }
 
     pub fn jump_to_current_match(&mut self) {
@@ -1440,18 +1943,24 @@ impl App {
                 if self.format_mode == FormatMode::Json {
                     self.content_cursor_line = line;
                     self.content_cursor_col = col;
+                    self.ensure_cursor_visible();
+                } else if !self.relf_entries.is_empty() {
+                    // For card view, jump to the entry
+                    self.selected_entry_index = line;
                 } else {
                     // For Relf mode, just scroll to the line
                     self.scroll = line as u16;
-                    let max_scroll = self.rendered_content.len().saturating_sub(self.get_visible_height() as usize) as u16;
+                    let max_scroll = self
+                        .rendered_content
+                        .len()
+                        .saturating_sub(self.get_visible_height() as usize)
+                        as u16;
                     if self.scroll > max_scroll {
                         self.scroll = max_scroll;
                     }
+                    self.ensure_cursor_visible();
                 }
-                self.ensure_cursor_visible();
             }
         }
     }
-
 }
-

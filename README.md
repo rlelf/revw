@@ -81,16 +81,31 @@ revw --stdout file.json
 - `c` copy
 - `r` toggle View/Edit
 - `x` clear
+- `j/k` or `↑/↓` select card (or mouse wheel)
+- `gg` select first card
+- `G` select last card
 - `/` search
-- `n/N` next/prev match
+- `n/N` next/prev match (jumps to card)
+- `:d` delete selected card
+- `:cu` copy URL from selected card
+- `Enter` open edit overlay
+- `:h` help
 - `q` quit
+
+#### Edit Overlay (opened with Enter)
+- `j/k` or `↑/↓` navigate fields
+- `i` enter insert mode
+- `Ctrl+[` exit insert mode
+- `←/→` move cursor (in insert mode)
+- `Enter` save changes
+- `q` or `Esc` cancel
 
 ### Edit Mode
 - `i` insert
 - `h/j/k/l` move
 - `e` next word end
 - `b` previous word start
-- `dd` delete entry
+- `:d` delete entry
 - `u` undo
 - `Ctrl+r` redo
 - `g-` undo

@@ -1,48 +1,54 @@
 pub struct Navigator;
 
 impl Navigator {
-    pub fn relf_is_header(t: &str) -> bool { 
-        t == "OUTSIDE" || t == "INSIDE" 
+    pub fn relf_is_header(t: &str) -> bool {
+        t == "OUTSIDE" || t == "INSIDE"
     }
-    
+
     pub fn relf_is_entry_start(line: &str) -> bool {
         line.starts_with("  ") && !line.starts_with("    ")
     }
-    
+
     pub fn relf_is_boundary(line: &str) -> bool {
         let t = line.trim();
         t.is_empty() || Self::relf_is_header(t) || Self::relf_is_entry_start(line)
     }
 
     pub fn calculate_visual_lines(text_line: &str, width: usize) -> u16 {
-        if width == 0 { return 1; }
+        if width == 0 {
+            return 1;
+        }
         let chars: Vec<char> = text_line.chars().collect();
-        if chars.is_empty() { return 1; }
+        if chars.is_empty() {
+            return 1;
+        }
         let indent = chars.iter().take_while(|c| **c == ' ').count();
         let avail = width.saturating_sub(indent).max(1);
         let content_len = chars.len().saturating_sub(indent);
-        if content_len == 0 { return 1; }
+        if content_len == 0 {
+            return 1;
+        }
         ((content_len + avail - 1) / avail).max(1) as u16
     }
 
     pub fn calculate_cursor_visual_position(
-        lines: &[String], 
-        cursor_line: usize, 
+        lines: &[String],
+        cursor_line: usize,
         cursor_col: usize,
-        width: usize
+        width: usize,
     ) -> (u16, u16) {
         if lines.is_empty() || cursor_line >= lines.len() {
             return (cursor_line as u16, 0);
         }
-        
+
         let mut visual_line = 0u16;
-        
+
         for i in 0..cursor_line {
             if i < lines.len() {
                 visual_line += Self::calculate_visual_lines(&lines[i], width);
             }
         }
-        
+
         if cursor_line < lines.len() {
             let current_line = &lines[cursor_line];
             let chars: Vec<char> = current_line.chars().collect();

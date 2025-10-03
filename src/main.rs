@@ -1,28 +1,20 @@
 mod app;
 mod input;
-mod ui;
-mod rendering;
-mod navigation;
 mod json_ops;
+mod navigation;
+mod rendering;
+mod ui;
 
 use anyhow::Result;
 use clap::{Arg, Command};
 use crossterm::{
-    execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
     cursor,
     event::{DisableMouseCapture, EnableMouseCapture},
+    execute,
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use ratatui::{
-    backend::CrosstermBackend,
-    Terminal,
-};
-use std::{
-    fs,
-    io::stdout,
-    path::PathBuf,
-    panic,
-};
+use ratatui::{backend::CrosstermBackend, Terminal};
+use std::{fs, io::stdout, panic, path::PathBuf};
 
 use app::{App, FormatMode};
 
@@ -34,11 +26,11 @@ fn main() -> Result<()> {
         let _ = disable_raw_mode();
         let _ = execute!(stdout(), LeaveAlternateScreen, DisableMouseCapture);
         let _ = execute!(stdout(), cursor::Show);
-        
+
         // Call the original panic handler
         original_hook(panic_info);
     }));
-    
+
     let matches = Command::new("revw")
         .version("0.1.0")
         .about("JSON to readable format viewer")
@@ -67,29 +59,31 @@ fn main() -> Result<()> {
     let format_mode = if matches.get_flag("json") {
         FormatMode::Json
     } else {
-        FormatMode::Relf  // Default is now Relf
+        FormatMode::Relf // Default is now Relf
     };
 
     let stdout_mode = matches.get_flag("stdout");
     let output_file = matches.get_one::<String>("output");
-    
+
     // If stdout mode or output file specified, run in non-interactive mode
     if stdout_mode || output_file.is_some() {
         let mut app = App::new(format_mode);
-        
+
         // Load file if provided
         if let Some(file_path) = matches.get_one::<String>("file") {
             let path = PathBuf::from(file_path);
-            let content = fs::read_to_string(&path).map_err(|e| {
-                eprintln!("Error: Cannot read file '{}': {}", file_path, e);
-                std::process::exit(1);
-            }).unwrap();
-            
+            let content = fs::read_to_string(&path)
+                .map_err(|e| {
+                    eprintln!("Error: Cannot read file '{}': {}", file_path, e);
+                    std::process::exit(1);
+                })
+                .unwrap();
+
             app.json_input = content;
             app.convert_json();
-            
+
             let output = app.rendered_content.join("\n");
-            
+
             if let Some(output_path) = output_file {
                 if output_path == "-" {
                     // Output to stdout
