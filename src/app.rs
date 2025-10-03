@@ -20,8 +20,8 @@ pub enum InputMode {
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum FormatMode {
-    Relf, // Default mode
-    Json, // For editing
+    View,
+    Edit,
 }
 
 pub struct App {
@@ -35,6 +35,7 @@ pub struct App {
     pub editing_entry: bool, // Whether we're editing entry in overlay
     pub edit_buffer: Vec<String>, // Buffer for editing entry fields
     pub edit_field_index: usize, // Which field is being edited
+    pub edit_field_editing_mode: bool, // Whether editing within a field (Enter pressed)
     pub edit_insert_mode: bool, // Whether in insert mode within overlay
     pub edit_cursor_pos: usize, // Cursor position within current field
     pub previous_content: Vec<String>, // Store content before showing help
@@ -102,6 +103,7 @@ impl App {
             editing_entry: false,
             edit_buffer: Vec::new(),
             edit_field_index: 0,
+            edit_field_editing_mode: false,
             edit_insert_mode: false,
             edit_cursor_pos: 0,
             previous_content: vec![],
@@ -167,7 +169,7 @@ impl App {
         self.showing_help = false;
 
         match self.format_mode {
-            FormatMode::Json => {
+            FormatMode::Edit => {
                 // In JSON mode, always show raw content without any processing
                 self.rendered_content = self.render_json();
                 self.relf_line_styles.clear();
@@ -175,7 +177,7 @@ impl App {
                 self.scroll = 0;
                 self.set_status("");
             }
-            FormatMode::Relf => {
+            FormatMode::View => {
                 // In Relf mode, try to parse JSON directly
                 let relf = self.render_relf();
                 self.rendered_content = relf.lines;
@@ -183,7 +185,12 @@ impl App {
                 self.relf_entries = relf.entries;
                 self.relf_visual_styles.clear();
                 self.scroll = 0;
-                self.selected_entry_index = 0;
+                // Keep selected_entry_index, but ensure it's within bounds
+                if self.selected_entry_index >= self.relf_entries.len() && !self.relf_entries.is_empty() {
+                    self.selected_entry_index = self.relf_entries.len() - 1;
+                } else if self.relf_entries.is_empty() {
+                    self.selected_entry_index = 0;
+                }
 
                 // Check if we have valid entries (new card-based rendering)
                 if !self.relf_entries.is_empty() {
@@ -407,6 +414,74 @@ impl App {
     }
 
     pub fn copy_to_clipboard(&mut self) {
+        // In View mode with cards, copy all entries with OUTSIDE/INSIDE sections
+        if self.format_mode == FormatMode::View && !self.relf_entries.is_empty() {
+            if let Ok(json_value) = serde_json::from_str::<Value>(&self.json_input) {
+                if let Some(obj) = json_value.as_object() {
+                    let outside_count = obj
+                        .get("outside")
+                        .and_then(|v| v.as_array())
+                        .map(|arr| arr.len())
+                        .unwrap_or(0);
+
+                    let mut all_content = Vec::new();
+
+                    // Add OUTSIDE section
+                    if outside_count > 0 {
+                        all_content.push("OUTSIDE".to_string());
+                        all_content.push(String::new());
+
+                        for (i, entry) in self.relf_entries.iter().enumerate() {
+                            if i < outside_count {
+                                if i > 0 {
+                                    all_content.push(String::new());
+                                }
+                                for line in &entry.lines {
+                                    all_content.push(line.clone());
+                                }
+                            }
+                        }
+
+                        all_content.push(String::new());
+                    }
+
+                    // Add INSIDE section
+                    let inside_count = self.relf_entries.len() - outside_count;
+                    if inside_count > 0 {
+                        all_content.push("INSIDE".to_string());
+                        all_content.push(String::new());
+
+                        for (i, entry) in self.relf_entries.iter().enumerate() {
+                            if i >= outside_count {
+                                if i > outside_count {
+                                    all_content.push(String::new());
+                                }
+                                for line in &entry.lines {
+                                    all_content.push(line.clone());
+                                }
+                            }
+                        }
+                    }
+
+                    if all_content.is_empty() {
+                        self.set_status("Nothing to copy");
+                        return;
+                    }
+
+                    let content = all_content.join("\n");
+                    match Clipboard::new() {
+                        Ok(mut clipboard) => match clipboard.set_text(content) {
+                            Ok(()) => self.set_status("Copied to clipboard"),
+                            Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
+                        },
+                        Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
+                    }
+                    return;
+                }
+            }
+        }
+
+        // Fallback to rendered_content
         if self.rendered_content.is_empty() {
             self.set_status("Nothing to copy");
             return;
@@ -423,41 +498,50 @@ impl App {
     }
 
     pub fn copy_inside_data(&mut self) {
-        // In view mode (Relf), copy only the INSIDE section from rendered content
-        if self.format_mode == FormatMode::Relf {
-            if self.rendered_content.is_empty() {
-                self.set_status("Nothing to copy");
-                return;
-            }
+        // In view mode, copy all INSIDE entries from relf_entries
+        if self.format_mode == FormatMode::View {
+            if let Ok(json_value) = serde_json::from_str::<Value>(&self.json_input) {
+                if let Some(obj) = json_value.as_object() {
+                    let outside_count = obj
+                        .get("outside")
+                        .and_then(|v| v.as_array())
+                        .map(|arr| arr.len())
+                        .unwrap_or(0);
 
-            // Find INSIDE section in rendered content
-            let mut inside_lines = Vec::new();
-            let mut in_inside_section = false;
+                    // Collect INSIDE entries (indices >= outside_count)
+                    let mut inside_content = Vec::new();
+                    inside_content.push("INSIDE".to_string());
+                    inside_content.push(String::new());
 
-            for line in &self.rendered_content {
-                if line.trim() == "INSIDE" {
-                    in_inside_section = true;
-                    inside_lines.push(line.clone());
-                } else if line.trim() == "OUTSIDE" {
-                    in_inside_section = false;
-                } else if in_inside_section {
-                    inside_lines.push(line.clone());
+                    for (i, entry) in self.relf_entries.iter().enumerate() {
+                        if i >= outside_count {
+                            // Add blank line between entries (but not before first entry)
+                            if i > outside_count {
+                                inside_content.push(String::new());
+                            }
+                            for line in &entry.lines {
+                                inside_content.push(line.clone());
+                            }
+                        }
+                    }
+
+                    if inside_content.is_empty() {
+                        self.set_status("No INSIDE entries found");
+                        return;
+                    }
+
+                    let content = inside_content.join("\n");
+                    match Clipboard::new() {
+                        Ok(mut clipboard) => match clipboard.set_text(content) {
+                            Ok(()) => self.set_status("Copied INSIDE section to clipboard"),
+                            Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
+                        },
+                        Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
+                    }
+                    return;
                 }
             }
-
-            if inside_lines.is_empty() {
-                self.set_status("No INSIDE section found");
-                return;
-            }
-
-            let content = inside_lines.join("\n");
-            match Clipboard::new() {
-                Ok(mut clipboard) => match clipboard.set_text(content) {
-                    Ok(()) => self.set_status("Copied INSIDE section to clipboard"),
-                    Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
-                },
-                Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
-            }
+            self.set_status("Failed to parse JSON");
             return;
         }
 
@@ -495,12 +579,67 @@ impl App {
     }
 
     pub fn start_editing_entry(&mut self) {
-        if let Some(entry) = self.relf_entries.get(self.selected_entry_index) {
-            self.edit_buffer = entry.lines.clone();
-            self.edit_field_index = 0;
-            self.editing_entry = true;
-            self.edit_insert_mode = false;
-            self.edit_cursor_pos = 0;
+        // Load fields from JSON (not from rendered lines) to include empty fields
+        if let Ok(json_value) = serde_json::from_str::<Value>(&self.json_input) {
+            if let Some(obj) = json_value.as_object() {
+                let mut current_idx = 0;
+                let target_idx = self.selected_entry_index;
+
+                // Check outside section
+                if let Some(outside) = obj.get("outside") {
+                    if let Some(outside_array) = outside.as_array() {
+                        if target_idx < current_idx + outside_array.len() {
+                            let local_idx = target_idx - current_idx;
+                            if let Some(entry_obj) = outside_array[local_idx].as_object() {
+                                // Load all fields including empty ones, use placeholder if empty
+                                let name = entry_obj.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                let context = entry_obj.get("context").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                let url = entry_obj.get("url").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                let percentage = entry_obj.get("percentage").and_then(|v| v.as_i64()).unwrap_or(0);
+
+                                self.edit_buffer = vec![
+                                    if name.is_empty() { "name".to_string() } else { name },
+                                    if context.is_empty() { "context".to_string() } else { context },
+                                    if url.is_empty() { "url".to_string() } else { url },
+                                    if percentage == 0 && !entry_obj.contains_key("percentage") { "percentage".to_string() } else { percentage.to_string() },
+                                ];
+                                self.edit_field_index = 0;
+                                self.editing_entry = true;
+                                self.edit_field_editing_mode = false;
+                                self.edit_insert_mode = false;
+                                self.edit_cursor_pos = 0;
+                                return;
+                            }
+                        }
+                        current_idx += outside_array.len();
+                    }
+                }
+
+                // Check inside section
+                if let Some(inside) = obj.get("inside") {
+                    if let Some(inside_array) = inside.as_array() {
+                        if target_idx < current_idx + inside_array.len() {
+                            let local_idx = target_idx - current_idx;
+                            if let Some(entry_obj) = inside_array[local_idx].as_object() {
+                                // Load all fields including empty ones, use placeholder if empty
+                                let date = entry_obj.get("date").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                let context = entry_obj.get("context").and_then(|v| v.as_str()).unwrap_or("").to_string();
+
+                                self.edit_buffer = vec![
+                                    if date.is_empty() { "date".to_string() } else { date },
+                                    if context.is_empty() { "context".to_string() } else { context },
+                                ];
+                                self.edit_field_index = 0;
+                                self.editing_entry = true;
+                                self.edit_field_editing_mode = false;
+                                self.edit_insert_mode = false;
+                                self.edit_cursor_pos = 0;
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -598,7 +737,7 @@ impl App {
 
     pub fn copy_selected_url(&mut self) {
         // Copy URL from selected entry in Relf card mode
-        if self.format_mode == FormatMode::Relf && !self.relf_entries.is_empty() {
+        if self.format_mode == FormatMode::View && !self.relf_entries.is_empty() {
             if let Some(entry) = self.relf_entries.get(self.selected_entry_index) {
                 // Find URL in entry lines (usually starts with "http")
                 let url = entry.lines.iter().find(|line| line.starts_with("http"));
@@ -623,42 +762,331 @@ impl App {
         self.set_status("Not in card view mode");
     }
 
-    pub fn copy_outside_data(&mut self) {
-        // In view mode (Relf), copy only the OUTSIDE section from rendered content
-        if self.format_mode == FormatMode::Relf {
-            if self.rendered_content.is_empty() {
-                self.set_status("Nothing to copy");
-                return;
-            }
+    pub fn paste_inside_overwrite(&mut self) {
+        // Get clipboard content
+        match Clipboard::new() {
+            Ok(mut clipboard) => match clipboard.get_text() {
+                Ok(clipboard_text) => {
+                    // Try to parse as JSON
+                    match serde_json::from_str::<Value>(&clipboard_text) {
+                        Ok(clipboard_json) => {
+                            // Extract "inside" array from clipboard
+                            let new_inside = if let Some(obj) = clipboard_json.as_object() {
+                                obj.get("inside").cloned()
+                            } else {
+                                None
+                            };
 
-            // Find OUTSIDE section in rendered content
-            let mut outside_lines = Vec::new();
-            let mut in_outside_section = false;
+                            if let Some(new_inside) = new_inside {
+                                // Parse current JSON
+                                match serde_json::from_str::<Value>(&self.json_input) {
+                                    Ok(mut current_json) => {
+                                        if let Some(obj) = current_json.as_object_mut() {
+                                            // Overwrite inside
+                                            obj.insert("inside".to_string(), new_inside);
 
-            for line in &self.rendered_content {
-                if line.trim() == "OUTSIDE" {
-                    in_outside_section = true;
-                    outside_lines.push(line.clone());
-                } else if line.trim() == "INSIDE" {
-                    in_outside_section = false;
-                } else if in_outside_section {
-                    outside_lines.push(line.clone());
+                                            // Format and save
+                                            match serde_json::to_string_pretty(&current_json) {
+                                                Ok(formatted) => {
+                                                    self.json_input = formatted;
+                                                    self.is_modified = true;
+                                                    self.convert_json();
+                                                    self.set_status("INSIDE section overwritten from clipboard");
+                                                }
+                                                Err(e) => self.set_status(&format!("Format error: {}", e)),
+                                            }
+                                        } else {
+                                            self.set_status("Current JSON is not an object");
+                                        }
+                                    }
+                                    Err(e) => self.set_status(&format!("Invalid current JSON: {}", e)),
+                                }
+                            } else {
+                                self.set_status("No 'inside' field in clipboard JSON");
+                            }
+                        }
+                        Err(e) => self.set_status(&format!("Clipboard is not valid JSON: {}", e)),
+                    }
+                }
+                Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
+            },
+            Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
+        }
+    }
+
+    pub fn paste_outside_overwrite(&mut self) {
+        // Get clipboard content
+        match Clipboard::new() {
+            Ok(mut clipboard) => match clipboard.get_text() {
+                Ok(clipboard_text) => {
+                    // Try to parse as JSON
+                    match serde_json::from_str::<Value>(&clipboard_text) {
+                        Ok(clipboard_json) => {
+                            // Extract "outside" array from clipboard
+                            let new_outside = if let Some(obj) = clipboard_json.as_object() {
+                                obj.get("outside").cloned()
+                            } else {
+                                None
+                            };
+
+                            if let Some(new_outside) = new_outside {
+                                // Parse current JSON
+                                match serde_json::from_str::<Value>(&self.json_input) {
+                                    Ok(mut current_json) => {
+                                        if let Some(obj) = current_json.as_object_mut() {
+                                            // Overwrite outside
+                                            obj.insert("outside".to_string(), new_outside);
+
+                                            // Format and save
+                                            match serde_json::to_string_pretty(&current_json) {
+                                                Ok(formatted) => {
+                                                    self.json_input = formatted;
+                                                    self.is_modified = true;
+                                                    self.convert_json();
+                                                    self.set_status("OUTSIDE section overwritten from clipboard");
+                                                }
+                                                Err(e) => self.set_status(&format!("Format error: {}", e)),
+                                            }
+                                        } else {
+                                            self.set_status("Current JSON is not an object");
+                                        }
+                                    }
+                                    Err(e) => self.set_status(&format!("Invalid current JSON: {}", e)),
+                                }
+                            } else {
+                                self.set_status("No 'outside' field in clipboard JSON");
+                            }
+                        }
+                        Err(e) => self.set_status(&format!("Clipboard is not valid JSON: {}", e)),
+                    }
+                }
+                Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
+            },
+            Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
+        }
+    }
+
+    pub fn paste_inside_append(&mut self) {
+        // Get clipboard content
+        match Clipboard::new() {
+            Ok(mut clipboard) => match clipboard.get_text() {
+                Ok(clipboard_text) => {
+                    // Try to parse as JSON
+                    match serde_json::from_str::<Value>(&clipboard_text) {
+                        Ok(clipboard_json) => {
+                            // Extract "inside" array from clipboard
+                            let new_inside = if let Some(obj) = clipboard_json.as_object() {
+                                obj.get("inside").and_then(|v| v.as_array()).cloned()
+                            } else {
+                                None
+                            };
+
+                            if let Some(new_inside_items) = new_inside {
+                                // Parse current JSON
+                                match serde_json::from_str::<Value>(&self.json_input) {
+                                    Ok(mut current_json) => {
+                                        if let Some(obj) = current_json.as_object_mut() {
+                                            // Get or create inside array
+                                            let inside_array = obj.entry("inside".to_string())
+                                                .or_insert(Value::Array(vec![]));
+
+                                            if let Some(arr) = inside_array.as_array_mut() {
+                                                // Append new items
+                                                for item in new_inside_items {
+                                                    arr.push(item);
+                                                }
+
+                                                // Format and save
+                                                match serde_json::to_string_pretty(&current_json) {
+                                                    Ok(formatted) => {
+                                                        self.json_input = formatted;
+                                                        self.is_modified = true;
+                                                        self.convert_json();
+                                                        self.set_status("INSIDE entries appended from clipboard");
+                                                    }
+                                                    Err(e) => self.set_status(&format!("Format error: {}", e)),
+                                                }
+                                            } else {
+                                                self.set_status("Current 'inside' is not an array");
+                                            }
+                                        } else {
+                                            self.set_status("Current JSON is not an object");
+                                        }
+                                    }
+                                    Err(e) => self.set_status(&format!("Invalid current JSON: {}", e)),
+                                }
+                            } else {
+                                self.set_status("No 'inside' array in clipboard JSON");
+                            }
+                        }
+                        Err(e) => self.set_status(&format!("Clipboard is not valid JSON: {}", e)),
+                    }
+                }
+                Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
+            },
+            Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
+        }
+    }
+
+    pub fn paste_outside_append(&mut self) {
+        // Get clipboard content
+        match Clipboard::new() {
+            Ok(mut clipboard) => match clipboard.get_text() {
+                Ok(clipboard_text) => {
+                    // Try to parse as JSON
+                    match serde_json::from_str::<Value>(&clipboard_text) {
+                        Ok(clipboard_json) => {
+                            // Extract "outside" array from clipboard
+                            let new_outside = if let Some(obj) = clipboard_json.as_object() {
+                                obj.get("outside").and_then(|v| v.as_array()).cloned()
+                            } else {
+                                None
+                            };
+
+                            if let Some(new_outside_items) = new_outside {
+                                // Parse current JSON
+                                match serde_json::from_str::<Value>(&self.json_input) {
+                                    Ok(mut current_json) => {
+                                        if let Some(obj) = current_json.as_object_mut() {
+                                            // Get or create outside array
+                                            let outside_array = obj.entry("outside".to_string())
+                                                .or_insert(Value::Array(vec![]));
+
+                                            if let Some(arr) = outside_array.as_array_mut() {
+                                                // Append new items
+                                                for item in new_outside_items {
+                                                    arr.push(item);
+                                                }
+
+                                                // Format and save
+                                                match serde_json::to_string_pretty(&current_json) {
+                                                    Ok(formatted) => {
+                                                        self.json_input = formatted;
+                                                        self.is_modified = true;
+                                                        self.convert_json();
+                                                        self.set_status("OUTSIDE entries appended from clipboard");
+                                                    }
+                                                    Err(e) => self.set_status(&format!("Format error: {}", e)),
+                                                }
+                                            } else {
+                                                self.set_status("Current 'outside' is not an array");
+                                            }
+                                        } else {
+                                            self.set_status("Current JSON is not an object");
+                                        }
+                                    }
+                                    Err(e) => self.set_status(&format!("Invalid current JSON: {}", e)),
+                                }
+                            } else {
+                                self.set_status("No 'outside' array in clipboard JSON");
+                            }
+                        }
+                        Err(e) => self.set_status(&format!("Clipboard is not valid JSON: {}", e)),
+                    }
+                }
+                Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
+            },
+            Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
+        }
+    }
+
+    pub fn clear_inside(&mut self) {
+        // Clear INSIDE section
+        match serde_json::from_str::<Value>(&self.json_input) {
+            Ok(mut current_json) => {
+                if let Some(obj) = current_json.as_object_mut() {
+                    // Set inside to empty array
+                    obj.insert("inside".to_string(), Value::Array(vec![]));
+
+                    // Format and save
+                    match serde_json::to_string_pretty(&current_json) {
+                        Ok(formatted) => {
+                            self.json_input = formatted;
+                            self.is_modified = true;
+                            self.convert_json();
+                            self.set_status("INSIDE section cleared");
+                        }
+                        Err(e) => self.set_status(&format!("Format error: {}", e)),
+                    }
+                } else {
+                    self.set_status("Current JSON is not an object");
                 }
             }
+            Err(e) => self.set_status(&format!("Invalid JSON: {}", e)),
+        }
+    }
 
-            if outside_lines.is_empty() {
-                self.set_status("No OUTSIDE section found");
-                return;
-            }
+    pub fn clear_outside(&mut self) {
+        // Clear OUTSIDE section
+        match serde_json::from_str::<Value>(&self.json_input) {
+            Ok(mut current_json) => {
+                if let Some(obj) = current_json.as_object_mut() {
+                    // Set outside to empty array
+                    obj.insert("outside".to_string(), Value::Array(vec![]));
 
-            let content = outside_lines.join("\n");
-            match Clipboard::new() {
-                Ok(mut clipboard) => match clipboard.set_text(content) {
-                    Ok(()) => self.set_status("Copied OUTSIDE section to clipboard"),
-                    Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
-                },
-                Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
+                    // Format and save
+                    match serde_json::to_string_pretty(&current_json) {
+                        Ok(formatted) => {
+                            self.json_input = formatted;
+                            self.is_modified = true;
+                            self.convert_json();
+                            self.set_status("OUTSIDE section cleared");
+                        }
+                        Err(e) => self.set_status(&format!("Format error: {}", e)),
+                    }
+                } else {
+                    self.set_status("Current JSON is not an object");
+                }
             }
+            Err(e) => self.set_status(&format!("Invalid JSON: {}", e)),
+        }
+    }
+
+    pub fn copy_outside_data(&mut self) {
+        // In view mode, copy all OUTSIDE entries from relf_entries
+        if self.format_mode == FormatMode::View {
+            if let Ok(json_value) = serde_json::from_str::<Value>(&self.json_input) {
+                if let Some(obj) = json_value.as_object() {
+                    let outside_count = obj
+                        .get("outside")
+                        .and_then(|v| v.as_array())
+                        .map(|arr| arr.len())
+                        .unwrap_or(0);
+
+                    // Collect OUTSIDE entries (indices < outside_count)
+                    let mut outside_content = Vec::new();
+                    outside_content.push("OUTSIDE".to_string());
+                    outside_content.push(String::new());
+
+                    for (i, entry) in self.relf_entries.iter().enumerate() {
+                        if i < outside_count {
+                            // Add blank line between entries (but not before first entry)
+                            if i > 0 {
+                                outside_content.push(String::new());
+                            }
+                            for line in &entry.lines {
+                                outside_content.push(line.clone());
+                            }
+                        }
+                    }
+
+                    if outside_content.is_empty() {
+                        self.set_status("No OUTSIDE entries found");
+                        return;
+                    }
+
+                    let content = outside_content.join("\n");
+                    match Clipboard::new() {
+                        Ok(mut clipboard) => match clipboard.set_text(content) {
+                            Ok(()) => self.set_status("Copied OUTSIDE section to clipboard"),
+                            Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
+                        },
+                        Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
+                    }
+                    return;
+                }
+            }
+            self.set_status("Failed to parse JSON");
             return;
         }
 
@@ -751,7 +1179,7 @@ impl App {
 
     pub fn page_up(&mut self) {
         // In JSON mode, move the cursor up by a full page of visual lines
-        if self.format_mode == FormatMode::Json {
+        if self.format_mode == FormatMode::Edit {
             let count = self.get_visible_height() as usize;
             for _ in 0..count {
                 self.move_cursor_up();
@@ -763,7 +1191,7 @@ impl App {
 
     pub fn page_down(&mut self) {
         // In JSON mode, move the cursor down by a full page of visual lines
-        if self.format_mode == FormatMode::Json {
+        if self.format_mode == FormatMode::Edit {
             let count = self.get_visible_height() as usize;
             for _ in 0..count {
                 self.move_cursor_down();
@@ -786,7 +1214,7 @@ impl App {
         self.vim_buffer.push(c);
 
         if self.vim_buffer == "gg" {
-            if self.format_mode == FormatMode::Json {
+            if self.format_mode == FormatMode::Edit {
                 self.scroll_to_top();
                 self.content_cursor_line = 0;
                 self.content_cursor_col = 0;
@@ -802,7 +1230,7 @@ impl App {
             return true;
         } else if self.vim_buffer == "dd" {
             // Delete current data entry
-            if self.format_mode == FormatMode::Json {
+            if self.format_mode == FormatMode::Edit {
                 self.delete_current_entry();
                 self.is_modified = true;
             } else if !self.relf_entries.is_empty() {
@@ -814,14 +1242,14 @@ impl App {
             return true;
         } else if self.vim_buffer == "g-" {
             // Undo (vim-style)
-            if self.format_mode == FormatMode::Json {
+            if self.format_mode == FormatMode::Edit {
                 self.undo();
             }
             self.vim_buffer.clear();
             return true;
         } else if self.vim_buffer == "g+" {
             // Redo (vim-style)
-            if self.format_mode == FormatMode::Json {
+            if self.format_mode == FormatMode::Edit {
                 self.redo();
             }
             self.vim_buffer.clear();
@@ -882,9 +1310,13 @@ impl App {
                                 self.json_input = formatted;
                                 self.convert_json();
 
-                                // Adjust selected index
-                                if self.selected_entry_index >= self.relf_entries.len() && !self.relf_entries.is_empty() {
-                                    self.selected_entry_index = self.relf_entries.len() - 1;
+                                // Move selection up (to previous entry)
+                                if !self.relf_entries.is_empty() {
+                                    if self.selected_entry_index > 0 {
+                                        self.selected_entry_index -= 1;
+                                    } else if self.selected_entry_index >= self.relf_entries.len() {
+                                        self.selected_entry_index = self.relf_entries.len() - 1;
+                                    }
                                 }
 
                                 self.set_status("Entry deleted");
@@ -1162,7 +1594,7 @@ impl App {
     pub fn set_json_from_lines(&mut self, lines: Vec<String>) {
         self.json_input = lines.join("\n");
         // In JSON mode, update rendered content directly to preserve raw format
-        if self.format_mode == FormatMode::Json {
+        if self.format_mode == FormatMode::Edit {
             self.rendered_content = self.render_json();
             self.relf_line_styles.clear();
             self.relf_visual_styles.clear();
@@ -1172,7 +1604,7 @@ impl App {
     }
 
     pub fn insert_char(&mut self, c: char) {
-        if self.format_mode == FormatMode::Json {
+        if self.format_mode == FormatMode::Edit {
             // Save undo state before modification
             self.save_undo_state();
 
@@ -1202,7 +1634,7 @@ impl App {
     }
 
     pub fn insert_newline(&mut self) {
-        if self.format_mode == FormatMode::Json {
+        if self.format_mode == FormatMode::Edit {
             // Save undo state before modification
             self.save_undo_state();
 
@@ -1232,7 +1664,7 @@ impl App {
     }
 
     pub fn backspace(&mut self) {
-        if self.format_mode == FormatMode::Json {
+        if self.format_mode == FormatMode::Edit {
             // Save undo state before modification
             self.save_undo_state();
 
@@ -1262,7 +1694,7 @@ impl App {
     }
 
     pub fn delete_char(&mut self) {
-        if self.format_mode == FormatMode::Json {
+        if self.format_mode == FormatMode::Edit {
             // Save undo state before modification
             self.save_undo_state();
 
@@ -1335,7 +1767,7 @@ impl App {
         }
 
         // Keep cursor within actual content lines
-        let content_lines = if self.format_mode == FormatMode::Json {
+        let content_lines = if self.format_mode == FormatMode::Edit {
             lines.len()
         } else {
             self.rendered_content.len()
@@ -1347,7 +1779,7 @@ impl App {
             self.content_cursor_line += 1;
 
             let line_len =
-                if self.format_mode == FormatMode::Json && self.content_cursor_line < lines.len() {
+                if self.format_mode == FormatMode::Edit && self.content_cursor_line < lines.len() {
                     lines[self.content_cursor_line].chars().count()
                 } else if self.content_cursor_line < self.rendered_content.len() {
                     self.rendered_content[self.content_cursor_line]
@@ -1360,7 +1792,8 @@ impl App {
             self.content_cursor_col = self.content_cursor_col.min(line_len);
         } else {
             // Cursor is at last line, just scroll the screen down (Mario style)
-            let virtual_padding = 10;
+            // Don't add virtual padding in help mode
+            let virtual_padding = if self.showing_help { 0 } else { 10 };
             let max_scroll =
                 (content_lines as u16 + virtual_padding).saturating_sub(self.get_visible_height());
             if self.scroll < max_scroll {
@@ -1379,7 +1812,7 @@ impl App {
         }
 
         // Ensure cursor stays within actual content bounds
-        let content_lines = if self.format_mode == FormatMode::Json {
+        let content_lines = if self.format_mode == FormatMode::Edit {
             lines.len()
         } else {
             self.rendered_content.len()
@@ -1392,7 +1825,7 @@ impl App {
 
         // Handle cursor column bounds
         let line_len =
-            if self.format_mode == FormatMode::Json && self.content_cursor_line < lines.len() {
+            if self.format_mode == FormatMode::Edit && self.content_cursor_line < lines.len() {
                 lines[self.content_cursor_line].chars().count()
             } else if self.content_cursor_line < self.rendered_content.len() {
                 self.rendered_content[self.content_cursor_line]
@@ -1406,7 +1839,7 @@ impl App {
         }
 
         // Vertical scrolling
-        let cursor_line = if self.format_mode == FormatMode::Json {
+        let cursor_line = if self.format_mode == FormatMode::Edit {
             self.content_cursor_line as u16
         } else {
             self.calculate_cursor_visual_position().0
@@ -1433,7 +1866,7 @@ impl App {
         }
 
         // Horizontal follow for JSON mode
-        if self.format_mode == FormatMode::Json {
+        if self.format_mode == FormatMode::Edit {
             if self.content_cursor_line < lines.len() {
                 let current = &lines[self.content_cursor_line];
                 let col = self.prefix_display_width(current, self.content_cursor_col) as u16;
@@ -1474,7 +1907,7 @@ impl App {
     pub fn build_visual_lines(&mut self) -> Vec<String> {
         let raw_width = self.get_content_width();
         if raw_width == 0 {
-            if self.format_mode == FormatMode::Relf {
+            if self.format_mode == FormatMode::View {
                 self.relf_visual_styles = self.relf_line_styles.clone();
             } else {
                 self.relf_visual_styles.clear();
@@ -1484,7 +1917,7 @@ impl App {
 
         let width = raw_width as usize;
 
-        if self.format_mode == FormatMode::Relf {
+        if self.format_mode == FormatMode::View {
             let mut wrapped_lines = Vec::new();
             let mut visual_styles = Vec::new();
 
@@ -1535,7 +1968,7 @@ impl App {
             return wrapped_lines;
         }
 
-        if self.format_mode == FormatMode::Json {
+        if self.format_mode == FormatMode::Edit {
             self.relf_visual_styles.clear();
             return self.rendered_content.clone();
         }
@@ -1607,9 +2040,27 @@ impl App {
         } else if cmd == "cu" {
             // Copy URL from selected entry
             self.copy_selected_url();
+        } else if cmd == "vi" {
+            // Paste INSIDE from clipboard (overwrite)
+            self.paste_inside_overwrite();
+        } else if cmd == "vo" {
+            // Paste OUTSIDE from clipboard (overwrite)
+            self.paste_outside_overwrite();
+        } else if cmd == "vai" {
+            // Paste INSIDE from clipboard (append)
+            self.paste_inside_append();
+        } else if cmd == "vao" {
+            // Paste OUTSIDE from clipboard (append)
+            self.paste_outside_append();
+        } else if cmd == "xi" {
+            // Clear INSIDE section
+            self.clear_inside();
+        } else if cmd == "xo" {
+            // Clear OUTSIDE section
+            self.clear_outside();
         } else if cmd == "d" {
             // Delete entry (works in both View and Edit mode)
-            if self.format_mode == FormatMode::Json {
+            if self.format_mode == FormatMode::Edit {
                 self.delete_current_entry();
                 self.is_modified = true;
             } else if !self.relf_entries.is_empty() {
@@ -1686,10 +2137,29 @@ impl App {
                 self.json_input = formatted;
                 self.is_modified = true;
                 self.convert_json();
-                self.input_mode = InputMode::Insert;
-                self.content_cursor_line = line;
-                self.content_cursor_col = col;
-                self.ensure_cursor_visible();
+
+                // Jump to the new entry (don't open edit overlay or insert mode)
+                if self.format_mode == FormatMode::View {
+                    // New inside entry is added at the beginning of inside array
+                    // Index = outside.length (start of INSIDE section)
+                    if let Ok(json_value) = serde_json::from_str::<Value>(&self.json_input) {
+                        if let Some(obj) = json_value.as_object() {
+                            let outside_count = obj
+                                .get("outside")
+                                .and_then(|v| v.as_array())
+                                .map(|arr| arr.len())
+                                .unwrap_or(0);
+                            // INSIDE section starts right after OUTSIDE
+                            self.selected_entry_index = outside_count;
+                            self.scroll = 0;
+                        }
+                    }
+                } else {
+                    // In Edit mode, just move cursor to the new entry
+                    self.content_cursor_line = line;
+                    self.content_cursor_col = col;
+                    self.ensure_cursor_visible();
+                }
                 self.set_status(&message);
             }
             Err(e) => self.set_status(&format!("Error: {}", e)),
@@ -1702,10 +2172,29 @@ impl App {
                 self.json_input = formatted;
                 self.is_modified = true;
                 self.convert_json();
-                self.input_mode = InputMode::Insert;
-                self.content_cursor_line = line;
-                self.content_cursor_col = col;
-                self.ensure_cursor_visible();
+
+                // Jump to the new entry (don't open edit overlay or insert mode)
+                if self.format_mode == FormatMode::View {
+                    // New outside entry is added at the end of outside array
+                    // Index = outside.length - 1 (last OUTSIDE entry)
+                    if let Ok(json_value) = serde_json::from_str::<Value>(&self.json_input) {
+                        if let Some(obj) = json_value.as_object() {
+                            let outside_count = obj
+                                .get("outside")
+                                .and_then(|v| v.as_array())
+                                .map(|arr| arr.len())
+                                .unwrap_or(0);
+                            // Last outside entry
+                            self.selected_entry_index = outside_count.saturating_sub(1);
+                            self.scroll = 0;
+                        }
+                    }
+                } else {
+                    // In Edit mode, just move cursor to the new entry
+                    self.content_cursor_line = line;
+                    self.content_cursor_col = col;
+                    self.ensure_cursor_visible();
+                }
                 self.set_status(&message);
             }
             Err(e) => self.set_status(&format!("Error: {}", e)),
@@ -1718,6 +2207,12 @@ impl App {
                 self.json_input = formatted;
                 self.is_modified = true;
                 self.convert_json();
+
+                // Auto-save in view mode
+                if self.format_mode == FormatMode::View {
+                    self.save_file();
+                }
+
                 self.set_status(&message);
             }
             Err(e) => self.set_status(&format!("Error: {}", e)),
@@ -1827,7 +2322,7 @@ impl App {
         self.search_matches.clear();
 
         // For card view, search within entry content
-        if self.format_mode == FormatMode::Relf && !self.relf_entries.is_empty() {
+        if self.format_mode == FormatMode::View && !self.relf_entries.is_empty() {
             let query_lower = self.search_query.to_lowercase();
 
             for (entry_idx, entry) in self.relf_entries.iter().enumerate() {
@@ -1856,7 +2351,7 @@ impl App {
             return;
         }
 
-        let search_content = if self.format_mode == FormatMode::Json {
+        let search_content = if self.format_mode == FormatMode::Edit {
             &self.get_json_lines()
         } else {
             &self.rendered_content
@@ -1940,7 +2435,7 @@ impl App {
     pub fn jump_to_current_match(&mut self) {
         if let Some(match_idx) = self.current_match_index {
             if let Some(&(line, col)) = self.search_matches.get(match_idx) {
-                if self.format_mode == FormatMode::Json {
+                if self.format_mode == FormatMode::Edit {
                     self.content_cursor_line = line;
                     self.content_cursor_col = col;
                     self.ensure_cursor_visible();

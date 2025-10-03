@@ -82,10 +82,7 @@ impl Renderer {
             let mut result = RelfRenderResult::default();
 
             if let Some(obj) = json_value.as_object() {
-                let mut outside_index = 0usize;
-                let mut inside_index = 0usize;
-                let outside_palette = [Color::Rgb(26, 28, 34), Color::Rgb(21, 23, 29)];
-                let inside_palette = [Color::Rgb(28, 30, 36), Color::Rgb(24, 26, 32)];
+                let card_bg = Color::Rgb(26, 28, 34);
 
                 for (section_key, section_value) in obj {
                     if section_key == "outside" || section_key == "inside" {
@@ -93,9 +90,6 @@ impl Renderer {
                             for item in section_array {
                                 if let Some(item_obj) = item.as_object() {
                                     if section_key == "outside" {
-                                        let card_bg =
-                                            outside_palette[outside_index % outside_palette.len()];
-                                        outside_index += 1;
 
                                         let mut entry_lines = Vec::new();
 
@@ -130,9 +124,6 @@ impl Renderer {
                                             bg_color: card_bg,
                                         });
                                     } else if section_key == "inside" {
-                                        let card_bg =
-                                            inside_palette[inside_index % inside_palette.len()];
-                                        inside_index += 1;
 
                                         let mut entry_lines = Vec::new();
                                         for (_key, value) in item_obj {

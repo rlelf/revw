@@ -92,7 +92,7 @@ fn render_empty_content(f: &mut Frame, app: &App, area: Rect) {
 
 fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
     // In Relf mode with entries, render as cards
-    if app.format_mode == FormatMode::Relf && !app.relf_entries.is_empty() {
+    if app.format_mode == FormatMode::View && !app.relf_entries.is_empty() {
         render_relf_cards(f, app, area);
         return;
     }
@@ -105,7 +105,7 @@ fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
     // Use inner area width (inside borders and margins)
     app.content_width = inner_area.width;
     // In Relf mode, disable horizontal scrolling entirely
-    if app.format_mode == FormatMode::Relf {
+    if app.format_mode == FormatMode::View {
         app.hscroll = 0;
     }
     // Remember actual visible height for correct scroll math elsewhere
@@ -129,7 +129,7 @@ fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
     // Build content with cursor and horizontal viewport
     let content_text = {
         let w_cols = app.get_content_width() as usize;
-        let off_cols = if app.format_mode == FormatMode::Relf {
+        let off_cols = if app.format_mode == FormatMode::View {
             0
         } else {
             app.hscroll as usize
@@ -142,7 +142,7 @@ fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
 
             // Build spans for the line with search highlighting
             let mut spans: Vec<Span> = Vec::new();
-            let line_style = if app.format_mode == FormatMode::Relf {
+            let line_style = if app.format_mode == FormatMode::View {
                 app.relf_visual_styles.get(actual_idx)
             } else {
                 None
@@ -204,7 +204,7 @@ fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
             }
 
             // Add cursor if needed
-            if app.format_mode == FormatMode::Json
+            if app.format_mode == FormatMode::Edit
                 && (app.input_mode == InputMode::Insert || app.input_mode == InputMode::Normal)
                 && app.show_cursor
             {
@@ -251,7 +251,7 @@ fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
             .title(title)
             .borders(Borders::ALL)
             .border_type(BorderType::Rounded)
-            .style(Style::default().fg(Color::DarkGray)),
+            .style(Style::default().fg(Color::DarkGray).bg(Color::Rgb(26, 28, 34))),
     );
 
     f.render_widget(content, area);
@@ -464,7 +464,10 @@ fn render_edit_overlay(f: &mut Frame, app: &App) {
     let area = f.area();
 
     let popup_width = area.width.min(80);
-    let popup_height = (app.edit_buffer.len() as u16 + 4).min(area.height - 4);
+    // Increase height to show more of the background: use 70% of screen height or calculated size
+    let calculated_height = app.edit_buffer.len() as u16 + 4;
+    let max_height = (area.height * 7) / 10; // 70% of screen height
+    let popup_height = calculated_height.max(max_height.min(area.height - 4));
 
     let popup_area = Rect {
         x: (area.width.saturating_sub(popup_width)) / 2,
@@ -473,9 +476,16 @@ fn render_edit_overlay(f: &mut Frame, app: &App) {
         height: popup_height,
     };
 
+    // Determine if editing INSIDE or OUTSIDE entry
+    let title = if app.edit_buffer.len() == 2 {
+        " Edit INSIDE Entry "
+    } else {
+        " Edit OUTSIDE Entry "
+    };
+
     // Render the popup as a single card with rounded borders
     let block = Block::default()
-        .title(" Edit Entry ")
+        .title(title)
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
         .style(Style::default().bg(Color::Rgb(30, 30, 35)).fg(Color::White));
@@ -499,17 +509,32 @@ fn render_edit_overlay(f: &mut Frame, app: &App) {
             Style::default().fg(Color::Gray)
         };
 
-        // Add cursor in insert mode
-        let display_text = if is_selected && app.edit_insert_mode {
-            let cursor_pos = app.edit_cursor_pos.min(field.len());
+        // Add cursor in insert mode or field editing mode
+        let display_text = if is_selected && (app.edit_insert_mode || app.edit_field_editing_mode) {
+            // Convert character position to byte index
+            let char_count = field.chars().count();
+            let cursor_char_pos = app.edit_cursor_pos.min(char_count);
+            let byte_pos = if cursor_char_pos == 0 {
+                0
+            } else if cursor_char_pos >= char_count {
+                field.len()
+            } else {
+                field.char_indices().nth(cursor_char_pos).map(|(i, _)| i).unwrap_or(field.len())
+            };
+
             let mut text = field.clone();
-            text.insert(cursor_pos, '|');
+            text.insert(byte_pos, '|');
             text
         } else {
             field.clone()
         };
 
         lines.push(Line::styled(display_text, style));
+
+        // Add blank line between fields
+        if i < app.edit_buffer.len() - 1 {
+            lines.push(Line::from(""));
+        }
     }
 
     let content = Paragraph::new(lines).wrap(Wrap { trim: false });

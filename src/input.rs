@@ -75,14 +75,20 @@ pub fn run_app<B: ratatui::backend::Backend>(
                         if app.edit_insert_mode {
                             // Insert mode: typing edits current field
                             match key.code {
-                                KeyCode::Char('[') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                                KeyCode::Esc | KeyCode::Char('[') if key.code == KeyCode::Esc || key.modifiers.contains(KeyModifiers::CONTROL) => {
+                                    // Exit insert mode, go back to field normal mode
                                     app.edit_insert_mode = false;
                                 }
                                 KeyCode::Backspace => {
                                     if app.edit_field_index < app.edit_buffer.len() && app.edit_cursor_pos > 0 {
                                         let field = &mut app.edit_buffer[app.edit_field_index];
-                                        field.remove(app.edit_cursor_pos - 1);
-                                        app.edit_cursor_pos -= 1;
+                                        // Find byte index for character position
+                                        let char_indices: Vec<_> = field.char_indices().collect();
+                                        if app.edit_cursor_pos > 0 && app.edit_cursor_pos <= char_indices.len() {
+                                            let byte_pos = char_indices[app.edit_cursor_pos - 1].0;
+                                            field.remove(byte_pos);
+                                            app.edit_cursor_pos -= 1;
+                                        }
                                     }
                                 }
                                 KeyCode::Left => {
@@ -92,7 +98,7 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                 }
                                 KeyCode::Right => {
                                     if app.edit_field_index < app.edit_buffer.len() {
-                                        let field_len = app.edit_buffer[app.edit_field_index].len();
+                                        let field_len = app.edit_buffer[app.edit_field_index].chars().count();
                                         if app.edit_cursor_pos < field_len {
                                             app.edit_cursor_pos += 1;
                                         }
@@ -101,19 +107,148 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                 KeyCode::Char(c) => {
                                     if app.edit_field_index < app.edit_buffer.len() {
                                         let field = &mut app.edit_buffer[app.edit_field_index];
-                                        field.insert(app.edit_cursor_pos, c);
+                                        // Find byte index for character position
+                                        let byte_pos = if app.edit_cursor_pos == 0 {
+                                            0
+                                        } else if app.edit_cursor_pos >= field.chars().count() {
+                                            field.len()
+                                        } else {
+                                            field.char_indices().nth(app.edit_cursor_pos).map(|(i, _)| i).unwrap_or(field.len())
+                                        };
+                                        field.insert(byte_pos, c);
                                         app.edit_cursor_pos += 1;
                                     }
                                 }
                                 _ => {}
                             }
+                        } else if app.edit_field_editing_mode {
+                            // Field editing normal mode: cursor navigation within field
+                            match key.code {
+                                KeyCode::Esc | KeyCode::Char('[') if key.code == KeyCode::Esc || key.modifiers.contains(KeyModifiers::CONTROL) => {
+                                    // Exit field editing mode, go back to field selection
+                                    app.edit_field_editing_mode = false;
+                                    app.edit_cursor_pos = 0;
+                                }
+                                KeyCode::Char('h') | KeyCode::Left => {
+                                    if app.edit_cursor_pos > 0 {
+                                        app.edit_cursor_pos -= 1;
+                                    }
+                                }
+                                KeyCode::Char('l') | KeyCode::Right => {
+                                    if app.edit_field_index < app.edit_buffer.len() {
+                                        let field_len = app.edit_buffer[app.edit_field_index].chars().count();
+                                        if app.edit_cursor_pos < field_len {
+                                            app.edit_cursor_pos += 1;
+                                        }
+                                    }
+                                }
+                                KeyCode::Char('0') => {
+                                    app.edit_cursor_pos = 0;
+                                }
+                                KeyCode::Char('$') => {
+                                    if app.edit_field_index < app.edit_buffer.len() {
+                                        let field_len = app.edit_buffer[app.edit_field_index].chars().count();
+                                        app.edit_cursor_pos = field_len;
+                                    }
+                                }
+                                KeyCode::Char('w') => {
+                                    // Move to next word (simplified: skip to next space)
+                                    if app.edit_field_index < app.edit_buffer.len() {
+                                        let field = &app.edit_buffer[app.edit_field_index];
+                                        let chars: Vec<char> = field.chars().collect();
+                                        let mut pos = app.edit_cursor_pos;
+                                        // Skip current word
+                                        while pos < chars.len() && !chars[pos].is_whitespace() {
+                                            pos += 1;
+                                        }
+                                        // Skip whitespace
+                                        while pos < chars.len() && chars[pos].is_whitespace() {
+                                            pos += 1;
+                                        }
+                                        app.edit_cursor_pos = pos;
+                                    }
+                                }
+                                KeyCode::Char('b') => {
+                                    // Move to previous word
+                                    if app.edit_cursor_pos > 0 {
+                                        let field = &app.edit_buffer[app.edit_field_index];
+                                        let chars: Vec<char> = field.chars().collect();
+                                        let mut pos = app.edit_cursor_pos.saturating_sub(1);
+                                        // Skip whitespace
+                                        while pos > 0 && chars[pos].is_whitespace() {
+                                            pos -= 1;
+                                        }
+                                        // Skip to start of word
+                                        while pos > 0 && !chars[pos - 1].is_whitespace() {
+                                            pos -= 1;
+                                        }
+                                        app.edit_cursor_pos = pos;
+                                    }
+                                }
+                                KeyCode::Char('e') => {
+                                    // Move to end of current or next word
+                                    if app.edit_field_index < app.edit_buffer.len() {
+                                        let field = &app.edit_buffer[app.edit_field_index];
+                                        let chars: Vec<char> = field.chars().collect();
+                                        if chars.is_empty() {
+                                            return Ok(());
+                                        }
+                                        let mut pos = app.edit_cursor_pos;
+
+                                        // If we're at the end, don't move
+                                        if pos >= chars.len() {
+                                            return Ok(());
+                                        }
+
+                                        // Skip whitespace if we're on it
+                                        while pos < chars.len() && chars[pos].is_whitespace() {
+                                            pos += 1;
+                                        }
+
+                                        // Move to end of current word
+                                        while pos < chars.len() && !chars[pos].is_whitespace() {
+                                            pos += 1;
+                                        }
+
+                                        // Position on last character of word (not the space after)
+                                        if pos > 0 {
+                                            app.edit_cursor_pos = pos - 1;
+                                        }
+                                    }
+                                }
+                                KeyCode::Char('g') => {
+                                    // Handle gg (go to start)
+                                    app.edit_cursor_pos = 0;
+                                }
+                                KeyCode::Char('G') => {
+                                    // Go to end
+                                    if app.edit_field_index < app.edit_buffer.len() {
+                                        let field_len = app.edit_buffer[app.edit_field_index].chars().count();
+                                        app.edit_cursor_pos = field_len;
+                                    }
+                                }
+                                KeyCode::Char('i') => {
+                                    // Enter insert mode
+                                    app.edit_insert_mode = true;
+                                    if app.edit_field_index < app.edit_buffer.len() {
+                                        let field = &app.edit_buffer[app.edit_field_index];
+                                        // Clear placeholder text when entering insert mode
+                                        if field == "name" || field == "context" || field == "url"
+                                            || field == "percentage" || field == "date" {
+                                            app.edit_buffer[app.edit_field_index] = String::new();
+                                            app.edit_cursor_pos = 0;
+                                        }
+                                    }
+                                }
+                                _ => {}
+                            }
                         } else {
-                            // Normal mode: navigation
+                            // Field selection mode: navigate between fields
                             match key.code {
                                 KeyCode::Esc | KeyCode::Char('q') => {
                                     app.cancel_editing_entry();
                                 }
-                                KeyCode::Enter => {
+                                KeyCode::Char('w') => {
                                     app.save_edited_entry();
                                 }
                                 KeyCode::Up | KeyCode::Char('k') => {
@@ -128,11 +263,10 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                         app.edit_cursor_pos = 0;
                                     }
                                 }
-                                KeyCode::Char('i') => {
-                                    app.edit_insert_mode = true;
-                                    if app.edit_field_index < app.edit_buffer.len() {
-                                        app.edit_cursor_pos = app.edit_buffer[app.edit_field_index].len();
-                                    }
+                                KeyCode::Enter => {
+                                    // Enter field editing mode
+                                    app.edit_field_editing_mode = true;
+                                    app.edit_cursor_pos = 0;
                                 }
                                 _ => {}
                             }
@@ -143,7 +277,7 @@ pub fn run_app<B: ratatui::backend::Backend>(
                     match app.input_mode {
                         InputMode::Normal => match key.code {
                             KeyCode::Char('u') => {
-                                if app.format_mode == FormatMode::Json {
+                                if app.format_mode == FormatMode::Edit {
                                     app.undo();
                                 }
                             }
@@ -152,19 +286,19 @@ pub fn run_app<B: ratatui::backend::Backend>(
                             KeyCode::Char('c') => app.copy_to_clipboard(),
                             KeyCode::Char('e') => {
                                 // Vim-like: move to end of next word (JSON mode)
-                                if app.format_mode == FormatMode::Json {
+                                if app.format_mode == FormatMode::Edit {
                                     app.move_to_next_word_end();
                                 }
                             }
                             KeyCode::Char('b') => {
                                 // Vim-like: move to start of previous word (JSON mode)
-                                if app.format_mode == FormatMode::Json {
+                                if app.format_mode == FormatMode::Edit {
                                     app.move_to_previous_word_start();
                                 }
                             }
                             KeyCode::Char('d') => {
                                 // Handle dd command for deleting data entries
-                                if app.format_mode == FormatMode::Json {
+                                if app.format_mode == FormatMode::Edit {
                                     app.dd_count += 1;
                                     if app.dd_count == 2 {
                                         app.delete_current_entry();
@@ -178,21 +312,21 @@ pub fn run_app<B: ratatui::backend::Backend>(
                             }
                             KeyCode::Char('r') => {
                                 app.format_mode = match app.format_mode {
-                                    FormatMode::Relf => FormatMode::Json,
-                                    FormatMode::Json => FormatMode::Relf,
+                                    FormatMode::View => FormatMode::Edit,
+                                    FormatMode::Edit => FormatMode::View,
                                 };
                                 let mode_name = match app.format_mode {
-                                    FormatMode::Relf => "Relf",
-                                    FormatMode::Json => "JSON",
+                                    FormatMode::View => "Relf",
+                                    FormatMode::Edit => "JSON",
                                 };
-                                if app.format_mode == FormatMode::Relf {
+                                if app.format_mode == FormatMode::View {
                                     app.hscroll = 0;
                                 }
                                 app.set_status(&format!("{} mode", mode_name));
                                 app.convert_json();
                             }
                             KeyCode::Char('i') => {
-                                if app.format_mode == FormatMode::Json {
+                                if app.format_mode == FormatMode::Edit {
                                     app.input_mode = InputMode::Insert;
                                     app.ensure_cursor_visible();
                                     app.set_status("-- INSERT --");
@@ -208,7 +342,7 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                 app.set_status("");
                             }
                             KeyCode::Up | KeyCode::Char('k') => {
-                                if app.format_mode == FormatMode::Json {
+                                if app.format_mode == FormatMode::Edit {
                                     app.move_cursor_up();
                                 } else if !app.relf_entries.is_empty() {
                                     // Move selection up in card view
@@ -220,7 +354,7 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                 }
                             }
                             KeyCode::Down | KeyCode::Char('j') => {
-                                if app.format_mode == FormatMode::Json {
+                                if app.format_mode == FormatMode::Edit {
                                     app.move_cursor_down();
                                 } else if !app.relf_entries.is_empty() {
                                     // Move selection down in card view
@@ -232,7 +366,7 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                 }
                             }
                             KeyCode::Left | KeyCode::Char('h') => {
-                                if app.format_mode == FormatMode::Json {
+                                if app.format_mode == FormatMode::Edit {
                                     app.move_cursor_left();
                                 } else {
                                     // Faster horizontal pan in Relf
@@ -240,36 +374,36 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                 }
                             }
                             KeyCode::Right | KeyCode::Char('l') => {
-                                if app.format_mode == FormatMode::Json {
+                                if app.format_mode == FormatMode::Edit {
                                     app.move_cursor_right();
                                 } else {
                                     app.relf_hscroll_by(8);
                                 }
                             }
                             KeyCode::Char('H') => {
-                                if app.format_mode == FormatMode::Relf {
+                                if app.format_mode == FormatMode::View {
                                     let step = (app.get_content_width() / 2) as i16;
                                     app.relf_hscroll_by(-step);
                                 }
                             }
                             KeyCode::Char('L') => {
-                                if app.format_mode == FormatMode::Relf {
+                                if app.format_mode == FormatMode::View {
                                     let step = (app.get_content_width() / 2) as i16;
                                     app.relf_hscroll_by(step);
                                 }
                             }
                             KeyCode::Char('0') => {
-                                if app.format_mode == FormatMode::Relf {
+                                if app.format_mode == FormatMode::View {
                                     app.hscroll = 0;
-                                } else if app.format_mode == FormatMode::Json {
+                                } else if app.format_mode == FormatMode::Edit {
                                     app.content_cursor_col = 0;
                                     app.ensure_cursor_visible();
                                 }
                             }
                             KeyCode::Char('$') => {
-                                if app.format_mode == FormatMode::Relf {
+                                if app.format_mode == FormatMode::View {
                                     app.hscroll = app.relf_max_hscroll();
-                                } else if app.format_mode == FormatMode::Json {
+                                } else if app.format_mode == FormatMode::Edit {
                                     let lines = app.get_json_lines();
                                     if app.content_cursor_line < lines.len() {
                                         app.content_cursor_col =
@@ -281,7 +415,7 @@ pub fn run_app<B: ratatui::backend::Backend>(
                             KeyCode::PageUp => app.page_up(),
                             KeyCode::PageDown => app.page_down(),
                             KeyCode::Char('G') => {
-                                if app.format_mode == FormatMode::Json {
+                                if app.format_mode == FormatMode::Edit {
                                     app.scroll_to_bottom();
                                     let lines = app.get_json_lines();
                                     if !lines.is_empty() {
@@ -430,24 +564,24 @@ pub fn run_app<B: ratatui::backend::Backend>(
                     match mouse.kind {
                         MouseEventKind::ScrollLeft => {
                             // Horizontal scroll left
-                            if app.format_mode == FormatMode::Relf {
+                            if app.format_mode == FormatMode::View {
                                 app.relf_hscroll_by(-8);
-                            } else if app.format_mode == FormatMode::Json {
+                            } else if app.format_mode == FormatMode::Edit {
                                 app.relf_hscroll_by(-8);
                             }
                         }
                         MouseEventKind::ScrollRight => {
                             // Horizontal scroll right
-                            if app.format_mode == FormatMode::Relf {
+                            if app.format_mode == FormatMode::View {
                                 app.relf_hscroll_by(8);
-                            } else if app.format_mode == FormatMode::Json {
+                            } else if app.format_mode == FormatMode::Edit {
                                 app.relf_hscroll_by(8);
                             }
                         }
                         MouseEventKind::ScrollUp => {
                             // Don't scroll vertically if horizontal scrollbar is being dragged
                             if app.dragging_scrollbar != Some(ScrollbarType::Horizontal) {
-                                if app.format_mode == FormatMode::Json {
+                                if app.format_mode == FormatMode::Edit {
                                     // Move cursor up if it is not at the top of the visible area; otherwise scroll
                                     let (cursor_visual_line, _) =
                                         app.calculate_cursor_visual_position();
@@ -475,7 +609,7 @@ pub fn run_app<B: ratatui::backend::Backend>(
                         MouseEventKind::ScrollDown => {
                             // Don't scroll vertically if horizontal scrollbar is being dragged
                             if app.dragging_scrollbar != Some(ScrollbarType::Horizontal) {
-                                if app.format_mode == FormatMode::Json {
+                                if app.format_mode == FormatMode::Edit {
                                     // Move cursor down while within the visible area; otherwise scroll
                                     let (cursor_visual_line, _) =
                                         app.calculate_cursor_visual_position();
@@ -514,6 +648,11 @@ pub fn run_app<B: ratatui::backend::Backend>(
                             }
                         }
                         MouseEventKind::Down(MouseButton::Left) => {
+                            // Disable scrollbar dragging in Edit mode
+                            if app.format_mode == FormatMode::Edit {
+                                continue;
+                            }
+
                             // Handle mouse click on scrollbars
                             let click_x = mouse.column;
                             let click_y = mouse.row;
@@ -533,7 +672,7 @@ pub fn run_app<B: ratatui::backend::Backend>(
                             if on_hscrollbar {
                                 // Horizontal scrollbar clicked
                                 app.dragging_scrollbar = Some(ScrollbarType::Horizontal);
-                                let max_hscroll = if app.format_mode == FormatMode::Relf {
+                                let max_hscroll = if app.format_mode == FormatMode::View {
                                     app.relf_max_hscroll()
                                 } else {
                                     app.relf_max_hscroll()
@@ -558,10 +697,18 @@ pub fn run_app<B: ratatui::backend::Backend>(
                             }
                         }
                         MouseEventKind::Up(MouseButton::Left) => {
+                            // Disable in Edit mode
+                            if app.format_mode == FormatMode::Edit {
+                                continue;
+                            }
                             // Release scrollbar drag
                             app.dragging_scrollbar = None;
                         }
                         MouseEventKind::Drag(MouseButton::Left) => {
+                            // Disable in Edit mode
+                            if app.format_mode == FormatMode::Edit {
+                                continue;
+                            }
                             // Only handle drag if we're already dragging a scrollbar
                             match app.dragging_scrollbar {
                                 Some(ScrollbarType::Vertical) => {
@@ -585,7 +732,7 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                         terminal.size().map(|s| s.width).unwrap_or(80);
 
                                     if click_x > 0 && click_x < terminal_width - 1 {
-                                        let max_hscroll = if app.format_mode == FormatMode::Relf {
+                                        let max_hscroll = if app.format_mode == FormatMode::View {
                                             app.relf_max_hscroll()
                                         } else {
                                             app.relf_max_hscroll()

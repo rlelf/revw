@@ -57,9 +57,9 @@ fn main() -> Result<()> {
         .get_matches();
 
     let format_mode = if matches.get_flag("json") {
-        FormatMode::Json
+        FormatMode::Edit
     } else {
-        FormatMode::Relf // Default is now Relf
+        FormatMode::View
     };
 
     let stdout_mode = matches.get_flag("stdout");
