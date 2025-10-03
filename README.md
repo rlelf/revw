@@ -1,6 +1,12 @@
 # Revw
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Repo](https://img.shields.io/badge/repo-rlelf%2Frevw-blue?logo=github)](https://github.com/rlelf/revw)
+[![Built With Ratatui](https://img.shields.io/badge/Built_With_Ratatui-000?logo=ratatui&logoColor=fff)](https://ratatui.rs/)
+
 A vim-like TUI for viewing and editing personal data.
+
+![Revw Screenshot](assets/revw.png)
 
 ## Relf Format
 
@@ -76,45 +82,101 @@ revw --stdout file.json
 
 ## Controls
 
-### View Mode
-- `v` paste
-- `c` copy
-- `r` toggle View/Edit
-- `x` clear
+### View Mode (Card View)
+**Navigation:**
 - `j/k` or `↑/↓` select card (or mouse wheel)
 - `gg` select first card
 - `G` select last card
-- `/` search
+- `/` search forward
 - `n/N` next/prev match (jumps to card)
+- `:noh` clear search highlighting
+
+**Editing:**
+- `Enter` open edit overlay for selected card
+- `:ai` add new INSIDE entry (jumps to it)
+- `:ao` add new OUTSIDE entry (jumps to it)
 - `:d` delete selected card
+- `:o` order entries and auto-save
+
+**Copy/Paste:**
+- `c` copy all rendered content (with OUTSIDE/INSIDE headers)
+- `:ci` copy INSIDE section only
+- `:co` copy OUTSIDE section only
 - `:cu` copy URL from selected card
-- `Enter` open edit overlay
+- `v` paste file path or JSON content
+- `:vi` paste INSIDE from clipboard (overwrite)
+- `:vo` paste OUTSIDE from clipboard (overwrite)
+- `:vai` paste INSIDE from clipboard (append)
+- `:vao` paste OUTSIDE from clipboard (append)
+- `:xi` clear INSIDE section
+- `:xo` clear OUTSIDE section
+
+**Other:**
+- `r` toggle View/Edit mode
+- `x` clear content
 - `:h` help
 - `q` quit
 
-#### Edit Overlay (opened with Enter)
-- `j/k` or `↑/↓` navigate fields
-- `i` enter insert mode
-- `Ctrl+[` exit insert mode
-- `←/→` move cursor (in insert mode)
-- `Enter` save changes
-- `q` or `Esc` cancel
+#### Edit Overlay (Enter on a card)
+**Field Selection Mode (default):**
+- `j/k` or `↑/↓` navigate between fields
+- `Enter` enter field editing mode (shows cursor)
+- `w` save changes
+- `Esc` or `q` cancel
 
-### Edit Mode
-- `i` insert
-- `h/j/k/l` move
+**Field Editing Mode (after pressing Enter):**
+- `h/l` or `←/→` move cursor left/right
+- `0` move to start of field
+- `$` move to end of field
+- `w` next word
+- `b` previous word
+- `e` end of word
+- `g` or `gg` jump to start
+- `G` jump to end
+- `i` enter insert mode
+- `Esc` or `Ctrl+[` exit to field selection mode
+
+**Insert Mode (after pressing i):**
+- Type to edit text
+- `←/→` move cursor
+- `Backspace` delete character
+- `Esc` or `Ctrl+[` exit to field editing mode
+
+### Edit Mode (JSON View)
+**Navigation:**
+- `h/j/k/l` or arrow keys - move cursor
 - `e` next word end
 - `b` previous word start
-- `:d` delete entry
+- `gg` jump to top
+- `G` jump to bottom
+- Mouse wheel - scroll (drag disabled)
+
+**Editing:**
+- `i` enter insert mode
+- `Esc` or `Ctrl+[` exit insert mode
+- `:d` delete current entry
 - `u` undo
 - `Ctrl+r` redo
 - `g-` undo
 - `g+` redo
-- `/` search
+
+**Search:**
+- `/` search forward
 - `n/N` next/prev match
-- `:ai` add inside
-- `:ao` add outside
-- `:o` order
+- `:noh` clear search highlighting
+
+**Commands:**
+- `:ai` add INSIDE entry
+- `:ao` add OUTSIDE entry
+- `:o` order entries
+- `:ci` copy INSIDE section (JSON format)
+- `:co` copy OUTSIDE section (JSON format)
+- `:vi` paste INSIDE from clipboard (overwrite)
+- `:vo` paste OUTSIDE from clipboard (overwrite)
+- `:vai` paste INSIDE from clipboard (append)
+- `:vao` paste OUTSIDE from clipboard (append)
+- `:xi` clear INSIDE section
+- `:xo` clear OUTSIDE section
 - `:w` save
 - `:wq` save and quit
 - `:q` quit
