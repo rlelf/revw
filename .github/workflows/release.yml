@@ -20,10 +20,6 @@ jobs:
             target: x86_64-apple-darwin
             artifact_name: revw
             asset_name: revw-macos-x86_64.tar.gz
-          - os: macos-latest
-            target: aarch64-apple-darwin
-            artifact_name: revw
-            asset_name: revw-macos-aarch64.tar.gz
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             artifact_name: revw.exe
