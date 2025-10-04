@@ -275,7 +275,25 @@ pub fn run_app<B: ratatui::backend::Backend>(
                     }
 
                     match app.input_mode {
-                        InputMode::Normal => match key.code {
+                        InputMode::Normal => {
+                            // Handle substitute confirmation if active
+                            if !app.substitute_confirmations.is_empty() {
+                                match key.code {
+                                    KeyCode::Char('y') | KeyCode::Char('n') | KeyCode::Char('a') | KeyCode::Char('q') => {
+                                        if let KeyCode::Char(c) = key.code {
+                                            app.handle_substitute_confirmation(c);
+                                        }
+                                        continue;
+                                    }
+                                    KeyCode::Esc => {
+                                        app.handle_substitute_confirmation('q');
+                                        continue;
+                                    }
+                                    _ => continue,
+                                }
+                            }
+
+                            match key.code {
                             KeyCode::Char('u') => {
                                 if app.format_mode == FormatMode::Edit {
                                     app.undo();
@@ -470,7 +488,8 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                     app.vim_buffer.clear();
                                 }
                             }
-                        },
+                        }
+                        }
                         InputMode::Insert => {
                             // Check for Ctrl+[ to exit insert mode
                             if key.modifiers == KeyModifiers::CONTROL
