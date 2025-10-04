@@ -285,13 +285,13 @@ pub fn run_app<B: ratatui::backend::Backend>(
                             KeyCode::Char('v') => app.paste_from_clipboard(),
                             KeyCode::Char('c') => app.copy_to_clipboard(),
                             KeyCode::Char('e') => {
-                                // Vim-like: move to end of next word (JSON mode)
+                                // Vim-like: move to end of next word (Edit mode)
                                 if app.format_mode == FormatMode::Edit {
                                     app.move_to_next_word_end();
                                 }
                             }
                             KeyCode::Char('b') => {
-                                // Vim-like: move to start of previous word (JSON mode)
+                                // Vim-like: move to start of previous word (Edit mode)
                                 if app.format_mode == FormatMode::Edit {
                                     app.move_to_previous_word_start();
                                 }
@@ -316,8 +316,8 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                     FormatMode::Edit => FormatMode::View,
                                 };
                                 let mode_name = match app.format_mode {
-                                    FormatMode::View => "Relf",
-                                    FormatMode::Edit => "JSON",
+                                    FormatMode::View => "View",
+                                    FormatMode::Edit => "Edit",
                                 };
                                 if app.format_mode == FormatMode::View {
                                     app.hscroll = 0;

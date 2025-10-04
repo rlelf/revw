@@ -31,7 +31,7 @@ pub struct App {
     pub relf_line_styles: Vec<RelfLineStyle>,
     pub relf_visual_styles: Vec<RelfLineStyle>,
     pub relf_entries: Vec<RelfEntry>,
-    pub selected_entry_index: usize, // Currently selected entry in Relf mode
+    pub selected_entry_index: usize, // Currently selected entry in View mode
     pub editing_entry: bool, // Whether we're editing entry in overlay
     pub edit_buffer: Vec<String>, // Buffer for editing entry fields
     pub edit_field_index: usize, // Which field is being edited
@@ -57,7 +57,7 @@ pub struct App {
     pub dd_count: usize,            // Count consecutive 'd' presses for dd command
     // Current renderable content width (inner area). Used for accurate wrapping.
     pub content_width: u16,
-    // Horizontal scroll offset (used mainly in Relf mode without wrapping)
+    // Horizontal scroll offset (used mainly in View mode without wrapping)
     pub hscroll: u16,
     // Last measured visible height of content area
     pub visible_height: u16,
@@ -170,7 +170,7 @@ impl App {
 
         match self.format_mode {
             FormatMode::Edit => {
-                // In JSON mode, always show raw content without any processing
+                // In Edit mode, always show raw content without any processing
                 self.rendered_content = self.render_json();
                 self.relf_line_styles.clear();
                 self.relf_visual_styles.clear();
@@ -178,7 +178,7 @@ impl App {
                 self.set_status("");
             }
             FormatMode::View => {
-                // In Relf mode, try to parse JSON directly
+                // In View mode, try to parse JSON directly
                 let relf = self.render_relf();
                 self.rendered_content = relf.lines;
                 self.relf_line_styles = relf.styles;
@@ -545,7 +545,7 @@ impl App {
             return;
         }
 
-        // In JSON mode, copy with "inside: [...]" wrapper
+        // In Edit mode, copy with "inside: [...]" wrapper
         match serde_json::from_str::<Value>(&self.json_input) {
             Ok(json_value) => {
                 if let Some(obj) = json_value.as_object() {
@@ -1163,7 +1163,7 @@ impl App {
             return;
         }
 
-        // In JSON mode, copy with "outside: [...]" wrapper
+        // In Edit mode, copy with "outside: [...]" wrapper
         match serde_json::from_str::<Value>(&self.json_input) {
             Ok(json_value) => {
                 if let Some(obj) = json_value.as_object() {
@@ -1251,7 +1251,7 @@ impl App {
     }
 
     pub fn page_up(&mut self) {
-        // In JSON mode, move the cursor up by a full page of visual lines
+        // In Edit mode, move the cursor up by a full page of visual lines
         if self.format_mode == FormatMode::Edit {
             let count = self.get_visible_height() as usize;
             for _ in 0..count {
@@ -1263,7 +1263,7 @@ impl App {
     }
 
     pub fn page_down(&mut self) {
-        // In JSON mode, move the cursor down by a full page of visual lines
+        // In Edit mode, move the cursor down by a full page of visual lines
         if self.format_mode == FormatMode::Edit {
             let count = self.get_visible_height() as usize;
             for _ in 0..count {
@@ -1439,7 +1439,7 @@ impl App {
 
     pub fn jump_to_first_outside(&mut self) {
         if self.format_mode == FormatMode::Edit {
-            // In JSON mode, find the first outside entry
+            // In Edit mode, find the first outside entry
             let lines = self.get_json_lines();
             for (i, line) in lines.iter().enumerate() {
                 if line.trim_start().starts_with("\"outside\"") {
@@ -1475,7 +1475,7 @@ impl App {
 
     pub fn jump_to_first_inside(&mut self) {
         if self.format_mode == FormatMode::Edit {
-            // In JSON mode, find the first inside entry
+            // In Edit mode, find the first inside entry
             let lines = self.get_json_lines();
             for (i, line) in lines.iter().enumerate() {
                 if line.trim_start().starts_with("\"inside\"") {
@@ -1680,7 +1680,7 @@ impl App {
                 "View Mode (Card View):".to_string(),
                 "  v     - Paste file path or JSON content".to_string(),
                 "  c     - Copy rendered content to clipboard".to_string(),
-                "  r     - Toggle between Relf (default) and JSON mode".to_string(),
+                "  r     - Toggle between View (default) and Edit mode".to_string(),
                 "  x     - Clear content and status".to_string(),
                 "  j/k/↑/↓ - Select card (or mouse wheel)".to_string(),
                 "  gg    - Select first card".to_string(),
@@ -1705,7 +1705,7 @@ impl App {
                 "  Enter - Save changes".to_string(),
                 "  q/Esc - Cancel".to_string(),
                 "".to_string(),
-                "JSON Edit Mode:".to_string(),
+                "Edit Mode:".to_string(),
                 "  i     - Insert mode".to_string(),
                 "  e     - Move to next word end (like vim)".to_string(),
                 "  b     - Move to previous word start (like vim)".to_string(),
@@ -1732,8 +1732,8 @@ impl App {
                 "  Esc   - Exit insert/command mode".to_string(),
                 "".to_string(),
                 "Usage:".to_string(),
-                "  revw [file.json]     - Open in Relf mode".to_string(),
-                "  revw --json [file]   - Open in JSON edit mode".to_string(),
+                "  revw [file.json]     - Open in View mode".to_string(),
+                "  revw --json [file]   - Open in Edit mode".to_string(),
                 "  revw --output [file] - Output to file".to_string(),
                 "  revw --stdout [file] - Output to stdout".to_string(),
             ];
@@ -1751,7 +1751,7 @@ impl App {
 
     pub fn set_json_from_lines(&mut self, lines: Vec<String>) {
         self.json_input = lines.join("\n");
-        // In JSON mode, update rendered content directly to preserve raw format
+        // In Edit mode, update rendered content directly to preserve raw format
         if self.format_mode == FormatMode::Edit {
             self.rendered_content = self.render_json();
             self.relf_line_styles.clear();
@@ -2023,7 +2023,7 @@ impl App {
             self.scroll = max_scroll;
         }
 
-        // Horizontal follow for JSON mode
+        // Horizontal follow for Edit mode
         if self.format_mode == FormatMode::Edit {
             if self.content_cursor_line < lines.len() {
                 let current = &lines[self.content_cursor_line];
@@ -2610,7 +2610,7 @@ impl App {
                     // For card view, jump to the entry
                     self.selected_entry_index = line;
                 } else {
-                    // For Relf mode, just scroll to the line
+                    // For View mode, just scroll to the line
                     self.scroll = line as u16;
                     let max_scroll = self
                         .rendered_content

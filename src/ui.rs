@@ -91,7 +91,7 @@ fn render_empty_content(f: &mut Frame, app: &App, area: Rect) {
 }
 
 fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
-    // In Relf mode with entries, render as cards
+    // In View mode with entries, render as cards
     if app.format_mode == FormatMode::View && !app.relf_entries.is_empty() {
         render_relf_cards(f, app, area);
         return;
@@ -104,7 +104,7 @@ fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
     // Update the app's notion of the current content width for accurate wrapping
     // Use inner area width (inside borders and margins)
     app.content_width = inner_area.width;
-    // In Relf mode, disable horizontal scrolling entirely
+    // In View mode, disable horizontal scrolling entirely
     if app.format_mode == FormatMode::View {
         app.hscroll = 0;
     }

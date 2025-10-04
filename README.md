@@ -46,8 +46,10 @@ This format is also available in [github.com/rlelf/relf](https://github.com/rlel
 ## Install
 
 ```bash
-cargo install --git https://github.com/rlelf/revw.git
+cargo install --git https://github.com/rlelf/revw.git --locked
 ```
+
+Or download from [Releases](https://github.com/rlelf/revw/releases)
 
 ## Usage
 
