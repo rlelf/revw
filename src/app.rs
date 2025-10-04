@@ -990,6 +990,79 @@ impl App {
         }
     }
 
+    pub fn paste_append_all(&mut self) {
+        // Append both inside and outside from clipboard
+        match Clipboard::new() {
+            Ok(mut clipboard) => match clipboard.get_text() {
+                Ok(clipboard_text) => {
+                    match serde_json::from_str::<Value>(&clipboard_text) {
+                        Ok(clipboard_json) => {
+                            if let Some(clipboard_obj) = clipboard_json.as_object() {
+                                // Parse current JSON
+                                match serde_json::from_str::<Value>(&self.json_input) {
+                                    Ok(mut current_json) => {
+                                        if let Some(current_obj) = current_json.as_object_mut() {
+                                            let mut appended_sections = Vec::new();
+
+                                            // Append INSIDE entries
+                                            if let Some(clipboard_inside) = clipboard_obj.get("inside").and_then(|v| v.as_array()) {
+                                                let inside_array = current_obj.entry("inside".to_string())
+                                                    .or_insert(Value::Array(vec![]));
+
+                                                if let Some(arr) = inside_array.as_array_mut() {
+                                                    for item in clipboard_inside {
+                                                        arr.push(item.clone());
+                                                    }
+                                                    appended_sections.push("INSIDE");
+                                                }
+                                            }
+
+                                            // Append OUTSIDE entries
+                                            if let Some(clipboard_outside) = clipboard_obj.get("outside").and_then(|v| v.as_array()) {
+                                                let outside_array = current_obj.entry("outside".to_string())
+                                                    .or_insert(Value::Array(vec![]));
+
+                                                if let Some(arr) = outside_array.as_array_mut() {
+                                                    for item in clipboard_outside {
+                                                        arr.push(item.clone());
+                                                    }
+                                                    appended_sections.push("OUTSIDE");
+                                                }
+                                            }
+
+                                            if !appended_sections.is_empty() {
+                                                // Format and save
+                                                match serde_json::to_string_pretty(&current_json) {
+                                                    Ok(formatted) => {
+                                                        self.json_input = formatted;
+                                                        self.is_modified = true;
+                                                        self.convert_json();
+                                                        self.set_status(&format!("{} appended from clipboard", appended_sections.join(" and ")));
+                                                    }
+                                                    Err(e) => self.set_status(&format!("Format error: {}", e)),
+                                                }
+                                            } else {
+                                                self.set_status("No inside/outside arrays in clipboard");
+                                            }
+                                        } else {
+                                            self.set_status("Current JSON is not an object");
+                                        }
+                                    }
+                                    Err(e) => self.set_status(&format!("Invalid current JSON: {}", e)),
+                                }
+                            } else {
+                                self.set_status("Clipboard JSON is not an object");
+                            }
+                        }
+                        Err(e) => self.set_status(&format!("Clipboard is not valid JSON: {}", e)),
+                    }
+                }
+                Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
+            },
+            Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
+        }
+    }
+
     pub fn clear_inside(&mut self) {
         // Clear INSIDE section
         match serde_json::from_str::<Value>(&self.json_input) {
@@ -2137,6 +2210,9 @@ impl App {
         } else if cmd == "vo" {
             // Paste OUTSIDE from clipboard (overwrite)
             self.paste_outside_overwrite();
+        } else if cmd == "va" {
+            // Append from clipboard (both inside and outside)
+            self.paste_append_all();
         } else if cmd == "vai" {
             // Paste INSIDE from clipboard (append)
             self.paste_inside_append();

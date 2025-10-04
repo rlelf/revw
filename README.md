@@ -108,6 +108,7 @@ revw --stdout file.json
 - `v` paste file path or JSON content
 - `:vi` paste INSIDE from clipboard (overwrite)
 - `:vo` paste OUTSIDE from clipboard (overwrite)
+- `:va` paste both INSIDE and OUTSIDE from clipboard (append)
 - `:vai` paste INSIDE from clipboard (append)
 - `:vao` paste OUTSIDE from clipboard (append)
 - `:xi` clear INSIDE section
@@ -177,6 +178,7 @@ revw --stdout file.json
 - `:co` copy OUTSIDE section (JSON format)
 - `:vi` paste INSIDE from clipboard (overwrite)
 - `:vo` paste OUTSIDE from clipboard (overwrite)
+- `:va` paste both INSIDE and OUTSIDE from clipboard (append)
 - `:vai` paste INSIDE from clipboard (append)
 - `:vao` paste OUTSIDE from clipboard (append)
 - `:xi` clear INSIDE section
