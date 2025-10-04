@@ -4,7 +4,7 @@
 [![Repo](https://img.shields.io/badge/repo-rlelf%2Frevw-blue?logo=github)](https://github.com/rlelf/revw)
 [![Built With Ratatui](https://img.shields.io/badge/Built_With_Ratatui-000?logo=ratatui&logoColor=fff)](https://ratatui.rs/)
 
-A vim-like TUI for viewing and editing personal data.
+A vim-like TUI for managing notes and resources.
 
 ![Revw Screenshot](assets/revw.png)
 
