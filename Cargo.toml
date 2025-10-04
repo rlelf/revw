@@ -4,6 +4,11 @@ version = "0.1.0"
 edition = "2021"
 authors = ["rlelf"]
 license = "MIT"
+description = "A vim-like TUI for viewing and editing personal data"
+repository = "https://github.com/rlelf/revw"
+keywords = ["tui", "json", "viewer", "vim", "ratatui"]
+categories = ["command-line-utilities", "text-editors"]
+readme = "README.md"
 
 [[bin]]
 name = "revw"
