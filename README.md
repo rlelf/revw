@@ -68,6 +68,12 @@ Revw is designed for LLM-assisted data management workflows:
 
 ### Command Line Options
 ```bash
+# View help
+revw --help
+
+# Show version
+revw --version
+
 # Start without file
 revw
 
@@ -77,9 +83,17 @@ revw file.json
 # Edit mode
 revw --json file.json
 
-# Output options
-revw --output file.json
+# Output to stdout
 revw --stdout file.json
+
+# Output to file
+revw --output output.txt file.json
+
+# Output only INSIDE section
+revw --stdout --inside file.json
+
+# Output only OUTSIDE section
+revw --stdout --outside file.json
 ```
 
 ## Controls

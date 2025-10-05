@@ -32,8 +32,8 @@ fn main() -> Result<()> {
     }));
 
     let matches = Command::new("revw")
-        .version("0.1.0")
-        .about("JSON to readable format viewer")
+        .version(env!("BUILD_VERSION"))
+        .about("A vim-like TUI for managing notes and resources")
         .arg(Arg::new("file").help("JSON file to view").index(1))
         .arg(
             Arg::new("json")
@@ -54,6 +54,18 @@ fn main() -> Result<()> {
                 .help("Output to file (use '-' for stdout)")
                 .value_name("FILE"),
         )
+        .arg(
+            Arg::new("inside")
+                .long("inside")
+                .help("Output only INSIDE section")
+                .action(clap::ArgAction::SetTrue),
+        )
+        .arg(
+            Arg::new("outside")
+                .long("outside")
+                .help("Output only OUTSIDE section")
+                .action(clap::ArgAction::SetTrue),
+        )
         .get_matches();
 
     let format_mode = if matches.get_flag("json") {
@@ -64,6 +76,8 @@ fn main() -> Result<()> {
 
     let stdout_mode = matches.get_flag("stdout");
     let output_file = matches.get_one::<String>("output");
+    let inside_only = matches.get_flag("inside");
+    let outside_only = matches.get_flag("outside");
 
     // If stdout mode or output file specified, run in non-interactive mode
     if stdout_mode || output_file.is_some() {
@@ -147,21 +161,45 @@ fn main() -> Result<()> {
                         }
                     }
 
-                    if !outside_entries.is_empty() {
-                        output_lines.push("OUTSIDE".to_string());
-                        output_lines.push("".to_string());
-                        for entry in outside_entries {
-                            output_lines.push(entry);
+                    // Filter based on --inside or --outside flags
+                    if inside_only && !outside_only {
+                        // Only INSIDE section
+                        if !inside_entries.is_empty() {
+                            output_lines.push("INSIDE".to_string());
                             output_lines.push("".to_string());
+                            for entry in inside_entries {
+                                output_lines.push(entry);
+                                output_lines.push("".to_string());
+                            }
                         }
-                    }
-
-                    if !inside_entries.is_empty() {
-                        output_lines.push("INSIDE".to_string());
-                        output_lines.push("".to_string());
-                        for entry in inside_entries {
-                            output_lines.push(entry);
+                    } else if outside_only && !inside_only {
+                        // Only OUTSIDE section
+                        if !outside_entries.is_empty() {
+                            output_lines.push("OUTSIDE".to_string());
                             output_lines.push("".to_string());
+                            for entry in outside_entries {
+                                output_lines.push(entry);
+                                output_lines.push("".to_string());
+                            }
+                        }
+                    } else {
+                        // Both sections (default behavior)
+                        if !outside_entries.is_empty() {
+                            output_lines.push("OUTSIDE".to_string());
+                            output_lines.push("".to_string());
+                            for entry in outside_entries {
+                                output_lines.push(entry);
+                                output_lines.push("".to_string());
+                            }
+                        }
+
+                        if !inside_entries.is_empty() {
+                            output_lines.push("INSIDE".to_string());
+                            output_lines.push("".to_string());
+                            for entry in inside_entries {
+                                output_lines.push(entry);
+                                output_lines.push("".to_string());
+                            }
                         }
                     }
 
