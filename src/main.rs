@@ -82,7 +82,92 @@ fn main() -> Result<()> {
             app.json_input = content;
             app.convert_json();
 
-            let output = app.rendered_content.join("\n");
+            let output = if format_mode == FormatMode::Edit {
+                // In Edit mode, output the JSON as-is
+                app.json_input.clone()
+            } else {
+                // In View mode, format the entries for text output
+                if app.relf_entries.is_empty() {
+                    // No entries parsed, output raw content or rendered lines
+                    if !app.rendered_content.is_empty() {
+                        app.rendered_content.join("\n")
+                    } else {
+                        app.json_input.clone()
+                    }
+                } else {
+                    // Format entries as text
+                    let mut output_lines = Vec::new();
+                    let mut outside_entries: Vec<String> = Vec::new();
+                    let mut inside_entries: Vec<String> = Vec::new();
+
+                    // Parse JSON to determine which section each entry belongs to
+                    if let Ok(json_value) = serde_json::from_str::<serde_json::Value>(&app.json_input) {
+                        if let Some(obj) = json_value.as_object() {
+                            if let Some(outside) = obj.get("outside").and_then(|v| v.as_array()) {
+                                for item in outside {
+                                    if let Some(item_obj) = item.as_object() {
+                                        let name = item_obj.get("name").and_then(|v| v.as_str()).unwrap_or("");
+                                        let context = item_obj.get("context").and_then(|v| v.as_str()).unwrap_or("");
+                                        let url = item_obj.get("url").and_then(|v| v.as_str()).unwrap_or("");
+                                        let percentage = item_obj.get("percentage").and_then(|v| v.as_i64()).unwrap_or(0);
+
+                                        let mut entry = String::new();
+                                        entry.push_str(name);
+                                        if !context.is_empty() {
+                                            entry.push_str(&format!("\n{}", context));
+                                        }
+                                        if !url.is_empty() {
+                                            entry.push_str(&format!("\n{}", url));
+                                        }
+                                        entry.push_str(&format!("\n{}%", percentage));
+                                        outside_entries.push(entry);
+                                    }
+                                }
+                            }
+
+                            if let Some(inside) = obj.get("inside").and_then(|v| v.as_array()) {
+                                for item in inside {
+                                    if let Some(item_obj) = item.as_object() {
+                                        let mut entry_parts = Vec::new();
+                                        for (_key, value) in item_obj {
+                                            let value_str = match value {
+                                                serde_json::Value::String(s) => s.clone(),
+                                                serde_json::Value::Number(n) => n.to_string(),
+                                                serde_json::Value::Bool(b) => b.to_string(),
+                                                _ => value.to_string(),
+                                            };
+                                            if !value_str.is_empty() {
+                                                entry_parts.push(value_str);
+                                            }
+                                        }
+                                        inside_entries.push(entry_parts.join("\n"));
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if !outside_entries.is_empty() {
+                        output_lines.push("OUTSIDE".to_string());
+                        output_lines.push("".to_string());
+                        for entry in outside_entries {
+                            output_lines.push(entry);
+                            output_lines.push("".to_string());
+                        }
+                    }
+
+                    if !inside_entries.is_empty() {
+                        output_lines.push("INSIDE".to_string());
+                        output_lines.push("".to_string());
+                        for entry in inside_entries {
+                            output_lines.push(entry);
+                            output_lines.push("".to_string());
+                        }
+                    }
+
+                    output_lines.join("\n")
+                }
+            };
 
             if let Some(output_path) = output_file {
                 if output_path == "-" {

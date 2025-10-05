@@ -484,3 +484,117 @@ fn test_substitute_confirmation_selective() {
     // First line replaced, third line not replaced
     assert_eq!(app.json_input, "replaced bar\nbaz qux\nfoo quux");
 }
+
+#[test]
+fn test_view_mode_parsing() {
+    let mut app = App::new(FormatMode::View);
+    app.json_input = r#"{
+        "outside": [
+            {
+                "name": "Test Resource",
+                "context": "Test context",
+                "url": "https://test.com",
+                "percentage": 50
+            }
+        ],
+        "inside": [
+            {
+                "date": "2025-01-01 00:00:00",
+                "context": "Test note"
+            }
+        ]
+    }"#.to_string();
+
+    app.convert_json();
+
+    // Should have 2 entries (1 outside + 1 inside)
+    assert_eq!(app.relf_entries.len(), 2);
+
+    // First entry should be outside entry with 4 lines
+    assert_eq!(app.relf_entries[0].lines.len(), 4);
+    assert_eq!(app.relf_entries[0].lines[0], "Test Resource");
+    assert_eq!(app.relf_entries[0].lines[3], "50%");
+
+    // Second entry should be inside entry
+    assert_eq!(app.relf_entries[1].lines.len(), 2);
+}
+
+#[test]
+fn test_edit_mode_json_output() {
+    let mut app = App::new(FormatMode::Edit);
+    let json = r#"{"test": "value"}"#;
+    app.json_input = json.to_string();
+    app.convert_json();
+
+    // In Edit mode, rendered_content should contain the JSON lines
+    assert!(!app.rendered_content.is_empty());
+}
+
+#[test]
+fn test_empty_outside_section() {
+    let mut app = App::new(FormatMode::View);
+    app.json_input = r#"{
+        "outside": [],
+        "inside": [
+            {
+                "date": "2025-01-01",
+                "context": "Note"
+            }
+        ]
+    }"#.to_string();
+
+    app.convert_json();
+
+    // Should only have 1 entry (inside)
+    assert_eq!(app.relf_entries.len(), 1);
+}
+
+#[test]
+fn test_empty_inside_section() {
+    let mut app = App::new(FormatMode::View);
+    app.json_input = r#"{
+        "outside": [
+            {
+                "name": "Resource",
+                "percentage": 100
+            }
+        ],
+        "inside": []
+    }"#.to_string();
+
+    app.convert_json();
+
+    // Should only have 1 entry (outside)
+    assert_eq!(app.relf_entries.len(), 1);
+}
+
+#[test]
+fn test_outside_entry_missing_fields() {
+    let mut app = App::new(FormatMode::View);
+    app.json_input = r#"{
+        "outside": [
+            {
+                "name": "Resource Only"
+            }
+        ],
+        "inside": []
+    }"#.to_string();
+
+    app.convert_json();
+
+    // Should have 1 entry
+    assert_eq!(app.relf_entries.len(), 1);
+
+    // Entry should have name and percentage (0% default)
+    assert!(app.relf_entries[0].lines.iter().any(|l| l == "Resource Only"));
+    assert!(app.relf_entries[0].lines.iter().any(|l| l == "0%"));
+}
+
+#[test]
+fn test_mode_toggle() {
+    let app = App::new(FormatMode::View);
+    assert_eq!(app.format_mode, FormatMode::View);
+
+    let app2 = App::new(FormatMode::Edit);
+    assert_eq!(app2.format_mode, FormatMode::Edit);
+}

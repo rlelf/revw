@@ -9,6 +9,169 @@ use ratatui::{
 use crate::app::{App, FormatMode, InputMode};
 use crate::rendering::{RelfEntry, RelfLineStyle};
 
+// JSON syntax highlighting
+fn highlight_json_line(line: &str) -> Vec<Span<'static>> {
+    let mut spans = Vec::new();
+    let mut chars = line.chars().peekable();
+    let mut current = String::new();
+
+    while let Some(ch) = chars.next() {
+        match ch {
+            '"' => {
+                // Push accumulated text
+                if !current.is_empty() {
+                    spans.push(Span::styled(
+                        current.clone(),
+                        Style::default().fg(Color::Gray),
+                    ));
+                    current.clear();
+                }
+
+                // Start collecting string
+                let mut string_content = String::from("\"");
+                let mut escaped = false;
+
+                while let Some(next_ch) = chars.next() {
+                    string_content.push(next_ch);
+                    if next_ch == '\\' && !escaped {
+                        escaped = true;
+                    } else if next_ch == '"' && !escaped {
+                        break;
+                    } else {
+                        escaped = false;
+                    }
+                }
+
+                // Determine if this is a key (followed by ':')
+                let mut temp_chars = chars.clone();
+                let mut is_key = false;
+                while let Some(peek_ch) = temp_chars.next() {
+                    if peek_ch == ':' {
+                        is_key = true;
+                        break;
+                    } else if !peek_ch.is_whitespace() {
+                        break;
+                    }
+                }
+
+                let color = if is_key {
+                    Color::Rgb(156, 220, 254) // Keys in light blue (VS Code style)
+                } else {
+                    Color::Rgb(206, 145, 120) // String values in orange/peach (VS Code style)
+                };
+
+                spans.push(Span::styled(
+                    string_content,
+                    Style::default().fg(color),
+                ));
+            }
+            '{' | '}' | '[' | ']' => {
+                if !current.is_empty() {
+                    spans.push(Span::styled(
+                        current.clone(),
+                        Style::default().fg(Color::Gray),
+                    ));
+                    current.clear();
+                }
+                spans.push(Span::styled(
+                    ch.to_string(),
+                    Style::default().fg(Color::Rgb(255, 217, 102)), // Yellow/gold (VS Code style)
+                ));
+            }
+            ':' | ',' => {
+                if !current.is_empty() {
+                    spans.push(Span::styled(
+                        current.clone(),
+                        Style::default().fg(Color::Gray),
+                    ));
+                    current.clear();
+                }
+                spans.push(Span::styled(
+                    ch.to_string(),
+                    Style::default().fg(Color::White),
+                ));
+            }
+            't' | 'f' | 'n' => {
+                // Check for true, false, null
+                let peek_str: String = std::iter::once(ch)
+                    .chain(chars.clone().take(4))
+                    .collect();
+
+                if peek_str.starts_with("true") || peek_str.starts_with("false") || peek_str.starts_with("null") {
+                    if !current.is_empty() {
+                        spans.push(Span::styled(
+                            current.clone(),
+                            Style::default().fg(Color::Gray),
+                        ));
+                        current.clear();
+                    }
+
+                    let keyword = if peek_str.starts_with("true") {
+                        chars.nth(2); // skip 'r', 'u', 'e'
+                        "true"
+                    } else if peek_str.starts_with("false") {
+                        chars.nth(3); // skip 'a', 'l', 's', 'e'
+                        "false"
+                    } else {
+                        chars.nth(2); // skip 'u', 'l', 'l'
+                        "null"
+                    };
+
+                    spans.push(Span::styled(
+                        keyword.to_string(),
+                        Style::default().fg(Color::Rgb(86, 156, 214)), // Purple/blue (VS Code style)
+                    ));
+                } else {
+                    current.push(ch);
+                }
+            }
+            '0'..='9' | '-' => {
+                // Numbers
+                let mut num = String::from(ch);
+                while let Some(&next_ch) = chars.peek() {
+                    if next_ch.is_ascii_digit() || next_ch == '.' || next_ch == 'e' || next_ch == 'E' || next_ch == '-' || next_ch == '+' {
+                        num.push(chars.next().unwrap());
+                    } else {
+                        break;
+                    }
+                }
+
+                if !current.is_empty() {
+                    spans.push(Span::styled(
+                        current.clone(),
+                        Style::default().fg(Color::Gray),
+                    ));
+                    current.clear();
+                }
+
+                spans.push(Span::styled(
+                    num,
+                    Style::default().fg(Color::Rgb(181, 206, 168)), // Light green (VS Code style)
+                ));
+            }
+            _ => {
+                current.push(ch);
+            }
+        }
+    }
+
+    if !current.is_empty() {
+        spans.push(Span::styled(
+            current,
+            Style::default().fg(Color::Gray),
+        ));
+    }
+
+    if spans.is_empty() {
+        spans.push(Span::styled(
+            String::new(),
+            Style::default().fg(Color::Gray),
+        ));
+    }
+
+    spans
+}
+
 pub fn ui(f: &mut Frame, app: &mut App) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -196,11 +359,17 @@ fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
                     ));
                 }
             } else {
-                // No search highlighting, just use plain text
-                spans.push(Span::styled(
-                    slice.clone(),
-                    apply_relf_style(Style::default().fg(Color::Gray), line_style),
-                ));
+                // No search highlighting
+                if app.format_mode == FormatMode::Edit {
+                    // Apply JSON syntax highlighting in Edit mode
+                    spans = highlight_json_line(&slice);
+                } else {
+                    // In View mode, use plain text with line style
+                    spans.push(Span::styled(
+                        slice.clone(),
+                        apply_relf_style(Style::default().fg(Color::Gray), line_style),
+                    ));
+                }
             }
 
             // Add cursor if needed
@@ -220,10 +389,10 @@ fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
                         let mut new_chars = line_chars.clone();
                         let pos = insert_idx.min(new_chars.len());
                         new_chars.insert(pos, '│');
-                        spans = vec![Span::styled(
-                            new_chars.into_iter().collect::<String>(),
-                            apply_relf_style(Style::default().fg(Color::Gray), line_style),
-                        )];
+                        let new_slice: String = new_chars.into_iter().collect();
+
+                        // Re-apply syntax highlighting with cursor
+                        spans = highlight_json_line(&new_slice);
                     }
                 }
             }
@@ -542,19 +711,45 @@ fn render_edit_overlay(f: &mut Frame, app: &App) {
 }
 
 fn render_status_bar(f: &mut Frame, app: &App, area: Rect) {
+    let mut spans = Vec::new();
+
+    // Left side: status message
     if !app.status_message.is_empty() {
         let status_text = format!(" {} ", app.status_message);
-
-        let status_widget = Paragraph::new(Line::from(vec![Span::styled(
+        spans.push(Span::styled(
             status_text,
             Style::default().fg(Color::Cyan),
-        )]))
+        ));
+    }
+
+    // Right side: cursor position in Edit mode
+    if app.format_mode == FormatMode::Edit {
+        let current_line = app.content_cursor_line + 1;
+        let current_col = app.content_cursor_col + 1;
+        let position_text = format!("{}:{} ", current_line, current_col);
+
+        // Calculate padding to right-align
+        let status_width = if !app.status_message.is_empty() {
+            app.status_message.len() + 2
+        } else {
+            0
+        };
+        let position_width = position_text.len();
+        let available_width = area.width as usize;
+
+        if available_width > status_width + position_width {
+            let padding_width = available_width - status_width - position_width;
+            spans.push(Span::raw(" ".repeat(padding_width)));
+        }
+
+        spans.push(Span::styled(
+            position_text,
+            Style::default().fg(Color::DarkGray),
+        ));
+    }
+
+    let status_widget = Paragraph::new(Line::from(spans))
         .alignment(Alignment::Left);
 
-        f.render_widget(status_widget, area);
-    } else {
-        // Empty status bar when no message
-        let empty_widget = Paragraph::new("");
-        f.render_widget(empty_widget, area);
-    }
+    f.render_widget(status_widget, area);
 }

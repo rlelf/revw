@@ -84,7 +84,7 @@ revw --stdout file.json
 
 ## Controls
 
-### View Mode (Card View)
+### View Mode
 **Navigation:**
 - `j/k` or `↑/↓` select card (or mouse wheel)
 - `gg` select first card
@@ -122,14 +122,14 @@ revw --stdout file.json
 - `:h` help
 - `q` quit
 
-#### Edit Overlay (Enter on a card)
+#### Edit Overlay
 **Field Selection Mode (default):**
 - `j/k` or `↑/↓` navigate between fields
 - `Enter` enter field editing mode (shows cursor)
 - `w` save changes
 - `Esc` or `q` cancel
 
-**Field Editing Mode (after pressing Enter):**
+**Field Editing Mode:**
 - `h/l` or `←/→` move cursor left/right
 - `0` move to start of field
 - `$` move to end of field
@@ -141,13 +141,13 @@ revw --stdout file.json
 - `i` enter insert mode
 - `Esc` or `Ctrl+[` exit to field selection mode
 
-**Insert Mode (after pressing i):**
+**Insert Mode:**
 - Type to edit text
 - `←/→` move cursor
 - `Backspace` delete character
 - `Esc` or `Ctrl+[` exit to field editing mode
 
-### Edit Mode (JSON View)
+### Edit Mode
 **Navigation:**
 - `h/j/k/l` or arrow keys - move cursor
 - `e` next word end

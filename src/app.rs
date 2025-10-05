@@ -18,7 +18,7 @@ pub enum InputMode {
     Search,  // For vim-style search like /pattern
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum FormatMode {
     View,
     Edit,
@@ -1302,13 +1302,13 @@ impl App {
         self.vim_buffer.push(c);
 
         if self.vim_buffer == "gg" {
-            if self.format_mode == FormatMode::Edit {
+            if self.showing_help {
+                // Allow scrolling to top in help mode (takes priority)
+                self.scroll_to_top();
+            } else if self.format_mode == FormatMode::Edit {
                 self.scroll_to_top();
                 self.content_cursor_line = 0;
                 self.content_cursor_col = 0;
-            } else if self.showing_help {
-                // Allow scrolling to top in help mode
-                self.scroll_to_top();
             } else if !self.relf_entries.is_empty() {
                 // Jump to first card
                 self.selected_entry_index = 0;
@@ -2476,6 +2476,7 @@ impl App {
     pub fn start_search(&mut self) {
         self.input_mode = InputMode::Search;
         self.search_buffer.clear();
+        self.set_status("/");
     }
 
     pub fn execute_search(&mut self) {
