@@ -311,8 +311,79 @@ fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
                 None
             };
 
-            if !app.search_query.is_empty() {
-                // Highlight search matches
+            if !app.search_query.is_empty() && app.format_mode == FormatMode::Edit {
+                // In Edit mode with search: apply JSON highlighting first, then add search backgrounds
+                let json_spans = highlight_json_line(&slice);
+
+                // Merge JSON highlighting with search match backgrounds
+                let query_lower = app.search_query.to_lowercase();
+                let line_lower = slice.to_lowercase();
+                let mut result_spans: Vec<Span> = Vec::new();
+                let mut char_pos = 0;
+
+                for json_span in json_spans {
+                    let span_text = json_span.content.to_string();
+                    let span_len = span_text.len();
+                    let span_start = char_pos;
+                    let span_end = char_pos + span_len;
+
+                    // Check if this span overlaps with any search match
+                    let mut last_split = 0;
+
+                    while let Some(match_pos) = line_lower[span_start..span_end].find(&query_lower) {
+                        let abs_match_pos = span_start + match_pos;
+
+                        if abs_match_pos < span_start + last_split {
+                            break;
+                        }
+
+                        let rel_match_start = abs_match_pos - span_start;
+                        let rel_match_end = (abs_match_pos + app.search_query.len()).min(span_end) - span_start;
+
+                        // Check if this is the current match
+                        let is_current_match = app
+                            .current_match_index
+                            .and_then(|idx| app.search_matches.get(idx))
+                            .map(|(line, col)| *line == actual_idx && *col == abs_match_pos + off_cols)
+                            .unwrap_or(false);
+
+                        let bg_color = if is_current_match {
+                            Color::Rgb(255, 255, 150) // Light yellow
+                        } else {
+                            Color::Rgb(100, 180, 200) // Light cyan
+                        };
+
+                        // Add text before match (with original JSON color)
+                        if rel_match_start > last_split {
+                            result_spans.push(Span::styled(
+                                span_text[last_split..rel_match_start].to_string(),
+                                json_span.style,
+                            ));
+                        }
+
+                        // Add matched text with background
+                        result_spans.push(Span::styled(
+                            span_text[rel_match_start..rel_match_end].to_string(),
+                            json_span.style.bg(bg_color),
+                        ));
+
+                        last_split = rel_match_end;
+                    }
+
+                    // Add remaining text from this span
+                    if last_split < span_len {
+                        result_spans.push(Span::styled(
+                            span_text[last_split..].to_string(),
+                            json_span.style,
+                        ));
+                    }
+
+                    char_pos = span_end;
+                }
+
+                spans = result_spans;
+            } else if !app.search_query.is_empty() {
+                // View mode with search: original search highlighting logic
                 let query_lower = app.search_query.to_lowercase();
                 let line_lower = slice.to_lowercase();
                 let mut last_pos = 0;
@@ -381,18 +452,56 @@ fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
                     let cursor_char_pos = app.content_cursor_col;
                     let prefix_cols = app.prefix_display_width(s, cursor_char_pos);
                     if prefix_cols >= off_cols && prefix_cols < off_cols + w_cols {
-                        // Always show cursor as vertical bar
-                        let line_chars: Vec<char> = slice.chars().collect();
+                        // Insert cursor while preserving existing highlighting
                         let insert_col_in_view = prefix_cols - off_cols;
-                        let insert_idx = app.char_index_for_col(&slice, insert_col_in_view);
 
-                        let mut new_chars = line_chars.clone();
-                        let pos = insert_idx.min(new_chars.len());
-                        new_chars.insert(pos, '│');
-                        let new_slice: String = new_chars.into_iter().collect();
+                        // Calculate character position across all spans
+                        let mut char_count = 0;
+                        let mut cursor_inserted = false;
+                        let mut new_spans: Vec<Span> = Vec::new();
 
-                        // Re-apply syntax highlighting with cursor
-                        spans = highlight_json_line(&new_slice);
+                        for span in spans.iter() {
+                            let span_text = span.content.to_string();
+                            let span_chars: Vec<char> = span_text.chars().collect();
+                            let span_len = span_chars.len();
+
+                            if !cursor_inserted && char_count + span_len >= insert_col_in_view {
+                                // Cursor belongs in this span
+                                let pos_in_span = insert_col_in_view - char_count;
+
+                                // Split span at cursor position
+                                if pos_in_span == 0 {
+                                    // Cursor at start
+                                    new_spans.push(Span::styled("│".to_string(), span.style));
+                                    new_spans.push(span.clone());
+                                } else if pos_in_span >= span_len {
+                                    // Cursor at end
+                                    new_spans.push(span.clone());
+                                    new_spans.push(Span::styled("│".to_string(), span.style));
+                                } else {
+                                    // Cursor in middle
+                                    let before: String = span_chars[..pos_in_span].iter().collect();
+                                    let after: String = span_chars[pos_in_span..].iter().collect();
+
+                                    new_spans.push(Span::styled(before, span.style));
+                                    new_spans.push(Span::styled("│".to_string(), span.style));
+                                    new_spans.push(Span::styled(after, span.style));
+                                }
+                                cursor_inserted = true;
+                            } else {
+                                new_spans.push(span.clone());
+                            }
+
+                            char_count += span_len;
+                        }
+
+                        // If cursor wasn't inserted yet, add it at the end
+                        if !cursor_inserted {
+                            let last_style = spans.last().map(|s| s.style).unwrap_or_default();
+                            new_spans.push(Span::styled("│".to_string(), last_style));
+                        }
+
+                        spans = new_spans;
                     }
                 }
             }
