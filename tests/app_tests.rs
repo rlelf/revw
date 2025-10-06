@@ -76,18 +76,112 @@ fn test_status_message_handling() {
 #[test]
 fn test_clear_content() {
     let mut app = App::new(FormatMode::View);
-    app.json_input = "test".to_string();
-    app.rendered_content = vec!["test".to_string()];
+    app.json_input = r#"{"outside": [{"name": "test"}], "inside": []}"#.to_string();
+    app.convert_json();
     app.scroll = 5;
     app.status_message = "test".to_string();
+
+    // Verify entries exist before clearing
+    assert!(!app.relf_entries.is_empty());
 
     app.clear_content();
 
     assert!(app.json_input.is_empty());
     assert!(app.rendered_content.is_empty());
+    assert!(app.relf_entries.is_empty());
+    assert_eq!(app.selected_entry_index, 0);
     assert_eq!(app.scroll, 0);
     assert_eq!(app.status_message, "Content cleared");
     assert!(app.file_path.is_none());
+}
+
+#[test]
+fn test_clear_inside() {
+    let mut app = App::new(FormatMode::View);
+    app.json_input = r#"{
+  "outside": [
+    {
+      "name": "Test Outside",
+      "context": "Outside entry",
+      "url": "https://example.com",
+      "percentage": 50
+    }
+  ],
+  "inside": [
+    {
+      "date": "2025-01-01 00:00:00",
+      "context": "Inside entry"
+    }
+  ]
+}"#.to_string();
+    app.convert_json();
+
+    // Verify we have 2 entries (1 outside + 1 inside)
+    assert_eq!(app.relf_entries.len(), 2);
+
+    app.clear_inside();
+
+    // After clearing inside, should only have 1 entry (outside)
+    assert_eq!(app.relf_entries.len(), 1);
+    assert_eq!(app.status_message, "INSIDE section cleared");
+    assert!(app.is_modified);
+
+    // Verify the JSON structure is correct
+    let parsed: serde_json::Value = serde_json::from_str(&app.json_input).unwrap();
+    assert_eq!(parsed["inside"].as_array().unwrap().len(), 0);
+    assert_eq!(parsed["outside"].as_array().unwrap().len(), 1);
+}
+
+#[test]
+fn test_clear_outside() {
+    let mut app = App::new(FormatMode::View);
+    app.json_input = r#"{
+  "outside": [
+    {
+      "name": "Test Outside",
+      "context": "Outside entry",
+      "url": "https://example.com",
+      "percentage": 50
+    }
+  ],
+  "inside": [
+    {
+      "date": "2025-01-01 00:00:00",
+      "context": "Inside entry"
+    }
+  ]
+}"#.to_string();
+    app.convert_json();
+
+    // Verify we have 2 entries (1 outside + 1 inside)
+    assert_eq!(app.relf_entries.len(), 2);
+    app.selected_entry_index = 0; // Select outside entry
+
+    app.clear_outside();
+
+    // After clearing outside, should only have 1 entry (inside)
+    assert_eq!(app.relf_entries.len(), 1);
+    assert_eq!(app.selected_entry_index, 0); // Should reset to first entry
+    assert_eq!(app.status_message, "OUTSIDE section cleared");
+    assert!(app.is_modified);
+
+    // Verify the JSON structure is correct
+    let parsed: serde_json::Value = serde_json::from_str(&app.json_input).unwrap();
+    assert_eq!(parsed["outside"].as_array().unwrap().len(), 0);
+    assert_eq!(parsed["inside"].as_array().unwrap().len(), 1);
+}
+
+#[test]
+fn test_clear_content_in_edit_mode() {
+    let mut app = App::new(FormatMode::Edit);
+    app.json_input = r#"{"outside": [], "inside": []}"#.to_string();
+    app.convert_json();
+
+    app.clear_content();
+
+    assert!(app.json_input.is_empty());
+    assert!(app.rendered_content.is_empty());
+    assert_eq!(app.status_message, "Content cleared");
 }
 
 #[test]

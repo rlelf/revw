@@ -77,12 +77,12 @@ Revw integrates seamlessly with AI assistants:
 
 **Workflow 1: LLM generates → You review**
 1. Ask an LLM to generate a reading list or resource collection
-2. Paste the JSON into Revw (`v` key)
+2. Paste the JSON into Revw (`:v` key)
 3. Browse and organize visually
 
 **Workflow 2: You create → LLM assists**
 1. Maintain your notes in Revw's clean interface
-2. Copy sections to clipboard (`c`, `:ci`, `:co`)
+2. Copy sections to clipboard (`:c`, `:ci`, `:co`)
 3. Share with LLM for analysis, summarization, or questions
 
 ### Command Line Options
@@ -132,15 +132,16 @@ revw --stdout --outside file.json
 - `Enter` open edit overlay for selected card
 - `:ai` add new INSIDE entry (jumps to it)
 - `:ao` add new OUTSIDE entry (jumps to it)
-- `:d` delete selected card
+- `:dd` delete selected entry (entire object)
+- `:yy` duplicate selected entry (entire object)
 - `:o` order entries and auto-save
 
 **Copy/Paste:**
-- `c` copy all rendered content (with OUTSIDE/INSIDE headers)
+- `:c` copy all rendered content (with OUTSIDE/INSIDE headers)
 - `:ci` copy INSIDE section only
 - `:co` copy OUTSIDE section only
 - `:cu` copy URL from selected card
-- `v` paste file path or JSON content
+- `:v` paste file path or JSON content
 - `:vu` paste URL from clipboard to selected card
 - `:vi` paste INSIDE from clipboard (overwrite)
 - `:vo` paste OUTSIDE from clipboard (overwrite)
@@ -152,9 +153,9 @@ revw --stdout --outside file.json
 
 **Other:**
 - `r` toggle View/Edit mode
-- `x` clear content
-- `:h` help
-- `q` quit
+- `:x` clear content
+- `:h` or `?` toggle help mode
+- `q` or `Esc` quit
 
 #### Edit Overlay
 **Field Selection Mode (default):**
@@ -184,8 +185,11 @@ revw --stdout --outside file.json
 ### Edit Mode
 **Navigation:**
 - `h/j/k/l` or arrow keys - move cursor
+- `w` next word start
 - `e` next word end
 - `b` previous word start
+- `0` move to start of line
+- `$` move to end of line
 - `gg` jump to top
 - `G` jump to bottom
 - `:gi` jump to first INSIDE entry
@@ -195,7 +199,8 @@ revw --stdout --outside file.json
 **Editing:**
 - `i` enter insert mode
 - `Esc` or `Ctrl+[` exit insert mode
-- `:d` delete current entry
+- `:dd` delete current entry (entire object)
+- `:yy` duplicate current entry (entire object)
 - `u` undo
 - `Ctrl+r` redo
 - `g-` undo
@@ -210,21 +215,28 @@ revw --stdout --outside file.json
 - `:ai` add INSIDE entry
 - `:ao` add OUTSIDE entry
 - `:o` order entries
+- `:dd` delete current entry (entire object)
+- `:yy` duplicate current entry (entire object)
+- `:c` copy all content
 - `:ci` copy INSIDE section (JSON format)
 - `:co` copy OUTSIDE section (JSON format)
+- `:v` paste from clipboard
 - `:vi` paste INSIDE from clipboard (overwrite)
 - `:vo` paste OUTSIDE from clipboard (overwrite)
 - `:va` paste both INSIDE and OUTSIDE from clipboard (append)
 - `:vai` paste INSIDE from clipboard (append)
 - `:vao` paste OUTSIDE from clipboard (append)
+- `:x` clear all content
 - `:xi` clear INSIDE section
 - `:xo` clear OUTSIDE section
+- `:f pattern` filter entries (View mode only, display only)
+- `:nof` clear filter
 - `:w` save
 - `:wq` save and quit
 - `:q` quit
 - `:e` reload file
 - `:ar` toggle auto-reload (default: on)
-- `:h` help
+- `:h` or `?` help
 
 **Substitute:**
 - `:s/pattern/replacement/` substitute first occurrence in current line

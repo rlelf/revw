@@ -65,7 +65,7 @@ impl Renderer {
         out
     }
 
-    pub fn render_relf(json_input: &str) -> RelfRenderResult {
+    pub fn render_relf(json_input: &str, filter_pattern: &str) -> RelfRenderResult {
         if let Ok(json_value) = serde_json::from_str::<serde_json::Value>(json_input) {
             let mut result = RelfRenderResult::default();
 
@@ -107,6 +107,16 @@ impl Renderer {
                                         }
                                         entry_lines.push(format!("{}%", percentage));
 
+                                        // Apply filter if pattern is provided
+                                        if !filter_pattern.is_empty() {
+                                            let matches = entry_lines.iter().any(|line| {
+                                                line.to_lowercase().contains(&filter_pattern.to_lowercase())
+                                            });
+                                            if !matches {
+                                                continue; // Skip this entry
+                                            }
+                                        }
+
                                         result.entries.push(RelfEntry {
                                             lines: entry_lines,
                                             bg_color: card_bg,
@@ -124,6 +134,16 @@ impl Renderer {
 
                                             if !value_str.is_empty() {
                                                 entry_lines.push(value_str);
+                                            }
+                                        }
+
+                                        // Apply filter if pattern is provided
+                                        if !filter_pattern.is_empty() {
+                                            let matches = entry_lines.iter().any(|line| {
+                                                line.to_lowercase().contains(&filter_pattern.to_lowercase())
+                                            });
+                                            if !matches {
+                                                continue; // Skip this entry
                                             }
                                         }
 

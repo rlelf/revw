@@ -1,4 +1,5 @@
 use super::{App, FormatMode};
+use super::super::json_ops::JsonOperations;
 use arboard::Clipboard;
 use serde_json::Value;
 use std::path::PathBuf;
@@ -610,6 +611,7 @@ impl App {
 
     pub fn clear_inside(&mut self) {
         // Clear INSIDE section
+        self.save_undo_state();
         match serde_json::from_str::<Value>(&self.json_input) {
             Ok(mut current_json) => {
                 if let Some(obj) = current_json.as_object_mut() {
@@ -622,6 +624,10 @@ impl App {
                             self.json_input = formatted;
                             self.is_modified = true;
                             self.convert_json();
+                            // Reset selection to first entry if current selection is out of bounds
+                            if !self.relf_entries.is_empty() && self.selected_entry_index >= self.relf_entries.len() {
+                                self.selected_entry_index = 0;
+                            }
                             self.set_status("INSIDE section cleared");
                         }
                         Err(e) => self.set_status(&format!("Format error: {}", e)),
@@ -636,6 +642,7 @@ impl App {
 
     pub fn clear_outside(&mut self) {
         // Clear OUTSIDE section
+        self.save_undo_state();
         match serde_json::from_str::<Value>(&self.json_input) {
             Ok(mut current_json) => {
                 if let Some(obj) = current_json.as_object_mut() {
@@ -648,6 +655,10 @@ impl App {
                             self.json_input = formatted;
                             self.is_modified = true;
                             self.convert_json();
+                            // Reset selection to first entry if current selection is out of bounds
+                            if !self.relf_entries.is_empty() && self.selected_entry_index >= self.relf_entries.len() {
+                                self.selected_entry_index = 0;
+                            }
                             self.set_status("OUTSIDE section cleared");
                         }
                         Err(e) => self.set_status(&format!("Format error: {}", e)),
@@ -738,6 +749,88 @@ impl App {
                 }
             }
             Err(e) => self.set_status(&format!("Invalid JSON: {}", e)),
+        }
+    }
+
+    pub fn duplicate_selected_entry(&mut self) {
+        // Duplicate selected entry in View mode or current line in Edit mode
+        if self.format_mode == FormatMode::View && !self.relf_entries.is_empty() {
+            // View mode: duplicate selected entry in JSON
+            if let Ok(mut json_value) = serde_json::from_str::<Value>(&self.json_input) {
+                if let Some(obj) = json_value.as_object_mut() {
+                    let outside_count = obj
+                        .get("outside")
+                        .and_then(|v| v.as_array())
+                        .map(|arr| arr.len())
+                        .unwrap_or(0);
+
+                    // Determine which section the selected entry belongs to
+                    if self.selected_entry_index < outside_count {
+                        // Duplicate OUTSIDE entry
+                        if let Some(outside) = obj.get_mut("outside").and_then(|v| v.as_array_mut()) {
+                            if self.selected_entry_index < outside.len() {
+                                let entry_clone = outside[self.selected_entry_index].clone();
+                                outside.insert(self.selected_entry_index + 1, entry_clone);
+
+                                // Update JSON and re-render
+                                match serde_json::to_string_pretty(&json_value) {
+                                    Ok(formatted) => {
+                                        self.save_undo_state();
+                                        self.json_input = formatted;
+                                        self.is_modified = true;
+                                        self.convert_json();
+                                        self.selected_entry_index += 1; // Move to duplicated entry
+                                        self.set_status("Entry duplicated");
+                                        self.save_file(); // Auto-save in View mode
+                                    }
+                                    Err(e) => self.set_status(&format!("Format error: {}", e)),
+                                }
+                            }
+                        }
+                    } else {
+                        // Duplicate INSIDE entry
+                        let inside_index = self.selected_entry_index - outside_count;
+                        if let Some(inside) = obj.get_mut("inside").and_then(|v| v.as_array_mut()) {
+                            if inside_index < inside.len() {
+                                let entry_clone = inside[inside_index].clone();
+                                inside.insert(inside_index + 1, entry_clone);
+
+                                // Update JSON and re-render
+                                match serde_json::to_string_pretty(&json_value) {
+                                    Ok(formatted) => {
+                                        self.save_undo_state();
+                                        self.json_input = formatted;
+                                        self.is_modified = true;
+                                        self.convert_json();
+                                        self.selected_entry_index += 1; // Move to duplicated entry
+                                        self.set_status("Entry duplicated");
+                                        self.save_file(); // Auto-save in View mode
+                                    }
+                                    Err(e) => self.set_status(&format!("Format error: {}", e)),
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } else if self.format_mode == FormatMode::Edit {
+            // Edit mode: duplicate current entry
+            self.save_undo_state();
+
+            let lines = self.get_json_lines();
+            match JsonOperations::duplicate_entry_at_cursor(
+                &self.json_input,
+                self.content_cursor_line,
+                &lines,
+            ) {
+                Ok((formatted, message)) => {
+                    self.json_input = formatted;
+                    self.convert_json();
+                    self.is_modified = true;
+                    self.set_status(&message);
+                }
+                Err(e) => self.set_status(&e),
+            }
         }
     }
 }

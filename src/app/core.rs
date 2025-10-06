@@ -17,6 +17,7 @@ pub enum InputMode {
 pub enum FormatMode {
     View,
     Edit,
+    Help,
 }
 
 #[derive(Clone)]
@@ -41,9 +42,6 @@ pub struct App {
     pub edit_field_editing_mode: bool, // Whether editing within a field (Enter pressed)
     pub edit_insert_mode: bool, // Whether in insert mode within overlay
     pub edit_cursor_pos: usize, // Cursor position within current field
-    pub previous_content: Vec<String>, // Store content before showing help
-    pub previous_relf_styles: Vec<RelfLineStyle>,
-    pub previous_relf_visual_styles: Vec<RelfLineStyle>,
     pub showing_help: bool, // Track if help is being shown
     pub scroll: u16,
     pub max_scroll: u16,
@@ -52,6 +50,7 @@ pub struct App {
     pub file_path: Option<PathBuf>,
     pub vim_buffer: String,
     pub format_mode: FormatMode,
+    pub previous_format_mode: FormatMode, // Store mode before entering Help
     pub command_buffer: String,     // For vim commands like :w, :wq
     pub is_modified: bool,          // Track if content has been modified
     pub content_cursor_line: usize, // Current line in content
@@ -69,6 +68,8 @@ pub struct App {
     pub search_buffer: String,
     pub search_matches: Vec<(usize, usize)>, // (line, col) positions
     pub current_match_index: Option<usize>,
+    // Filter functionality (View mode only)
+    pub filter_pattern: String,
     // Undo/Redo functionality
     pub undo_stack: Vec<UndoState>,
     pub redo_stack: Vec<UndoState>,
@@ -114,9 +115,6 @@ impl App {
             edit_field_editing_mode: false,
             edit_insert_mode: false,
             edit_cursor_pos: 0,
-            previous_content: vec![],
-            previous_relf_styles: Vec::new(),
-            previous_relf_visual_styles: Vec::new(),
             showing_help: false,
             scroll: 0,
             max_scroll: 0,
@@ -125,6 +123,7 @@ impl App {
             file_path: None,
             vim_buffer: String::new(),
             format_mode,
+            previous_format_mode: format_mode, // Initialize with same mode
             command_buffer: String::new(),
             is_modified: false,
             content_cursor_line: 0,
@@ -138,6 +137,7 @@ impl App {
             search_buffer: String::new(),
             search_matches: Vec::new(),
             current_match_index: None,
+            filter_pattern: String::new(),
             undo_stack: Vec::new(),
             redo_stack: Vec::new(),
             auto_reload: true,
@@ -169,6 +169,8 @@ impl App {
             self.rendered_content = vec![];
             self.relf_line_styles.clear();
             self.relf_visual_styles.clear();
+            self.relf_entries.clear();
+            self.selected_entry_index = 0;
             return;
         }
 
@@ -183,6 +185,11 @@ impl App {
                 self.relf_visual_styles.clear();
                 self.scroll = 0;
                 self.set_status("");
+            }
+            FormatMode::Help => {
+                // In Help mode, don't process JSON - help content is set separately
+                // This branch should not be reached during normal operation
+                return;
             }
             FormatMode::View => {
                 // In View mode, try to parse JSON directly
@@ -218,7 +225,7 @@ impl App {
     }
 
     fn render_relf(&self) -> RelfRenderResult {
-        Renderer::render_relf(&self.json_input)
+        Renderer::render_relf(&self.json_input, &self.filter_pattern)
     }
 
     fn render_json(&self) -> Vec<String> {
@@ -276,9 +283,6 @@ impl App {
 
     pub fn build_visual_lines(&mut self) -> Vec<String> {
         // Simply return content as-is for now, wrapping will be handled by UI
-        if self.showing_help {
-            return self.previous_content.clone();
-        }
         self.rendered_content.clone()
     }
 
@@ -313,88 +317,129 @@ impl App {
         (visual_row, 0)
     }
 
-    pub fn show_help(&mut self) {
-        // Store current content before showing help
-        self.previous_content = self.rendered_content.clone();
-        self.previous_relf_styles = self.relf_line_styles.clone();
-        self.previous_relf_visual_styles = self.relf_visual_styles.clone();
-        self.showing_help = true;
+    pub fn toggle_help(&mut self) {
+        if self.format_mode == FormatMode::Help {
+            // Exit help mode - restore to previous mode (View or Edit)
+            self.format_mode = self.previous_format_mode;
+            self.showing_help = false;
+            self.scroll = 0;
+            self.convert_json();
+        } else {
+            // Enter help mode - remember current mode
+            self.previous_format_mode = self.format_mode;
+            self.format_mode = FormatMode::Help;
+            self.showing_help = true;
+            self.show_help();
+        }
+    }
 
-        // Create help text
+    pub fn show_help(&mut self) {
+        // Create help text based on README.md
         self.rendered_content = vec![
-            "╭─────────────────────────────────────────────────────────────────╮".to_string(),
-            "│                         NAVIGATION                              │".to_string(),
-            "├─────────────────────────────────────────────────────────────────┤".to_string(),
-            "│ j/k       : Scroll down/up                                      │".to_string(),
-            "│ h/l       : Scroll left/right (View mode)                       │".to_string(),
-            "│ Ctrl+d/u  : Page down/up                                        │".to_string(),
-            "│ g/G       : Jump to top/bottom                                  │".to_string(),
-            "│ J/K       : Jump to next/prev entry boundary (View mode)        │".to_string(),
-            "│ n/N       : Next/previous search match                          │".to_string(),
-            "│ C-o/C-i   : Jump to first OUTSIDE/INSIDE entry (View mode)      │".to_string(),
-            "│                                                                 │".to_string(),
-            "│                         EDITING                                 │".to_string(),
-            "├─────────────────────────────────────────────────────────────────┤".to_string(),
-            "│ i         : Enter insert mode                                   │".to_string(),
-            "│ a         : Append after cursor                                 │".to_string(),
-            "│ o/O       : Insert new line below/above                         │".to_string(),
-            "│ dd        : Delete current line                                 │".to_string(),
-            "│ x         : Delete current entry (View mode)                    │".to_string(),
-            "│ u         : Undo                                                │".to_string(),
-            "│ Ctrl+r    : Redo                                                │".to_string(),
-            "│ ESC       : Return to normal mode                               │".to_string(),
-            "│                                                                 │".to_string(),
-            "│                         SEARCH                                  │".to_string(),
-            "├─────────────────────────────────────────────────────────────────┤".to_string(),
-            "│ /         : Start search                                        │".to_string(),
-            "│ n/N       : Next/previous match                                 │".to_string(),
-            "│ ESC       : Clear search highlight                              │".to_string(),
-            "│                                                                 │".to_string(),
-            "│                         COMMANDS                                │".to_string(),
-            "├─────────────────────────────────────────────────────────────────┤".to_string(),
-            "│ :w        : Save file                                           │".to_string(),
-            "│ :w <file> : Save as new file                                    │".to_string(),
-            "│ :q        : Quit (warns if unsaved)                             │".to_string(),
-            "│ :q!       : Force quit without saving                           │".to_string(),
-            "│ :wq       : Save and quit                                       │".to_string(),
-            "│ :e        : Reload file                                         │".to_string(),
-            "│ :s/<pat>/<rep>/[g]  : Substitute pattern (g for all on line)    │".to_string(),
-            "│ :%s/<pat>/<rep>/[g] : Substitute in entire file                 │".to_string(),
-            "│ :s/<pat>/<rep>/gc   : Substitute with confirmation              │".to_string(),
-            "│                                                                 │".to_string(),
-            "│                         CLIPBOARD                               │".to_string(),
-            "├─────────────────────────────────────────────────────────────────┤".to_string(),
-            "│ y         : Copy all content to clipboard                       │".to_string(),
-            "│ yi        : Copy INSIDE section                                 │".to_string(),
-            "│ yo        : Copy OUTSIDE section                                │".to_string(),
-            "│ yu        : Copy selected URL (View mode)                       │".to_string(),
-            "│ p         : Paste from clipboard                                │".to_string(),
-            "│ pi        : Paste INSIDE section (overwrite)                    │".to_string(),
-            "│ po        : Paste OUTSIDE section (overwrite)                   │".to_string(),
-            "│ Pi        : Paste INSIDE section (append)                       │".to_string(),
-            "│ Po        : Paste OUTSIDE section (append)                      │".to_string(),
-            "│ P         : Paste both sections (append)                        │".to_string(),
-            "│ pu        : Paste URL to selected entry (View mode)             │".to_string(),
-            "│ ci        : Clear INSIDE section                                │".to_string(),
-            "│ co        : Clear OUTSIDE section                               │".to_string(),
-            "│ cc        : Clear all content                                   │".to_string(),
-            "│                                                                 │".to_string(),
-            "│                         VIEW MODE                               │".to_string(),
-            "├─────────────────────────────────────────────────────────────────┤".to_string(),
-            "│ Enter     : Open entry editor overlay                           │".to_string(),
-            "│ ai        : Append new entry to INSIDE                          │".to_string(),
-            "│ ao        : Append new entry to OUTSIDE                         │".to_string(),
-            "│ s         : Sort entries by percentage                          │".to_string(),
-            "│                                                                 │".to_string(),
-            "│                         OTHER                                   │".to_string(),
-            "├─────────────────────────────────────────────────────────────────┤".to_string(),
-            "│ ?         : Toggle this help                                    │".to_string(),
-            "│ Tab       : Toggle View/Edit mode                               │".to_string(),
-            "╰─────────────────────────────────────────────────────────────────╯".to_string(),
+            "VIEW MODE CONTROLS".to_string(),
+            "".to_string(),
+            "Navigation:".to_string(),
+            "  j/k or ↑/↓   - select card (or mouse wheel)".to_string(),
+            "  gg           - select first card".to_string(),
+            "  G            - select last card".to_string(),
+            "  :gi          - jump to first INSIDE entry".to_string(),
+            "  :go          - jump to first OUTSIDE entry".to_string(),
+            "  /            - search forward".to_string(),
+            "  n/N          - next/prev match (jumps to card)".to_string(),
+            "  :noh         - clear search highlighting".to_string(),
+            "".to_string(),
+            "Editing:".to_string(),
+            "  Enter        - open edit overlay for selected card".to_string(),
+            "  :ai          - add new INSIDE entry (jumps to it)".to_string(),
+            "  :ao          - add new OUTSIDE entry (jumps to it)".to_string(),
+            "  :o           - order entries and auto-save".to_string(),
+            "".to_string(),
+            "Copy/Paste:".to_string(),
+            "  :c           - copy all rendered content (with OUTSIDE/INSIDE headers)".to_string(),
+            "  :ci          - copy INSIDE section only".to_string(),
+            "  :co          - copy OUTSIDE section only".to_string(),
+            "  :cu          - copy URL from selected card".to_string(),
+            "  :v           - paste file path or JSON content".to_string(),
+            "  :vu          - paste URL from clipboard to selected card".to_string(),
+            "  :vi          - paste INSIDE from clipboard (overwrite)".to_string(),
+            "  :vo          - paste OUTSIDE from clipboard (overwrite)".to_string(),
+            "  :va          - paste both INSIDE and OUTSIDE from clipboard (append)".to_string(),
+            "  :vai         - paste INSIDE from clipboard (append)".to_string(),
+            "  :vao         - paste OUTSIDE from clipboard (append)".to_string(),
+            "  :xi          - clear INSIDE section".to_string(),
+            "  :xo          - clear OUTSIDE section".to_string(),
+            "".to_string(),
+            "Entry Operations:".to_string(),
+            "  :dd          - delete selected entry".to_string(),
+            "  :yy          - duplicate selected entry".to_string(),
+            "".to_string(),
+            "Filter (View mode only):".to_string(),
+            "  :f pattern   - filter entries by pattern (display only, no save)".to_string(),
+            "  :nof         - clear filter".to_string(),
+            "".to_string(),
+            "Other:".to_string(),
+            "  r            - toggle View/Edit mode".to_string(),
+            "  :h or ?      - help".to_string(),
+            "  q or Esc     - quit".to_string(),
+            "".to_string(),
+            "EDIT MODE CONTROLS".to_string(),
+            "".to_string(),
+            "Navigation:".to_string(),
+            "  h/j/k/l or arrow keys - move cursor".to_string(),
+            "  e            - next word end".to_string(),
+            "  b            - previous word start".to_string(),
+            "  gg           - jump to top".to_string(),
+            "  G            - jump to bottom".to_string(),
+            "  :gi          - jump to first INSIDE entry".to_string(),
+            "  :go          - jump to first OUTSIDE entry".to_string(),
+            "".to_string(),
+            "Editing:".to_string(),
+            "  i            - enter insert mode".to_string(),
+            "  Esc or Ctrl+[ - exit insert mode".to_string(),
+            "  u            - undo".to_string(),
+            "  Ctrl+r       - redo".to_string(),
+            "  g-           - undo".to_string(),
+            "  g+           - redo".to_string(),
+            "".to_string(),
+            "Search:".to_string(),
+            "  /            - search forward".to_string(),
+            "  n/N          - next/prev match".to_string(),
+            "  :noh         - clear search highlighting".to_string(),
+            "".to_string(),
+            "Commands:".to_string(),
+            "  :ai          - add INSIDE entry".to_string(),
+            "  :ao          - add OUTSIDE entry".to_string(),
+            "  :o           - order entries".to_string(),
+            "  :dd          - delete current entry (entire object)".to_string(),
+            "  :yy          - duplicate current entry (entire object)".to_string(),
+            "  :ci          - copy INSIDE section (JSON format)".to_string(),
+            "  :co          - copy OUTSIDE section (JSON format)".to_string(),
+            "  :vi          - paste INSIDE from clipboard (overwrite)".to_string(),
+            "  :vo          - paste OUTSIDE from clipboard (overwrite)".to_string(),
+            "  :va          - paste both INSIDE and OUTSIDE from clipboard (append)".to_string(),
+            "  :vai         - paste INSIDE from clipboard (append)".to_string(),
+            "  :vao         - paste OUTSIDE from clipboard (append)".to_string(),
+            "  :xi          - clear INSIDE section".to_string(),
+            "  :xo          - clear OUTSIDE section".to_string(),
+            "  :w           - save".to_string(),
+            "  :wq          - save and quit".to_string(),
+            "  :q           - quit".to_string(),
+            "  :e           - reload file".to_string(),
+            "  :ar          - toggle auto-reload (default: on)".to_string(),
+            "  :f pattern   - filter entries (Edit mode: no effect)".to_string(),
+            "  :nof         - clear filter".to_string(),
+            "  :h or ?      - help".to_string(),
+            "".to_string(),
+            "Substitute:".to_string(),
+            "  :s/pattern/replacement/     - substitute first occurrence in current line".to_string(),
+            "  :s/pattern/replacement/g    - substitute all occurrences in current line".to_string(),
+            "  :%s/pattern/replacement/    - substitute first occurrence in all lines".to_string(),
+            "  :%s/pattern/replacement/g   - substitute all occurrences in all lines".to_string(),
         ];
 
         self.relf_line_styles.clear();
         self.relf_visual_styles.clear();
+        self.relf_entries.clear();
         self.scroll = 0;
     }
 
@@ -474,5 +519,28 @@ impl App {
         self.is_modified = true;
         self.convert_json();
         self.set_status("Content cleared");
+    }
+
+    pub fn apply_filter(&mut self, pattern: String) {
+        if pattern.is_empty() {
+            self.clear_filter();
+            return;
+        }
+
+        self.filter_pattern = pattern.clone();
+
+        // Re-render with filter applied
+        self.convert_json();
+
+        let filtered_count = self.relf_entries.len();
+        self.set_status(&format!("Filter: {} ({} entries)", pattern, filtered_count));
+    }
+
+    pub fn clear_filter(&mut self) {
+        if !self.filter_pattern.is_empty() {
+            self.filter_pattern.clear();
+            self.convert_json();
+            self.set_status("Filter cleared");
+        }
     }
 }

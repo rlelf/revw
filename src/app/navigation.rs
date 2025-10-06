@@ -404,6 +404,72 @@ impl App {
         self.ensure_cursor_visible();
     }
 
+    pub fn move_to_next_word_start(&mut self) {
+        // Vim-like 'w': move to the start of the next word
+        let lines = self.get_json_lines();
+        if lines.is_empty() {
+            return;
+        }
+
+        let is_word = Navigator::is_word_char;
+        let line_chars: Vec<Vec<char>> = lines.iter().map(|l| l.chars().collect()).collect();
+        let mut li = self
+            .content_cursor_line
+            .min(line_chars.len().saturating_sub(1));
+        let mut ci = self.content_cursor_col;
+
+        // Helper to get next position
+        let next_pos = |mut li2: usize, ci2: usize| -> Option<(usize, usize, char)> {
+            if li2 >= line_chars.len() {
+                return None;
+            }
+            // Move to next char on the same line
+            if ci2 + 1 < line_chars[li2].len() {
+                return Some((li2, ci2 + 1, line_chars[li2][ci2 + 1]));
+            }
+            // Jump to the first char of the next non-empty line
+            li2 += 1;
+            while li2 < line_chars.len() {
+                if !line_chars[li2].is_empty() {
+                    return Some((li2, 0, line_chars[li2][0]));
+                }
+                li2 += 1;
+            }
+            None
+        };
+
+        // Skip current word if we're on one
+        let mut in_word = if li < line_chars.len() && ci < line_chars[li].len() {
+            is_word(line_chars[li][ci])
+        } else {
+            false
+        };
+
+        // Advance forward
+        while let Some((nli, nci, ch)) = next_pos(li, ci) {
+            let is_w = is_word(ch);
+            if !in_word && is_w {
+                // Found start of next word
+                self.content_cursor_line = nli;
+                self.content_cursor_col = nci;
+                self.ensure_cursor_visible();
+                return;
+            }
+            in_word = is_w;
+            li = nli;
+            ci = nci;
+        }
+
+        // Reached EOF without finding next word
+        // Stay at last position
+        if let Some(last_line) = line_chars.len().checked_sub(1) {
+            let last_col = line_chars[last_line].len().saturating_sub(1);
+            self.content_cursor_line = last_line;
+            self.content_cursor_col = last_col;
+        }
+        self.ensure_cursor_visible();
+    }
+
     pub fn move_to_previous_word_start(&mut self) {
         // Vim-like 'b': always make backward progress to the start of the previous word
         let lines = self.get_json_lines();

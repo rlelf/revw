@@ -204,7 +204,7 @@ fn render_empty_content(f: &mut Frame, app: &App, area: Rect) {
         .title(title)
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
-        .style(Style::default().fg(Color::DarkGray));
+        .style(Style::default().fg(Color::DarkGray).bg(Color::Rgb(26, 28, 34)));
 
     let inner_area = outer_block.inner(area);
     f.render_widget(outer_block, area);
@@ -257,6 +257,12 @@ fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
     // In View mode with entries, render as cards
     if app.format_mode == FormatMode::View && !app.relf_entries.is_empty() {
         render_relf_cards(f, app, area);
+        return;
+    }
+
+    // In Help mode, render help text
+    if app.format_mode == FormatMode::Help {
+        render_help_content(f, app, area);
         return;
     }
 
@@ -535,6 +541,51 @@ fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
     f.render_widget(content, area);
 }
 
+fn render_help_content(f: &mut Frame, app: &mut App, area: Rect) {
+    // Create a block with border like View/Edit modes
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .style(Style::default().fg(Color::DarkGray).bg(Color::Rgb(26, 28, 34)));
+
+    let inner_area = block.inner(area);
+
+    app.visible_height = inner_area.height;
+    app.content_width = inner_area.width;
+
+    // Calculate visible range
+    let total_lines = app.rendered_content.len();
+    let visible_height = inner_area.height as usize;
+    let scroll_pos = app.scroll as usize;
+
+    // Update max_scroll
+    app.max_scroll = if total_lines > visible_height {
+        (total_lines - visible_height) as u16
+    } else {
+        0
+    };
+
+    // Clamp scroll
+    if app.scroll > app.max_scroll {
+        app.scroll = app.max_scroll;
+    }
+
+    // Get visible lines
+    let start = scroll_pos;
+    let end = (start + visible_height).min(total_lines);
+    let visible_lines: Vec<Line> = app.rendered_content[start..end]
+        .iter()
+        .map(|line| Line::from(line.clone()))
+        .collect();
+
+    let content = Paragraph::new(visible_lines)
+        .block(block)
+        .wrap(Wrap { trim: false })
+        .style(Style::default().fg(Color::White).bg(Color::Rgb(26, 28, 34)));
+
+    f.render_widget(content, area);
+}
+
 fn render_relf_cards(f: &mut Frame, app: &mut App, area: Rect) {
     let title = match &app.file_path {
         Some(path) => format!(" {} ", path.display()),
@@ -545,7 +596,7 @@ fn render_relf_cards(f: &mut Frame, app: &mut App, area: Rect) {
         .title(title)
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
-        .style(Style::default().fg(Color::DarkGray));
+        .style(Style::default().fg(Color::DarkGray).bg(Color::Rgb(26, 28, 34)));
 
     let inner_area = outer_block.inner(area);
     f.render_widget(outer_block, area);

@@ -23,28 +23,16 @@ impl App {
             }
             self.vim_buffer.clear();
             return true;
-        } else if self.vim_buffer == "dd" {
-            // Delete current data entry
-            if self.format_mode == FormatMode::Edit {
-                self.delete_current_entry();
-                self.is_modified = true;
-            } else if !self.relf_entries.is_empty() {
-                // Delete selected entry in card view
-                self.delete_selected_entry();
-                self.is_modified = true;
-            }
-            self.vim_buffer.clear();
-            return true;
         } else if self.vim_buffer == "g-" {
-            // Undo (vim-style)
-            if self.format_mode == FormatMode::Edit {
+            // Undo (vim-style, not in help mode)
+            if !self.showing_help && self.format_mode == FormatMode::Edit {
                 self.undo();
             }
             self.vim_buffer.clear();
             return true;
         } else if self.vim_buffer == "g+" {
-            // Redo (vim-style)
-            if self.format_mode == FormatMode::Edit {
+            // Redo (vim-style, not in help mode)
+            if !self.showing_help && self.format_mode == FormatMode::Edit {
                 self.redo();
             }
             self.vim_buffer.clear();
@@ -137,9 +125,12 @@ impl App {
         } else if cmd == "xo" {
             // Clear OUTSIDE section
             self.clear_outside();
-        } else if cmd == "d" {
-            // Delete entry (works in both View and Edit mode)
-            if self.format_mode == FormatMode::Edit {
+        } else if cmd == "dd" {
+            // Delete entry in both View and Edit modes
+            // Prevent deletion when filter is active in View mode
+            if self.format_mode == FormatMode::View && !self.filter_pattern.is_empty() {
+                self.set_status("Cannot delete while filter is active. Clear filter with :nof first");
+            } else if self.format_mode == FormatMode::Edit {
                 self.delete_current_entry();
                 self.is_modified = true;
             } else if !self.relf_entries.is_empty() {
@@ -148,11 +139,39 @@ impl App {
                 // Auto-save after deletion in View mode
                 self.save_file();
             }
+        } else if cmd == "yy" {
+            // Duplicate entry in both View and Edit modes
+            // Prevent duplication when filter is active in View mode
+            if self.format_mode == FormatMode::View && !self.filter_pattern.is_empty() {
+                self.set_status("Cannot duplicate while filter is active. Clear filter with :nof first");
+            } else {
+                self.duplicate_selected_entry();
+            }
         } else if cmd == "noh" {
             // Clear search highlighting
             self.clear_search_highlight();
+        } else if cmd == "nof" {
+            // Clear filter
+            self.clear_filter();
+        } else if cmd.starts_with("f ") {
+            // Filter entries in View mode
+            if self.format_mode == FormatMode::View {
+                let pattern = cmd.strip_prefix("f ").unwrap().trim().to_string();
+                self.apply_filter(pattern);
+            } else {
+                self.set_status("Filter only works in View mode");
+            }
         } else if cmd == "h" {
-            self.show_help();
+            self.toggle_help();
+        } else if cmd == "c" {
+            // Copy all content to clipboard
+            self.copy_to_clipboard();
+        } else if cmd == "v" {
+            // Paste from clipboard
+            self.paste_from_clipboard();
+        } else if cmd == "x" {
+            // Clear all content
+            self.clear_content();
         } else if cmd.starts_with("s/") || cmd.starts_with("%s/") {
             // Substitute command: :s/pattern/replacement/flags or :%s/pattern/replacement/flags
             self.execute_substitute(cmd);

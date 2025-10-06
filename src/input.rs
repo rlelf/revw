@@ -322,69 +322,70 @@ pub fn run_app<B: ratatui::backend::Backend>(
 
                             match key.code {
                             KeyCode::Char('u') => {
-                                if app.format_mode == FormatMode::Edit {
+                                if !app.showing_help && app.format_mode == FormatMode::Edit {
                                     app.undo();
                                 }
                             }
+                            KeyCode::Char('?') => {
+                                // Toggle help
+                                app.toggle_help();
+                            }
                             KeyCode::Char('q') | KeyCode::Esc => return Ok(()),
-                            KeyCode::Char('v') => app.paste_from_clipboard(),
-                            KeyCode::Char('c') => app.copy_to_clipboard(),
+                            KeyCode::Char('w') => {
+                                // Vim-like: move to start of next word (Edit mode)
+                                if !app.showing_help && app.format_mode == FormatMode::Edit {
+                                    app.move_to_next_word_start();
+                                }
+                            }
                             KeyCode::Char('e') => {
                                 // Vim-like: move to end of next word (Edit mode)
-                                if app.format_mode == FormatMode::Edit {
+                                if !app.showing_help && app.format_mode == FormatMode::Edit {
                                     app.move_to_next_word_end();
                                 }
                             }
                             KeyCode::Char('b') => {
                                 // Vim-like: move to start of previous word (Edit mode)
-                                if app.format_mode == FormatMode::Edit {
+                                if !app.showing_help && app.format_mode == FormatMode::Edit {
                                     app.move_to_previous_word_start();
                                 }
                             }
-                            KeyCode::Char('d') => {
-                                // Handle dd command for deleting data entries
-                                if app.format_mode == FormatMode::Edit {
-                                    app.dd_count += 1;
-                                    if app.dd_count == 2 {
-                                        app.delete_current_entry();
-                                        app.dd_count = 0;
-                                    } else {
-                                        // Start the dd sequence
-                                        app.vim_buffer = "d".to_string();
-                                        app.set_status("Press 'd' again to delete entry");
-                                    }
-                                }
-                            }
                             KeyCode::Char('r') => {
-                                app.format_mode = match app.format_mode {
-                                    FormatMode::View => FormatMode::Edit,
-                                    FormatMode::Edit => FormatMode::View,
-                                };
-                                let mode_name = match app.format_mode {
-                                    FormatMode::View => "View",
-                                    FormatMode::Edit => "Edit",
-                                };
-                                if app.format_mode == FormatMode::View {
-                                    app.hscroll = 0;
+                                if !app.showing_help {
+                                    // Clear filter when toggling modes
+                                    if !app.filter_pattern.is_empty() {
+                                        app.filter_pattern.clear();
+                                    }
+
+                                    // Toggle between View and Edit only (not Help)
+                                    app.format_mode = match app.format_mode {
+                                        FormatMode::View => FormatMode::Edit,
+                                        FormatMode::Edit => FormatMode::View,
+                                        FormatMode::Help => FormatMode::View, // If somehow in Help, go to View
+                                    };
+                                    let mode_name = match app.format_mode {
+                                        FormatMode::View => "View",
+                                        FormatMode::Edit => "Edit",
+                                        FormatMode::Help => "Help",
+                                    };
+                                    if app.format_mode == FormatMode::View {
+                                        app.hscroll = 0;
+                                    }
+                                    app.convert_json();
+                                    app.set_status(&format!("{} mode", mode_name));
                                 }
-                                app.set_status(&format!("{} mode", mode_name));
-                                app.convert_json();
                             }
                             KeyCode::Char('i') => {
-                                if app.format_mode == FormatMode::Edit {
+                                if !app.showing_help && app.format_mode == FormatMode::Edit {
                                     app.input_mode = InputMode::Insert;
                                     app.ensure_cursor_visible();
                                     app.set_status("-- INSERT --");
                                 }
                             }
                             KeyCode::Char(':') => {
+                                // Allow command mode even when showing help (for :h to toggle)
                                 app.input_mode = InputMode::Command;
                                 app.command_buffer = String::new();
                                 app.set_status(":");
-                            }
-                            KeyCode::Char('x') => {
-                                app.clear_content();
-                                app.set_status("");
                             }
                             KeyCode::Up | KeyCode::Char('k') => {
                                 if app.showing_help {
@@ -417,49 +418,57 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                 }
                             }
                             KeyCode::Left | KeyCode::Char('h') => {
-                                if app.format_mode == FormatMode::Edit {
-                                    app.move_cursor_left();
-                                } else {
-                                    // Faster horizontal pan in Relf
-                                    app.relf_hscroll_by(-8);
+                                if !app.showing_help {
+                                    if app.format_mode == FormatMode::Edit {
+                                        app.move_cursor_left();
+                                    } else {
+                                        // Faster horizontal pan in Relf
+                                        app.relf_hscroll_by(-8);
+                                    }
                                 }
                             }
                             KeyCode::Right | KeyCode::Char('l') => {
-                                if app.format_mode == FormatMode::Edit {
-                                    app.move_cursor_right();
-                                } else {
-                                    app.relf_hscroll_by(8);
+                                if !app.showing_help {
+                                    if app.format_mode == FormatMode::Edit {
+                                        app.move_cursor_right();
+                                    } else {
+                                        app.relf_hscroll_by(8);
+                                    }
                                 }
                             }
                             KeyCode::Char('H') => {
-                                if app.format_mode == FormatMode::View {
+                                if !app.showing_help && app.format_mode == FormatMode::View {
                                     let step = (app.get_content_width() / 2) as i16;
                                     app.relf_hscroll_by(-step);
                                 }
                             }
                             KeyCode::Char('L') => {
-                                if app.format_mode == FormatMode::View {
+                                if !app.showing_help && app.format_mode == FormatMode::View {
                                     let step = (app.get_content_width() / 2) as i16;
                                     app.relf_hscroll_by(step);
                                 }
                             }
                             KeyCode::Char('0') => {
-                                if app.format_mode == FormatMode::View {
-                                    app.hscroll = 0;
-                                } else if app.format_mode == FormatMode::Edit {
-                                    app.content_cursor_col = 0;
-                                    app.ensure_cursor_visible();
+                                if !app.showing_help {
+                                    if app.format_mode == FormatMode::View {
+                                        app.hscroll = 0;
+                                    } else if app.format_mode == FormatMode::Edit {
+                                        app.content_cursor_col = 0;
+                                        app.ensure_cursor_visible();
+                                    }
                                 }
                             }
                             KeyCode::Char('$') => {
-                                if app.format_mode == FormatMode::View {
-                                    app.hscroll = app.relf_max_hscroll();
-                                } else if app.format_mode == FormatMode::Edit {
-                                    let lines = app.get_json_lines();
-                                    if app.content_cursor_line < lines.len() {
-                                        app.content_cursor_col =
-                                            lines[app.content_cursor_line].chars().count();
-                                        app.ensure_cursor_visible();
+                                if !app.showing_help {
+                                    if app.format_mode == FormatMode::View {
+                                        app.hscroll = app.relf_max_hscroll();
+                                    } else if app.format_mode == FormatMode::Edit {
+                                        let lines = app.get_json_lines();
+                                        if app.content_cursor_line < lines.len() {
+                                            app.content_cursor_col =
+                                                lines[app.content_cursor_line].chars().count();
+                                            app.ensure_cursor_visible();
+                                        }
                                     }
                                 }
                             }
@@ -484,28 +493,33 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                 }
                             }
                             KeyCode::Char('/') => {
-                                app.start_search();
+                                if !app.showing_help {
+                                    app.start_search();
+                                }
                             }
                             KeyCode::Char('n') => {
-                                app.next_match();
+                                if !app.showing_help {
+                                    app.next_match();
+                                }
                             }
                             KeyCode::Char('N') => {
-                                app.prev_match();
+                                if !app.showing_help {
+                                    app.prev_match();
+                                }
                             }
                             KeyCode::Enter => {
                                 // Open edit overlay for selected card
-                                if !app.relf_entries.is_empty() {
+                                if !app.showing_help && !app.relf_entries.is_empty() {
                                     app.start_editing_entry();
                                 }
                             }
                             KeyCode::Char(c)
                                 if c == 'g'
-                                    || c == 'd'
                                     || c == '-'
                                     || c == '+'
-                                    || app.vim_buffer.starts_with('g')
-                                    || app.vim_buffer.starts_with('d') =>
+                                    || app.vim_buffer.starts_with('g') =>
                             {
+                                // Allow gg in help mode for scrolling to top
                                 app.handle_vim_input(c);
                             }
                             _ => {

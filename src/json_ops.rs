@@ -192,6 +192,102 @@ impl JsonOperations {
         }
     }
 
+    pub fn duplicate_entry_at_cursor(
+        json_input: &str,
+        cursor_line: usize,
+        lines: &[String],
+    ) -> Result<(String, String), String> {
+        let mut json_value: Value =
+            serde_json::from_str(json_input).map_err(|e| format!("Invalid JSON: {}", e))?;
+
+        if lines.is_empty() || cursor_line >= lines.len() {
+            return Err("Invalid cursor position".to_string());
+        }
+
+        let mut duplicated = false;
+        let mut in_array = false;
+        let mut _array_index = 0;
+
+        for i in 0..=cursor_line {
+            if i >= lines.len() {
+                break;
+            }
+            let line = &lines[i];
+
+            if line.contains('[') {
+                in_array = true;
+                _array_index = 0;
+            }
+
+            if in_array && line.trim().starts_with('{') && i < cursor_line {
+                _array_index += 1;
+            }
+
+            if line.contains(']') {
+                in_array = false;
+            }
+        }
+
+        if let Some(obj) = json_value.as_object_mut() {
+            for (key, value) in obj.iter_mut() {
+                if let Some(arr) = value.as_array_mut() {
+                    let key_pattern = format!("\"{}\"", key);
+                    let mut found_key = false;
+                    let mut current_item = 0;
+
+                    for i in 0..cursor_line {
+                        if i >= lines.len() {
+                            break;
+                        }
+                        if lines[i].contains(&key_pattern) {
+                            found_key = true;
+                        }
+                        if found_key && lines[i].trim().starts_with('{') {
+                            if i < cursor_line {
+                                let mut depth = 1;
+                                for j in (i + 1)..=cursor_line {
+                                    if j >= lines.len() {
+                                        break;
+                                    }
+                                    if lines[j].contains('{') {
+                                        depth += 1;
+                                    }
+                                    if lines[j].contains('}') {
+                                        depth -= 1;
+                                        if depth == 0 {
+                                            if j >= cursor_line {
+                                                if current_item < arr.len() {
+                                                    let entry_clone = arr[current_item].clone();
+                                                    arr.insert(current_item + 1, entry_clone);
+                                                    duplicated = true;
+                                                }
+                                                break;
+                                            } else {
+                                                current_item += 1;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if duplicated {
+                        break;
+                    }
+                }
+            }
+        }
+
+        if duplicated {
+            let formatted = serde_json::to_string_pretty(&json_value)
+                .map_err(|e| format!("Failed to format JSON: {}", e))?;
+            Ok((formatted, "Entry duplicated".to_string()))
+        } else {
+            Err("Could not duplicate entry at cursor position".to_string())
+        }
+    }
+
     pub fn order_entries(json_input: &str) -> Result<(String, String), String> {
         let mut json_value: Value =
             serde_json::from_str(json_input).map_err(|e| format!("Invalid JSON: {}", e))?;
