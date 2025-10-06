@@ -6,7 +6,7 @@
 
 A vim-like TUI for managing notes and resources.
 
-![Revw](assets/revw.gif)
+![Revw](https://raw.githubusercontent.com/rlelf/revw/main/assets/revw.gif)
 
 ## Features
 
