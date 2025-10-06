@@ -8,11 +8,17 @@ impl App {
     }
 
     pub fn start_editing_entry(&mut self) {
+        // Get the original index from the selected entry (accounts for filtering)
+        let target_idx = if self.selected_entry_index < self.relf_entries.len() {
+            self.relf_entries[self.selected_entry_index].original_index
+        } else {
+            return; // Invalid selection
+        };
+
         // Load fields from JSON (not from rendered lines) to include empty fields
         if let Ok(json_value) = serde_json::from_str::<Value>(&self.json_input) {
             if let Some(obj) = json_value.as_object() {
                 let mut current_idx = 0;
-                let target_idx = self.selected_entry_index;
 
                 // Check outside section
                 if let Some(outside) = obj.get("outside") {
@@ -81,11 +87,18 @@ impl App {
             return;
         }
 
+        // Get the original index from the selected entry (accounts for filtering)
+        let target_idx = if self.selected_entry_index < self.relf_entries.len() {
+            self.relf_entries[self.selected_entry_index].original_index
+        } else {
+            self.editing_entry = false;
+            return; // Invalid selection
+        };
+
         match serde_json::from_str::<Value>(&self.json_input) {
             Ok(mut json_value) => {
                 if let Some(obj) = json_value.as_object_mut() {
                     let mut current_idx = 0;
-                    let target_idx = self.selected_entry_index;
                     let mut found = false;
 
                     // Check outside section

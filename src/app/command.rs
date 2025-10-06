@@ -127,10 +127,7 @@ impl App {
             self.clear_outside();
         } else if cmd == "dd" {
             // Delete entry in both View and Edit modes
-            // Prevent deletion when filter is active in View mode
-            if self.format_mode == FormatMode::View && !self.filter_pattern.is_empty() {
-                self.set_status("Cannot delete while filter is active. Clear filter with :nof first");
-            } else if self.format_mode == FormatMode::Edit {
+            if self.format_mode == FormatMode::Edit {
                 self.delete_current_entry();
                 self.is_modified = true;
             } else if !self.relf_entries.is_empty() {
@@ -141,12 +138,7 @@ impl App {
             }
         } else if cmd == "yy" {
             // Duplicate entry in both View and Edit modes
-            // Prevent duplication when filter is active in View mode
-            if self.format_mode == FormatMode::View && !self.filter_pattern.is_empty() {
-                self.set_status("Cannot duplicate while filter is active. Clear filter with :nof first");
-            } else {
-                self.duplicate_selected_entry();
-            }
+            self.duplicate_selected_entry();
         } else if cmd == "noh" {
             // Clear search highlighting
             self.clear_search_highlight();

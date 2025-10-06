@@ -12,6 +12,7 @@ pub struct RelfLineStyle {
 pub struct RelfEntry {
     pub lines: Vec<String>,
     pub bg_color: Color,
+    pub original_index: usize, // Index in the original JSON (before filtering)
 }
 
 #[derive(Clone, Debug, Default)]
@@ -71,11 +72,15 @@ impl Renderer {
 
             if let Some(obj) = json_value.as_object() {
                 let card_bg = Color::Rgb(26, 28, 34);
+                let mut global_index = 0; // Track the original index across all entries
 
                 for (section_key, section_value) in obj {
                     if section_key == "outside" || section_key == "inside" {
                         if let Some(section_array) = section_value.as_array() {
                             for item in section_array {
+                                let original_index = global_index;
+                                global_index += 1;
+
                                 if let Some(item_obj) = item.as_object() {
                                     if section_key == "outside" {
 
@@ -120,6 +125,7 @@ impl Renderer {
                                         result.entries.push(RelfEntry {
                                             lines: entry_lines,
                                             bg_color: card_bg,
+                                            original_index,
                                         });
                                     } else if section_key == "inside" {
 
@@ -150,6 +156,7 @@ impl Renderer {
                                         result.entries.push(RelfEntry {
                                             lines: entry_lines,
                                             bg_color: card_bg,
+                                            original_index,
                                         });
                                     }
                                 }

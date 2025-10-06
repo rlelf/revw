@@ -164,12 +164,14 @@ impl App {
             return;
         }
 
+        // Get the original index from the selected entry (accounts for filtering)
+        let target_idx = self.relf_entries[self.selected_entry_index].original_index;
+
         match serde_json::from_str::<Value>(&self.json_input) {
             Ok(mut json_value) => {
                 if let Some(obj) = json_value.as_object_mut() {
                     // Count entries to find which section and index
                     let mut current_idx = 0;
-                    let target_idx = self.selected_entry_index;
                     let mut found = false;
 
                     // Check outside section first

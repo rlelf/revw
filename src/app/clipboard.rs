@@ -755,6 +755,9 @@ impl App {
     pub fn duplicate_selected_entry(&mut self) {
         // Duplicate selected entry in View mode or current line in Edit mode
         if self.format_mode == FormatMode::View && !self.relf_entries.is_empty() {
+            // Get the original index from the selected entry (accounts for filtering)
+            let target_idx = self.relf_entries[self.selected_entry_index].original_index;
+
             // View mode: duplicate selected entry in JSON
             if let Ok(mut json_value) = serde_json::from_str::<Value>(&self.json_input) {
                 if let Some(obj) = json_value.as_object_mut() {
@@ -765,12 +768,12 @@ impl App {
                         .unwrap_or(0);
 
                     // Determine which section the selected entry belongs to
-                    if self.selected_entry_index < outside_count {
+                    if target_idx < outside_count {
                         // Duplicate OUTSIDE entry
                         if let Some(outside) = obj.get_mut("outside").and_then(|v| v.as_array_mut()) {
-                            if self.selected_entry_index < outside.len() {
-                                let entry_clone = outside[self.selected_entry_index].clone();
-                                outside.insert(self.selected_entry_index + 1, entry_clone);
+                            if target_idx < outside.len() {
+                                let entry_clone = outside[target_idx].clone();
+                                outside.insert(target_idx + 1, entry_clone);
 
                                 // Update JSON and re-render
                                 match serde_json::to_string_pretty(&json_value) {
@@ -789,7 +792,7 @@ impl App {
                         }
                     } else {
                         // Duplicate INSIDE entry
-                        let inside_index = self.selected_entry_index - outside_count;
+                        let inside_index = target_idx - outside_count;
                         if let Some(inside) = obj.get_mut("inside").and_then(|v| v.as_array_mut()) {
                             if inside_index < inside.len() {
                                 let entry_clone = inside[inside_index].clone();
