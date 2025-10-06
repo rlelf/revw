@@ -4,7 +4,7 @@ use crossterm::event::{
 };
 use notify::{Event as NotifyEvent, RecursiveMode, Watcher};
 use std::sync::mpsc::{self, Receiver, TryRecvError};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crate::app::{App, FormatMode, InputMode, ScrollbarType};
 
@@ -76,8 +76,9 @@ pub fn run_app<B: ratatui::backend::Backend>(
                             // Insert mode: typing edits current field
                             match key.code {
                                 KeyCode::Esc | KeyCode::Char('[') if key.code == KeyCode::Esc || key.modifiers.contains(KeyModifiers::CONTROL) => {
-                                    // Exit insert mode, go back to field normal mode
+                                    // Exit insert mode and field editing mode, go back to field selection mode
                                     app.edit_insert_mode = false;
+                                    app.edit_field_editing_mode = false;
                                 }
                                 KeyCode::Backspace => {
                                     if app.edit_field_index < app.edit_buffer.len() && app.edit_cursor_pos > 0 {
@@ -267,6 +268,23 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                     // Enter field editing mode
                                     app.edit_field_editing_mode = true;
                                     app.edit_cursor_pos = 0;
+                                }
+                                KeyCode::Char('i') => {
+                                    // Skip field editing mode, go straight to insert mode with cursor at end
+                                    app.edit_field_editing_mode = true;
+                                    app.edit_insert_mode = true;
+                                    if app.edit_field_index < app.edit_buffer.len() {
+                                        let field = &app.edit_buffer[app.edit_field_index];
+                                        // Clear placeholder text when entering insert mode
+                                        if field == "name" || field == "context" || field == "url"
+                                            || field == "percentage" || field == "date" {
+                                            app.edit_buffer[app.edit_field_index] = String::new();
+                                            app.edit_cursor_pos = 0;
+                                        } else {
+                                            // Move cursor to end of text
+                                            app.edit_cursor_pos = field.chars().count();
+                                        }
+                                    }
                                 }
                                 _ => {}
                             }
@@ -593,6 +611,63 @@ pub fn run_app<B: ratatui::backend::Backend>(
                     }
                 }
                 Event::Mouse(mouse) => {
+                    // Handle overlay mouse events
+                    if app.editing_entry {
+                        match mouse.kind {
+                            MouseEventKind::Down(MouseButton::Left) if mouse.modifiers.is_empty() => {
+                                // Check for double-click (clicks within 500ms)
+                                let now = Instant::now();
+                                let is_double_click = if let Some(last_time) = app.last_click_time {
+                                    now.duration_since(last_time).as_millis() < 500
+                                } else {
+                                    false
+                                };
+
+                                if is_double_click {
+                                    // Double-click: enter insert mode for currently selected field
+                                    if !app.edit_insert_mode {
+                                        app.edit_field_editing_mode = true;
+                                        app.edit_insert_mode = true;
+
+                                        let field = &app.edit_buffer[app.edit_field_index];
+                                        // Clear placeholder text when entering insert mode
+                                        if field == "name" || field == "context" || field == "url"
+                                            || field == "percentage" || field == "date" {
+                                            app.edit_buffer[app.edit_field_index] = String::new();
+                                            app.edit_cursor_pos = 0;
+                                        } else {
+                                            // Move cursor to end of text
+                                            app.edit_cursor_pos = field.chars().count();
+                                        }
+                                    }
+                                    app.last_click_time = None; // Reset after double-click
+                                } else {
+                                    // First click: just record the time
+                                    app.last_click_time = Some(now);
+                                }
+                                continue;
+                            }
+                            // Allow scrolling in overlay
+                            MouseEventKind::ScrollUp => {
+                                if app.edit_field_index > 0 {
+                                    app.edit_field_index -= 1;
+                                    app.edit_cursor_pos = 0;
+                                }
+                                continue;
+                            }
+                            MouseEventKind::ScrollDown => {
+                                if app.edit_field_index + 1 < app.edit_buffer.len() {
+                                    app.edit_field_index += 1;
+                                    app.edit_cursor_pos = 0;
+                                }
+                                continue;
+                            }
+                            _ => {
+                                // Other mouse events in overlay, ignore
+                            }
+                        }
+                    }
+
                     match mouse.kind {
                         MouseEventKind::ScrollLeft => {
                             // Horizontal scroll left
@@ -724,7 +799,25 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                 let new_scroll = (app.max_scroll as f32 * click_ratio) as u16;
                                 app.scroll = new_scroll.min(app.max_scroll);
                             } else {
-                                // Not on any scrollbar
+                                // Not on any scrollbar - check for double-click in View mode
+                                if app.format_mode == FormatMode::View && !app.relf_entries.is_empty() {
+                                    // Check for double-click (clicks within 500ms)
+                                    let now = Instant::now();
+                                    let is_double_click = if let Some(last_time) = app.last_click_time {
+                                        now.duration_since(last_time).as_millis() < 500
+                                    } else {
+                                        false
+                                    };
+
+                                    if is_double_click {
+                                        // Double-click: open the overlay for the currently selected entry
+                                        app.open_entry_overlay();
+                                        app.last_click_time = None; // Reset after double-click
+                                    } else {
+                                        // First click: just record the time
+                                        app.last_click_time = Some(now);
+                                    }
+                                }
                                 app.dragging_scrollbar = None;
                             }
                         }

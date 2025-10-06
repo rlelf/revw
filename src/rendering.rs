@@ -37,18 +37,6 @@ impl Renderer {
             .sum()
     }
 
-    pub fn char_index_for_col(s: &str, target_cols: usize) -> usize {
-        let mut sum = 0usize;
-        for (i, c) in s.chars().enumerate() {
-            let w = UnicodeWidthChar::width(c).unwrap_or(0);
-            if sum >= target_cols {
-                return i;
-            }
-            sum += w.max(0);
-        }
-        s.chars().count()
-    }
-
     pub fn slice_columns(s: &str, start_cols: usize, width_cols: usize) -> String {
         if width_cols == 0 {
             return String::new();

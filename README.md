@@ -8,6 +8,13 @@ A vim-like TUI for managing notes and resources.
 
 ![Revw](assets/revw.gif)
 
+## Features
+
+- Vim-like terminal user interface
+- Clipboard integration
+- Clean card-based interface
+- Toggle between View mode and raw JSON mode
+
 ## Relf Format
 
 ### Outside
@@ -51,20 +58,26 @@ cargo install --git https://github.com/rlelf/revw.git --locked
 
 Or download from [Releases](https://github.com/rlelf/revw/releases)
 
-## Usage
+## Use Cases
 
-### Daily Usage with LLM
-Revw is designed for LLM-assisted data management workflows:
+### Notes and resources Management
+Track learning resources, books, articles, and tools you're exploring.
 
-#### Method 1: LLM → JSON → Revw
-1. LLM generates a relf file
-2. View the generated relf file in Revw
-3. Edit the relf file in Revw
+### Learning diary
+Document your daily learning progress with timestamped notes.
 
-#### Method 2: Revw → JSON → LLM
-1. Make a relf file in Revw
-2. Edit the relf file in Revw
-3. LLM assists with the relf file
+### LLM-Assisted Workflows
+Revw integrates seamlessly with AI assistants:
+
+**Workflow 1: LLM generates → You review**
+1. Ask an LLM to generate a reading list or resource collection
+2. Paste the JSON into Revw (`v` key)
+3. Browse and organize visually
+
+**Workflow 2: You create → LLM assists**
+1. Maintain your notes in Revw's clean interface
+2. Copy sections to clipboard (`c`, `:ci`, `:co`)
+3. Share with LLM for analysis, summarization, or questions
 
 ### Command Line Options
 ```bash
@@ -122,6 +135,7 @@ revw --stdout --outside file.json
 - `:co` copy OUTSIDE section only
 - `:cu` copy URL from selected card
 - `v` paste file path or JSON content
+- `:vu` paste URL from clipboard to selected card
 - `:vi` paste INSIDE from clipboard (overwrite)
 - `:vo` paste OUTSIDE from clipboard (overwrite)
 - `:va` paste both INSIDE and OUTSIDE from clipboard (append)
@@ -205,6 +219,12 @@ revw --stdout --outside file.json
 - `:e` reload file
 - `:ar` toggle auto-reload (default: on)
 - `:h` help
+
+**Substitute:**
+- `:s/pattern/replacement/` substitute first occurrence in current line
+- `:s/pattern/replacement/g` substitute all occurrences in current line
+- `:%s/pattern/replacement/` substitute first occurrence in all lines
+- `:%s/pattern/replacement/g` substitute all occurrences in all lines
 
 ## License
 
