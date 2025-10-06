@@ -86,7 +86,7 @@ fn test_clear_content() {
     assert!(app.json_input.is_empty());
     assert!(app.rendered_content.is_empty());
     assert_eq!(app.scroll, 0);
-    assert!(app.status_message.is_empty());
+    assert_eq!(app.status_message, "Content cleared");
     assert!(app.file_path.is_none());
 }
 

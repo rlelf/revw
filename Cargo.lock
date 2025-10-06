@@ -996,7 +996,7 @@ dependencies = [
 
 [[package]]
 name = "revw"
-version = "0.1.0"
+version = "0.1.5"
 dependencies = [
  "anyhow",
  "arboard",

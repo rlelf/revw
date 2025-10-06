@@ -265,6 +265,15 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                     }
                                 }
                                 KeyCode::Enter => {
+                                    // Check if Exit field is selected
+                                    if app.edit_field_index < app.edit_buffer.len() {
+                                        let field = &app.edit_buffer[app.edit_field_index];
+                                        if field == "Exit" {
+                                            // Close overlay without saving
+                                            app.cancel_editing_entry();
+                                            continue;
+                                        }
+                                    }
                                     // Enter field editing mode
                                     app.edit_field_editing_mode = true;
                                     app.edit_cursor_pos = 0;
@@ -317,7 +326,7 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                     app.undo();
                                 }
                             }
-                            KeyCode::Char('q') => return Ok(()),
+                            KeyCode::Char('q') | KeyCode::Esc => return Ok(()),
                             KeyCode::Char('v') => app.paste_from_clipboard(),
                             KeyCode::Char('c') => app.copy_to_clipboard(),
                             KeyCode::Char('e') => {
@@ -624,6 +633,17 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                 };
 
                                 if is_double_click {
+                                    // Check if Exit field is selected
+                                    if app.edit_field_index < app.edit_buffer.len() {
+                                        let field = &app.edit_buffer[app.edit_field_index];
+                                        if field == "Exit" {
+                                            // Close overlay without saving
+                                            app.cancel_editing_entry();
+                                            app.last_click_time = None;
+                                            continue;
+                                        }
+                                    }
+
                                     // Double-click: enter insert mode for currently selected field
                                     if !app.edit_insert_mode {
                                         app.edit_field_editing_mode = true;

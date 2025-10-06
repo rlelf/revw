@@ -53,6 +53,11 @@ This format is also available in [github.com/rlelf/relf](https://github.com/rlel
 ## Install
 
 ```bash
+cargo install revw
+```
+
+Or install from source:
+```bash
 cargo install --git https://github.com/rlelf/revw.git --locked
 ```
 
