@@ -49,7 +49,7 @@ Internal notes or thoughts with timestamps:
 }
 ```
 
-This format is also available in [github.com/rlelf/relf](https://github.com/rlelf/relf)
+This format is also available in [relf](https://github.com/rlelf/relf)
 
 ## Install
 
@@ -135,6 +135,7 @@ revw --stdout --outside file.json
 - `:dd` delete selected entry (entire object)
 - `:yy` duplicate selected entry (entire object)
 - `:o` order entries and auto-save
+- `:f pattern` filter entries by pattern
 
 **Copy/Paste:**
 - `:c` copy all rendered content (with OUTSIDE/INSIDE headers)
@@ -150,6 +151,10 @@ revw --stdout --outside file.json
 - `:vao` paste OUTSIDE from clipboard (append)
 - `:xi` clear INSIDE section
 - `:xo` clear OUTSIDE section
+
+**Filter:**
+- `:f pattern` filter entries by pattern
+- `:nof` clear filter
 
 **Other:**
 - `r` toggle View/Edit mode
@@ -229,7 +234,6 @@ revw --stdout --outside file.json
 - `:x` clear all content
 - `:xi` clear INSIDE section
 - `:xo` clear OUTSIDE section
-- `:f pattern` filter entries (View mode only, display only)
 - `:nof` clear filter
 - `:w` save
 - `:wq` save and quit
