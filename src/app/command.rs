@@ -167,6 +167,28 @@ impl App {
         } else if cmd.starts_with("s/") || cmd.starts_with("%s/") {
             // Substitute command: :s/pattern/replacement/flags or :%s/pattern/replacement/flags
             self.execute_substitute(cmd);
+        } else if cmd == "set number" || cmd == "set nu" {
+            // Enable line numbers
+            self.show_line_numbers = true;
+            self.set_status("Line numbers enabled");
+        } else if cmd == "set nonumber" || cmd == "set nonu" {
+            // Disable line numbers
+            self.show_line_numbers = false;
+            self.set_status("Line numbers disabled");
+        } else if cmd.starts_with("set card=") {
+            // Set maximum visible cards
+            if let Some(value_str) = cmd.strip_prefix("set card=") {
+                if let Ok(value) = value_str.trim().parse::<usize>() {
+                    if value >= 1 && value <= 10 {
+                        self.max_visible_cards = value;
+                        self.set_status(&format!("Max visible cards set to {}", value));
+                    } else {
+                        self.set_status("Card value must be between 1 and 10");
+                    }
+                } else {
+                    self.set_status("Invalid card value");
+                }
+            }
         } else {
             self.set_status(&format!("Unknown command: {}", cmd));
         }

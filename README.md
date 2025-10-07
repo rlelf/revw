@@ -156,6 +156,11 @@ revw --stdout --outside file.json
 - `:f pattern` filter entries by pattern
 - `:nof` clear filter
 
+**Settings:**
+- `:set number` or `:set nu` enable line numbers (Edit mode)
+- `:set nonumber` or `:set nonu` disable line numbers
+- `:set card=N` set max visible cards (1-10, default: 5)
+
 **Other:**
 - `r` toggle View/Edit mode
 - `:x` clear content
@@ -241,6 +246,11 @@ revw --stdout --outside file.json
 - `:e` reload file
 - `:ar` toggle auto-reload (default: on)
 - `:h` or `?` help
+
+**Settings:**
+- `:set number` or `:set nu` enable line numbers
+- `:set nonumber` or `:set nonu` disable line numbers
+- `:set card=N` set max visible cards (1-10, default: 5)
 
 **Substitute:**
 - `:s/pattern/replacement/` substitute first occurrence in current line

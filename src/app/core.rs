@@ -83,6 +83,10 @@ pub struct App {
     pub current_substitute_index: usize,
     // Double-click detection
     pub last_click_time: Option<Instant>,
+    // Line number display setting
+    pub show_line_numbers: bool,
+    // Maximum visible cards in View mode (1-10, default 5)
+    pub max_visible_cards: usize,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -146,6 +150,8 @@ impl App {
             substitute_confirmations: Vec::new(),
             current_substitute_index: 0,
             last_click_time: None,
+            show_line_numbers: false,
+            max_visible_cards: 5,
         };
 
         app
@@ -374,8 +380,13 @@ impl App {
             "  :yy          - duplicate selected entry".to_string(),
             "".to_string(),
             "Filter (View mode only):".to_string(),
-            "  :f pattern   - filter entries by pattern (display only, no save)".to_string(),
+            "  :f pattern   - filter entries by pattern".to_string(),
             "  :nof         - clear filter".to_string(),
+            "".to_string(),
+            "Settings:".to_string(),
+            "  :set number / :set nu       - enable line numbers (Edit mode)".to_string(),
+            "  :set nonumber / :set nonu   - disable line numbers".to_string(),
+            "  :set card=N                 - set max visible cards (1-10, default: 5)".to_string(),
             "".to_string(),
             "Other:".to_string(),
             "  r            - toggle View/Edit mode".to_string(),
@@ -426,9 +437,14 @@ impl App {
             "  :q           - quit".to_string(),
             "  :e           - reload file".to_string(),
             "  :ar          - toggle auto-reload (default: on)".to_string(),
-            "  :f pattern   - filter entries (Edit mode: no effect)".to_string(),
+            "  :f pattern   - filter entries".to_string(),
             "  :nof         - clear filter".to_string(),
             "  :h or ?      - help".to_string(),
+            "".to_string(),
+            "Settings:".to_string(),
+            "  :set number / :set nu       - enable line numbers".to_string(),
+            "  :set nonumber / :set nonu   - disable line numbers".to_string(),
+            "  :set card=N                 - set max visible cards (1-10, default: 5)".to_string(),
             "".to_string(),
             "Substitute:".to_string(),
             "  :s/pattern/replacement/     - substitute first occurrence in current line".to_string(),

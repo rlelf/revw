@@ -10,9 +10,16 @@ pub struct RelfLineStyle {
 
 #[derive(Clone, Debug)]
 pub struct RelfEntry {
-    pub lines: Vec<String>,
+    pub lines: Vec<String>, // For backward compatibility and inside entries
     pub bg_color: Color,
     pub original_index: usize, // Index in the original JSON (before filtering)
+    // Fields for corner layout (outside entries)
+    pub name: Option<String>,
+    pub url: Option<String>,
+    pub context: Option<String>,
+    pub percentage: Option<i64>,
+    // Fields for inside entries
+    pub date: Option<String>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -126,21 +133,28 @@ impl Renderer {
                                             lines: entry_lines,
                                             bg_color: card_bg,
                                             original_index,
+                                            name: Some(name.to_string()),
+                                            url: if !url.is_empty() { Some(url.to_string()) } else { None },
+                                            context: if !context.is_empty() { Some(context.to_string()) } else { None },
+                                            percentage: Some(percentage),
+                                            date: None,
                                         });
                                     } else if section_key == "inside" {
+                                        let date = item_obj
+                                            .get("date")
+                                            .and_then(|v| v.as_str())
+                                            .unwrap_or("");
+                                        let context = item_obj
+                                            .get("context")
+                                            .and_then(|v| v.as_str())
+                                            .unwrap_or("");
 
                                         let mut entry_lines = Vec::new();
-                                        for (_key, value) in item_obj {
-                                            let value_str = match value {
-                                                serde_json::Value::String(s) => s.clone(),
-                                                serde_json::Value::Number(n) => n.to_string(),
-                                                serde_json::Value::Bool(b) => b.to_string(),
-                                                _ => value.to_string(),
-                                            };
-
-                                            if !value_str.is_empty() {
-                                                entry_lines.push(value_str);
-                                            }
+                                        if !date.is_empty() {
+                                            entry_lines.push(date.to_string());
+                                        }
+                                        if !context.is_empty() {
+                                            entry_lines.push(context.to_string());
                                         }
 
                                         // Apply filter if pattern is provided
@@ -157,6 +171,11 @@ impl Renderer {
                                             lines: entry_lines,
                                             bg_color: card_bg,
                                             original_index,
+                                            name: None,
+                                            url: None,
+                                            context: if !context.is_empty() { Some(context.to_string()) } else { None },
+                                            percentage: None,
+                                            date: if !date.is_empty() { Some(date.to_string()) } else { None },
                                         });
                                     }
                                 }

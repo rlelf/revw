@@ -216,7 +216,7 @@ fn render_empty_content(f: &mut Frame, app: &App, area: Rect) {
     }
 
     let selected = app.selected_entry_index;
-    let max_visible_cards = 5;
+    let max_visible_cards = app.max_visible_cards;
     let scroll_start = if selected < max_visible_cards {
         0
     } else {
@@ -307,15 +307,41 @@ fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
 
         for (line_idx, s) in visible_content.iter().enumerate() {
             let actual_idx = line_idx + app.scroll as usize;
-            let slice = app.slice_columns(s, off_cols, w_cols);
+
+            // Add line numbers if enabled in Edit mode
+            let (line_number_prefix, adjusted_w_cols) = if app.format_mode == FormatMode::Edit && app.show_line_numbers {
+                let total_lines = visual_lines.len();
+                let line_num_width = format!("{}", total_lines).len().max(3);
+                let line_num_str = if actual_idx < total_lines {
+                    format!("{:>width$} ", actual_idx + 1, width = line_num_width)
+                } else {
+                    " ".repeat(line_num_width + 1)
+                };
+                let adjusted_width = w_cols.saturating_sub(line_num_width + 1);
+                (line_num_str, adjusted_width)
+            } else {
+                (String::new(), w_cols)
+            };
+
+            let slice = app.slice_columns(s, off_cols, adjusted_w_cols);
 
             // Build spans for the line with search highlighting
-            let mut spans: Vec<Span> = Vec::new();
+            let mut line_number_span: Option<Span> = None;
+
+            // Add line number span if present
+            if !line_number_prefix.is_empty() {
+                line_number_span = Some(Span::styled(
+                    line_number_prefix,
+                    Style::default().fg(Color::DarkGray),
+                ));
+            }
             let line_style = if app.format_mode == FormatMode::View {
                 app.relf_visual_styles.get(actual_idx)
             } else {
                 None
             };
+
+            let mut content_spans: Vec<Span> = Vec::new();
 
             if !app.search_query.is_empty() && app.format_mode == FormatMode::Edit {
                 // In Edit mode with search: apply JSON highlighting first, then add search backgrounds
@@ -387,7 +413,7 @@ fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
                     char_pos = span_end;
                 }
 
-                spans = result_spans;
+                content_spans = result_spans;
             } else if !app.search_query.is_empty() {
                 // View mode with search: original search highlighting logic
                 let query_lower = app.search_query.to_lowercase();
@@ -399,7 +425,7 @@ fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
 
                     // Add text before match
                     if actual_pos > last_pos {
-                        spans.push(Span::styled(
+                        content_spans.push(Span::styled(
                             slice[last_pos..actual_pos].to_string(),
                             apply_relf_style(Style::default().fg(Color::Gray), line_style),
                         ));
@@ -420,7 +446,7 @@ fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
                         Style::default().fg(Color::Black).bg(Color::Cyan) // Other matches
                     };
 
-                    spans.push(Span::styled(
+                    content_spans.push(Span::styled(
                         slice[actual_pos..match_end.min(slice.len())].to_string(),
                         highlight_style,
                     ));
@@ -430,7 +456,7 @@ fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
 
                 // Add remaining text after last match
                 if last_pos < slice.len() {
-                    spans.push(Span::styled(
+                    content_spans.push(Span::styled(
                         slice[last_pos..].to_string(),
                         apply_relf_style(Style::default().fg(Color::Gray), line_style),
                     ));
@@ -439,10 +465,10 @@ fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
                 // No search highlighting
                 if app.format_mode == FormatMode::Edit {
                     // Apply JSON syntax highlighting in Edit mode
-                    spans = highlight_json_line(&slice);
+                    content_spans = highlight_json_line(&slice);
                 } else {
                     // In View mode, use plain text with line style
-                    spans.push(Span::styled(
+                    content_spans.push(Span::styled(
                         slice.clone(),
                         apply_relf_style(Style::default().fg(Color::Gray), line_style),
                     ));
@@ -457,7 +483,7 @@ fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
                 if actual_idx == app.content_cursor_line {
                     let cursor_char_pos = app.content_cursor_col;
                     let prefix_cols = app.prefix_display_width(s, cursor_char_pos);
-                    if prefix_cols >= off_cols && prefix_cols < off_cols + w_cols {
+                    if prefix_cols >= off_cols && prefix_cols < off_cols + adjusted_w_cols {
                         // Insert cursor while preserving existing highlighting
                         let insert_col_in_view = prefix_cols - off_cols;
 
@@ -466,7 +492,7 @@ fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
                         let mut cursor_inserted = false;
                         let mut new_spans: Vec<Span> = Vec::new();
 
-                        for span in spans.iter() {
+                        for span in content_spans.iter() {
                             let span_text = span.content.to_string();
                             let span_chars: Vec<char> = span_text.chars().collect();
                             let span_len = span_chars.len();
@@ -503,14 +529,21 @@ fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
 
                         // If cursor wasn't inserted yet, add it at the end
                         if !cursor_inserted {
-                            let last_style = spans.last().map(|s| s.style).unwrap_or_default();
+                            let last_style = content_spans.last().map(|s| s.style).unwrap_or_default();
                             new_spans.push(Span::styled("│".to_string(), last_style));
                         }
 
-                        spans = new_spans;
+                        content_spans = new_spans;
                     }
                 }
             }
+
+            // Combine line number and content spans
+            let mut spans: Vec<Span> = Vec::new();
+            if let Some(line_num_span) = line_number_span {
+                spans.push(line_num_span);
+            }
+            spans.extend(content_spans);
 
             if spans.is_empty() {
                 spans.push(Span::styled(
@@ -613,8 +646,8 @@ fn render_relf_cards(f: &mut Frame, app: &mut App, area: Rect) {
     // Use selected_entry_index to determine which entries to show
     let selected = app.selected_entry_index;
 
-    // Limit number of visible cards
-    let max_visible_cards = 5;
+    // Limit number of visible cards (use app setting)
+    let max_visible_cards = app.max_visible_cards;
 
     // Calculate scroll window to keep selected entry visible
     let scroll_start = if selected < max_visible_cards {
@@ -650,49 +683,6 @@ fn render_relf_cards(f: &mut Frame, app: &mut App, area: Rect) {
     for (i, (entry_idx, entry)) in visible_entries.iter().enumerate() {
         let is_selected = *entry_idx == selected;
 
-        let mut lines = Vec::new();
-
-        // First line is bold title (with search highlight)
-        if let Some(first) = entry.lines.first() {
-            if !app.search_query.is_empty() {
-                lines.push(highlight_search_in_line(
-                    first,
-                    &app.search_query,
-                    Style::default()
-                        .fg(Color::White)
-                        .add_modifier(Modifier::BOLD),
-                ));
-            } else {
-                lines.push(Line::styled(
-                    first.as_str(),
-                    Style::default()
-                        .fg(Color::White)
-                        .add_modifier(Modifier::BOLD),
-                ));
-            }
-        }
-
-        // Remaining lines (with search highlight)
-        for (idx, line) in entry.lines.iter().enumerate().skip(1) {
-            let fg = if idx == entry.lines.len() - 1 {
-                Color::Rgb(160, 200, 120)
-            } else if line.starts_with("http") {
-                Color::Rgb(120, 170, 255)
-            } else {
-                Color::Gray
-            };
-
-            if !app.search_query.is_empty() {
-                lines.push(highlight_search_in_line(
-                    line,
-                    &app.search_query,
-                    Style::default().fg(fg),
-                ));
-            } else {
-                lines.push(Line::styled(line.as_str(), Style::default().fg(fg)));
-            }
-        }
-
         // Highlight selected card with different border color
         let border_style = if is_selected {
             Style::default().fg(Color::Yellow).bg(entry.bg_color)
@@ -700,16 +690,135 @@ fn render_relf_cards(f: &mut Frame, app: &mut App, area: Rect) {
             Style::default().bg(entry.bg_color)
         };
 
-        let card = Paragraph::new(lines)
-            .wrap(Wrap { trim: false })
-            .block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .border_type(BorderType::Rounded)
-                    .style(border_style),
-            );
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .border_type(BorderType::Rounded)
+            .style(border_style);
 
-        f.render_widget(card, chunks[i]);
+        let inner = block.inner(chunks[i]);
+        f.render_widget(block, chunks[i]);
+
+        // Check if this is an outside entry (has name field)
+        if entry.name.is_some() {
+            // Outside entry: corner layout
+            render_outside_card(f, app, entry, chunks[i], inner);
+        } else {
+            // Inside entry: simple layout
+            render_inside_card(f, app, entry, chunks[i], inner);
+        }
+    }
+}
+
+fn render_outside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: Rect, inner_area: Rect) {
+    // Render labels on the border (outside the inner area)
+    let name = entry.name.as_deref().unwrap_or("");
+    let url = entry.url.as_deref().unwrap_or("");
+    let percentage = entry.percentage.unwrap_or(0);
+
+    // Top-left: name (on the border) - only if not empty
+    if !name.is_empty() {
+        let name_text = format!(" {} ", name);
+        let name_span = if !app.search_query.is_empty() {
+            highlight_search_in_line(
+                &name_text,
+                &app.search_query,
+                Style::default().fg(Color::Rgb(120, 170, 255)),
+            )
+        } else {
+            Line::styled(name_text, Style::default().fg(Color::Rgb(120, 170, 255)))
+        };
+        let name_area = Rect { x: card_area.x + 2, y: card_area.y, width: card_area.width.saturating_sub(4), height: 1 };
+        let name_para = Paragraph::new(name_span).alignment(Alignment::Left);
+        f.render_widget(name_para, name_area);
+    }
+
+    // Top-right: url (on the border)
+    if !url.is_empty() {
+        let url_text = format!(" {} ", url);
+        let url_span = if !app.search_query.is_empty() {
+            highlight_search_in_line(
+                &url_text,
+                &app.search_query,
+                Style::default().fg(Color::Rgb(120, 170, 255)),
+            )
+        } else {
+            Line::styled(url_text, Style::default().fg(Color::Rgb(120, 170, 255)))
+        };
+        let url_area = Rect { x: card_area.x + 2, y: card_area.y, width: card_area.width.saturating_sub(4), height: 1 };
+        let url_para = Paragraph::new(url_span).alignment(Alignment::Right);
+        f.render_widget(url_para, url_area);
+    }
+
+    // Bottom-right: percentage (on the border)
+    let percentage_text = format!(" {}% ", percentage);
+    let percentage_span = Line::styled(
+        percentage_text,
+        Style::default().fg(Color::Rgb(120, 170, 255)),
+    );
+    let percentage_area = Rect {
+        x: card_area.x + 2,
+        y: card_area.y + card_area.height.saturating_sub(1),
+        width: card_area.width.saturating_sub(4),
+        height: 1
+    };
+    let percentage_para = Paragraph::new(percentage_span).alignment(Alignment::Right);
+    f.render_widget(percentage_para, percentage_area);
+
+    // Middle: context (inside the card)
+    let context = entry.context.as_deref().unwrap_or("");
+    if !context.is_empty() {
+        let context_lines: Vec<Line> = if !app.search_query.is_empty() {
+            vec![highlight_search_in_line(
+                context,
+                &app.search_query,
+                Style::default().fg(Color::Gray),
+            )]
+        } else {
+            vec![Line::styled(context, Style::default().fg(Color::Gray))]
+        };
+
+        let context_para = Paragraph::new(context_lines)
+            .wrap(Wrap { trim: false })
+            .alignment(Alignment::Left);
+        f.render_widget(context_para, inner_area);
+    }
+}
+
+fn render_inside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: Rect, inner_area: Rect) {
+    // Date on the border (top-left)
+    if let Some(date) = &entry.date {
+        let date_text = format!(" {} ", date);
+        let date_span = if !app.search_query.is_empty() {
+            highlight_search_in_line(
+                &date_text,
+                &app.search_query,
+                Style::default().fg(Color::Rgb(120, 170, 255)),
+            )
+        } else {
+            Line::styled(
+                date_text,
+                Style::default().fg(Color::Rgb(120, 170, 255)),
+            )
+        };
+        let date_area = Rect { x: card_area.x + 2, y: card_area.y, width: card_area.width.saturating_sub(4), height: 1 };
+        let date_para = Paragraph::new(date_span).alignment(Alignment::Left);
+        f.render_widget(date_para, date_area);
+    }
+
+    // Context inside the card
+    if let Some(context) = &entry.context {
+        let context_lines: Vec<Line> = if !app.search_query.is_empty() {
+            vec![highlight_search_in_line(
+                context,
+                &app.search_query,
+                Style::default().fg(Color::Gray),
+            )]
+        } else {
+            vec![Line::styled(context.as_str(), Style::default().fg(Color::Gray))]
+        };
+
+        let context_para = Paragraph::new(context_lines).wrap(Wrap { trim: false });
+        f.render_widget(context_para, inner_area);
     }
 }
 
