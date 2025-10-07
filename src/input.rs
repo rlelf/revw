@@ -385,6 +385,7 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                 // Allow command mode even when showing help (for :h to toggle)
                                 app.input_mode = InputMode::Command;
                                 app.command_buffer = String::new();
+                                app.command_history_index = None;
                                 app.set_status(":");
                             }
                             KeyCode::Up | KeyCode::Char('k') => {
@@ -581,26 +582,45 @@ pub fn run_app<B: ratatui::backend::Backend>(
                             KeyCode::Esc => {
                                 app.input_mode = InputMode::Normal;
                                 app.command_buffer.clear();
+                                app.command_history_index = None;
                                 app.set_status("");
                             }
                             KeyCode::Enter => {
+                                // Add to history before executing
+                                app.add_to_command_history(app.command_buffer.clone());
+
                                 if app.execute_command() {
                                     return Ok(()); // Quit the application
                                 }
                                 app.input_mode = InputMode::Normal;
                                 app.command_buffer.clear();
                             }
+                            KeyCode::Up => {
+                                if let Some(cmd) = app.get_previous_command() {
+                                    app.command_buffer = cmd;
+                                    app.set_status(&format!(":{}", app.command_buffer));
+                                }
+                            }
+                            KeyCode::Down => {
+                                if let Some(cmd) = app.get_next_command() {
+                                    app.command_buffer = cmd;
+                                    app.set_status(&format!(":{}", app.command_buffer));
+                                }
+                            }
                             KeyCode::Char(c) => {
                                 app.command_buffer.push(c);
+                                app.command_history_index = None;
                                 app.set_status(&format!(":{}", app.command_buffer));
                             }
                             KeyCode::Backspace => {
                                 if !app.command_buffer.is_empty() {
                                     app.command_buffer.pop();
+                                    app.command_history_index = None;
                                     app.set_status(&format!(":{}", app.command_buffer));
                                 } else {
                                     // Exit command mode when backspace on empty buffer
                                     app.input_mode = InputMode::Normal;
+                                    app.command_history_index = None;
                                     app.set_status("");
                                 }
                             }
@@ -610,22 +630,40 @@ pub fn run_app<B: ratatui::backend::Backend>(
                             KeyCode::Esc => {
                                 app.input_mode = InputMode::Normal;
                                 app.search_buffer.clear();
+                                app.search_history_index = None;
                                 app.set_status("");
                             }
                             KeyCode::Enter => {
+                                // Add to history before executing
+                                app.add_to_search_history(app.search_buffer.clone());
                                 app.execute_search();
+                            }
+                            KeyCode::Up => {
+                                if let Some(search) = app.get_previous_search() {
+                                    app.search_buffer = search;
+                                    app.set_status(&format!("/{}", app.search_buffer));
+                                }
+                            }
+                            KeyCode::Down => {
+                                if let Some(search) = app.get_next_search() {
+                                    app.search_buffer = search;
+                                    app.set_status(&format!("/{}", app.search_buffer));
+                                }
                             }
                             KeyCode::Char(c) => {
                                 app.search_buffer.push(c);
+                                app.search_history_index = None;
                                 app.set_status(&format!("/{}", app.search_buffer));
                             }
                             KeyCode::Backspace => {
                                 if !app.search_buffer.is_empty() {
                                     app.search_buffer.pop();
+                                    app.search_history_index = None;
                                     app.set_status(&format!("/{}", app.search_buffer));
                                 } else {
                                     // Exit search mode when backspace on empty buffer
                                     app.input_mode = InputMode::Normal;
+                                    app.search_history_index = None;
                                     app.set_status("");
                                 }
                             }
