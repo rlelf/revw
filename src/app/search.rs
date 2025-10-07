@@ -4,6 +4,7 @@ impl App {
     pub fn start_search(&mut self) {
         self.input_mode = InputMode::Search;
         self.search_buffer.clear();
+        self.search_history_index = None;
         self.set_status("/");
     }
 
