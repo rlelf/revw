@@ -78,6 +78,7 @@ pub struct App {
     // Auto-reload functionality
     pub auto_reload: bool,
     pub last_save_time: Option<Instant>,
+    pub file_path_changed: bool, // Signal that file path changed and watcher needs update
     // Scrollbar interaction state
     pub dragging_scrollbar: Option<ScrollbarType>,
     // Substitute confirmation state
@@ -155,6 +156,7 @@ impl App {
             redo_stack: Vec::new(),
             auto_reload: true,
             last_save_time: None,
+            file_path_changed: false,
             dragging_scrollbar: None,
             substitute_confirmations: Vec::new(),
             current_substitute_index: 0,

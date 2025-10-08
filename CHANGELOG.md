@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.1
+
+- Fixed autoreload to work when file path changes
+- Auto-create new files with default entries when opening non-existent files
+- Default new files include one empty outside entry and one inside entry with current timestamp
+- Formatted JSON output with proper indentation for new files
+
 ## 0.2.0
 
 - Command history buffer for `:` and `/` commands

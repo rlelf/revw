@@ -13,7 +13,7 @@ pub fn run_app<B: ratatui::backend::Backend>(
     mut app: App,
 ) -> Result<()> {
     // Setup file watcher
-    let (tx, rx): (std::sync::mpsc::Sender<NotifyEvent>, Receiver<NotifyEvent>) = mpsc::channel();
+    let (tx, mut rx): (std::sync::mpsc::Sender<NotifyEvent>, Receiver<NotifyEvent>) = mpsc::channel();
     let mut watcher =
         notify::recommended_watcher(move |res: Result<NotifyEvent, notify::Error>| {
             if let Ok(event) = res {
@@ -29,6 +29,27 @@ pub fn run_app<B: ratatui::backend::Backend>(
     loop {
         terminal.draw(|f| crate::ui::ui(f, &mut app))?;
         app.update_status();
+
+        // Update watcher if file path changed
+        if app.file_path_changed {
+            // Unwatch all (recreate watcher to avoid keeping old watches)
+            drop(watcher);
+            let (new_tx, new_rx): (std::sync::mpsc::Sender<NotifyEvent>, Receiver<NotifyEvent>) = mpsc::channel();
+            watcher = notify::recommended_watcher(move |res: Result<NotifyEvent, notify::Error>| {
+                if let Ok(event) = res {
+                    let _ = new_tx.send(event);
+                }
+            })?;
+
+            // Watch the new file
+            if let Some(ref path) = app.file_path {
+                let _ = watcher.watch(path, RecursiveMode::NonRecursive);
+            }
+
+            // Update the receiver to use the new channel
+            rx = new_rx;
+            app.file_path_changed = false;
+        }
 
         // Check for file changes
         if app.auto_reload && app.file_path.is_some() {

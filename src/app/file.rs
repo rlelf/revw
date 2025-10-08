@@ -1,5 +1,6 @@
 use super::App;
 use std::{{fs, path::PathBuf, time::Instant}};
+use serde_json::json;
 
 impl App {
     pub fn load_file(&mut self, path: PathBuf) {
@@ -31,14 +32,62 @@ impl App {
             Ok(content) => {
                 self.json_input = content;
 
+                let path_changed = self.file_path.as_ref() != Some(&fixed_path);
                 self.file_path = Some(fixed_path.clone());
+                if path_changed {
+                    self.file_path_changed = true;
+                }
 
                 self.set_status(&format!("Loaded: {}", final_path_display));
 
                 self.convert_json();
             }
             Err(e) => {
-                self.set_status(&format!("Error loading '{}': {}", final_path_display, e));
+                // If file doesn't exist, create it with default entries
+                if e.kind() == std::io::ErrorKind::NotFound {
+                    // Get current timestamp
+                    let now = chrono::Local::now();
+                    let timestamp = now.format("%Y-%m-%d %H:%M:%S").to_string();
+
+                    // Create formatted JSON with proper indentation
+                    let default_value = json!({
+                        "outside": [
+                            {
+                                "name": "",
+                                "context": "",
+                                "url": "",
+                                "percentage": null
+                            }
+                        ],
+                        "inside": [
+                            {
+                                "date": timestamp,
+                                "context": ""
+                            }
+                        ]
+                    });
+
+                    let default_json = serde_json::to_string_pretty(&default_value)
+                        .unwrap_or_else(|_| String::from(r#"{"outside":[],"inside":[]}"#));
+
+                    match fs::write(&fixed_path, &default_json) {
+                        Ok(()) => {
+                            self.json_input = default_json;
+                            let path_changed = self.file_path.as_ref() != Some(&fixed_path);
+                            self.file_path = Some(fixed_path.clone());
+                            if path_changed {
+                                self.file_path_changed = true;
+                            }
+                            self.set_status(&format!("Created new file: {}", final_path_display));
+                            self.convert_json();
+                        }
+                        Err(create_err) => {
+                            self.set_status(&format!("Error creating '{}': {}", final_path_display, create_err));
+                        }
+                    }
+                } else {
+                    self.set_status(&format!("Error loading '{}': {}", final_path_display, e));
+                }
             }
         }
     }
@@ -63,9 +112,13 @@ impl App {
         let path = PathBuf::from(filename);
         match fs::write(&path, &self.json_input) {
             Ok(()) => {
+                let path_changed = self.file_path.as_ref() != Some(&path);
                 self.file_path = Some(path.clone());
                 self.is_modified = false;
                 self.last_save_time = Some(Instant::now());
+                if path_changed {
+                    self.file_path_changed = true;
+                }
                 self.set_status(&format!("Saved: {}", path.display()));
             }
             Err(e) => {
