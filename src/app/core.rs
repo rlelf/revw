@@ -38,9 +38,11 @@ pub struct App {
     pub selected_entry_index: usize, // Currently selected entry in View mode
     pub editing_entry: bool, // Whether we're editing entry in overlay
     pub edit_buffer: Vec<String>, // Buffer for editing entry fields
+    pub edit_buffer_is_placeholder: Vec<bool>, // Track if each field is a placeholder
     pub edit_field_index: usize, // Which field is being edited
     pub edit_field_editing_mode: bool, // Whether editing within a field (Enter pressed)
     pub edit_insert_mode: bool, // Whether in insert mode within overlay
+    pub edit_skip_normal_mode: bool, // True if entered insert mode directly with 'i' (skip normal mode on Esc)
     pub edit_cursor_pos: usize, // Cursor position within current field
     pub showing_help: bool, // Track if help is being shown
     pub scroll: u16,
@@ -120,9 +122,11 @@ impl App {
             selected_entry_index: 0,
             editing_entry: false,
             edit_buffer: Vec::new(),
+            edit_buffer_is_placeholder: Vec::new(),
             edit_field_index: 0,
             edit_field_editing_mode: false,
             edit_insert_mode: false,
+            edit_skip_normal_mode: false,
             edit_cursor_pos: 0,
             showing_help: false,
             scroll: 0,

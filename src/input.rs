@@ -76,9 +76,44 @@ pub fn run_app<B: ratatui::backend::Backend>(
                             // Insert mode: typing edits current field
                             match key.code {
                                 KeyCode::Esc | KeyCode::Char('[') if key.code == KeyCode::Esc || key.modifiers.contains(KeyModifiers::CONTROL) => {
-                                    // Exit insert mode and field editing mode, go back to field selection mode
+                                    // Exit insert mode
                                     app.edit_insert_mode = false;
-                                    app.edit_field_editing_mode = false;
+                                    // If entered insert mode directly with 'i', skip normal mode and go back to field selection
+                                    if app.edit_skip_normal_mode {
+                                        app.edit_field_editing_mode = false;
+                                        app.edit_skip_normal_mode = false;
+                                    }
+                                    // Otherwise stay in field editing mode (normal mode)
+                                    // Restore placeholder if field is empty
+                                    if app.edit_field_index < app.edit_buffer.len() {
+                                        let field = &app.edit_buffer[app.edit_field_index];
+                                        if field.is_empty() {
+                                            // Determine placeholder based on edit_buffer length
+                                            let placeholder = if app.edit_buffer.len() == 3 {
+                                                // INSIDE entry: date, context, Exit
+                                                match app.edit_field_index {
+                                                    0 => "date",
+                                                    1 => "context",
+                                                    _ => "",
+                                                }
+                                            } else {
+                                                // OUTSIDE entry: name, context, url, percentage, Exit
+                                                match app.edit_field_index {
+                                                    0 => "name",
+                                                    1 => "context",
+                                                    2 => "url",
+                                                    3 => "percentage",
+                                                    _ => "",
+                                                }
+                                            };
+                                            if !placeholder.is_empty() {
+                                                app.edit_buffer[app.edit_field_index] = placeholder.to_string();
+                                                if app.edit_field_index < app.edit_buffer_is_placeholder.len() {
+                                                    app.edit_buffer_is_placeholder[app.edit_field_index] = true;
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                                 KeyCode::Backspace => {
                                     if app.edit_field_index < app.edit_buffer.len() && app.edit_cursor_pos > 0 {
@@ -129,6 +164,36 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                     // Exit field editing mode, go back to field selection
                                     app.edit_field_editing_mode = false;
                                     app.edit_cursor_pos = 0;
+                                    // Restore placeholder if field is empty
+                                    if app.edit_field_index < app.edit_buffer.len() {
+                                        let field = &app.edit_buffer[app.edit_field_index];
+                                        if field.is_empty() {
+                                            // Determine placeholder based on edit_buffer length
+                                            let placeholder = if app.edit_buffer.len() == 3 {
+                                                // INSIDE entry: date, context, Exit
+                                                match app.edit_field_index {
+                                                    0 => "date",
+                                                    1 => "context",
+                                                    _ => "",
+                                                }
+                                            } else {
+                                                // OUTSIDE entry: name, context, url, percentage, Exit
+                                                match app.edit_field_index {
+                                                    0 => "name",
+                                                    1 => "context",
+                                                    2 => "url",
+                                                    3 => "percentage",
+                                                    _ => "",
+                                                }
+                                            };
+                                            if !placeholder.is_empty() {
+                                                app.edit_buffer[app.edit_field_index] = placeholder.to_string();
+                                                if app.edit_field_index < app.edit_buffer_is_placeholder.len() {
+                                                    app.edit_buffer_is_placeholder[app.edit_field_index] = true;
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                                 KeyCode::Char('h') | KeyCode::Left => {
                                     if app.edit_cursor_pos > 0 {
@@ -229,16 +294,15 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                     }
                                 }
                                 KeyCode::Char('i') => {
-                                    // Enter insert mode
+                                    // Enter insert mode (from normal mode within field)
                                     app.edit_insert_mode = true;
-                                    if app.edit_field_index < app.edit_buffer.len() {
-                                        let field = &app.edit_buffer[app.edit_field_index];
-                                        // Clear placeholder text when entering insert mode
-                                        if field == "name" || field == "context" || field == "url"
-                                            || field == "percentage" || field == "date" {
-                                            app.edit_buffer[app.edit_field_index] = String::new();
-                                            app.edit_cursor_pos = 0;
-                                        }
+                                    // edit_skip_normal_mode stays false because we're already in normal mode
+                                    // Clear placeholder text when entering insert mode
+                                    if app.edit_field_index < app.edit_buffer_is_placeholder.len()
+                                        && app.edit_buffer_is_placeholder[app.edit_field_index] {
+                                        app.edit_buffer[app.edit_field_index] = String::new();
+                                        app.edit_buffer_is_placeholder[app.edit_field_index] = false;
+                                        app.edit_cursor_pos = 0;
                                     }
                                 }
                                 _ => {}
@@ -273,6 +337,12 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                             app.cancel_editing_entry();
                                             continue;
                                         }
+                                        // Clear placeholder text when entering field editing mode
+                                        if app.edit_field_index < app.edit_buffer_is_placeholder.len()
+                                            && app.edit_buffer_is_placeholder[app.edit_field_index] {
+                                            app.edit_buffer[app.edit_field_index] = String::new();
+                                            app.edit_buffer_is_placeholder[app.edit_field_index] = false;
+                                        }
                                     }
                                     // Enter field editing mode
                                     app.edit_field_editing_mode = true;
@@ -282,12 +352,14 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                     // Skip field editing mode, go straight to insert mode with cursor at end
                                     app.edit_field_editing_mode = true;
                                     app.edit_insert_mode = true;
+                                    app.edit_skip_normal_mode = true; // Mark that we skipped normal mode
                                     if app.edit_field_index < app.edit_buffer.len() {
                                         let field = &app.edit_buffer[app.edit_field_index];
                                         // Clear placeholder text when entering insert mode
-                                        if field == "name" || field == "context" || field == "url"
-                                            || field == "percentage" || field == "date" {
+                                        if app.edit_field_index < app.edit_buffer_is_placeholder.len()
+                                            && app.edit_buffer_is_placeholder[app.edit_field_index] {
                                             app.edit_buffer[app.edit_field_index] = String::new();
+                                            app.edit_buffer_is_placeholder[app.edit_field_index] = false;
                                             app.edit_cursor_pos = 0;
                                         } else {
                                             // Move cursor to end of text
@@ -700,12 +772,14 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                     if !app.edit_insert_mode {
                                         app.edit_field_editing_mode = true;
                                         app.edit_insert_mode = true;
+                                        app.edit_skip_normal_mode = true; // Mark that we skipped normal mode
 
                                         let field = &app.edit_buffer[app.edit_field_index];
                                         // Clear placeholder text when entering insert mode
-                                        if field == "name" || field == "context" || field == "url"
-                                            || field == "percentage" || field == "date" {
+                                        if app.edit_field_index < app.edit_buffer_is_placeholder.len()
+                                            && app.edit_buffer_is_placeholder[app.edit_field_index] {
                                             app.edit_buffer[app.edit_field_index] = String::new();
+                                            app.edit_buffer_is_placeholder[app.edit_field_index] = false;
                                             app.edit_cursor_pos = 0;
                                         } else {
                                             // Move cursor to end of text

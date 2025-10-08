@@ -9,20 +9,20 @@
   ],
   "inside": [
     {
-      "date": "2025-01-06 10:30:00",
-      "context": "Started building revw with Ratatui."
-    },
-    {
-      "date": "2025-01-06 15:00:00",
-      "context": "Exploring Rust's pattern matching. The match expressions make code more readable and safe."
+      "date": "2025-01-08 09:45:00",
+      "context": "Learning Rust's ownership system. The borrow checker is strict but prevents memory bugs at compile time."
     },
     {
       "date": "2025-01-07 14:20:00",
       "context": "Finally learned how to use cargo! Running 'cargo build --release' creates optimized binaries."
     },
     {
-      "date": "2025-01-08 09:45:00",
-      "context": "Learning Rust's ownership system. The borrow checker is strict but prevents memory bugs at compile time."
+      "date": "2025-01-06 15:00:00",
+      "context": "Exploring Rust's pattern matching. The match expressions make code more readable and safe."
+    },
+    {
+      "date": "2025-01-06 10:30:00",
+      "context": "Started building revw with Ratatui."
     }
   ]
 }

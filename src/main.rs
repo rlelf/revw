@@ -123,7 +123,7 @@ fn main() -> Result<()> {
                                         let name = item_obj.get("name").and_then(|v| v.as_str()).unwrap_or("");
                                         let context = item_obj.get("context").and_then(|v| v.as_str()).unwrap_or("");
                                         let url = item_obj.get("url").and_then(|v| v.as_str()).unwrap_or("");
-                                        let percentage = item_obj.get("percentage").and_then(|v| v.as_i64()).unwrap_or(0);
+                                        let percentage = item_obj.get("percentage").and_then(|v| v.as_i64());
 
                                         let mut entry = String::new();
                                         entry.push_str(name);
@@ -133,7 +133,10 @@ fn main() -> Result<()> {
                                         if !url.is_empty() {
                                             entry.push_str(&format!("\n{}", url));
                                         }
-                                        entry.push_str(&format!("\n{}%", percentage));
+                                        // Only add percentage if not null
+                                        if let Some(pct) = percentage {
+                                            entry.push_str(&format!("\n{}%", pct));
+                                        }
                                         outside_entries.push(entry);
                                     }
                                 }

@@ -164,7 +164,7 @@ impl JsonOperations {
                     "name": "",
                     "context": "",
                     "url": "",
-                    "percentage": 0
+                    "percentage": null
                 });
 
                 outside_array.push(new_entry);
@@ -295,7 +295,7 @@ impl JsonOperations {
         let mut messages = Vec::new();
 
         if let Some(obj) = json_value.as_object_mut() {
-            // Order outside entries by percentage (highest first)
+            // Order outside entries by percentage (highest first), then by name (ascending)
             if let Some(outside_array) = obj.get_mut("outside").and_then(|v| v.as_array_mut()) {
                 outside_array.sort_by(|a, b| {
                     let a_percent = a
@@ -308,7 +308,19 @@ impl JsonOperations {
                         .and_then(|o| o.get("percentage"))
                         .and_then(|v| v.as_i64())
                         .unwrap_or(0);
-                    b_percent.cmp(&a_percent) // Descending order
+                    let a_name = a
+                        .as_object()
+                        .and_then(|o| o.get("name"))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("");
+                    let b_name = b
+                        .as_object()
+                        .and_then(|o| o.get("name"))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("");
+
+                    // First by percentage (descending), then by name (ascending)
+                    b_percent.cmp(&a_percent).then_with(|| a_name.cmp(&b_name))
                 });
                 messages.push("Ordered outside entries");
             }

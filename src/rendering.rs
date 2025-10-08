@@ -107,8 +107,7 @@ impl Renderer {
                                             .unwrap_or("");
                                         let percentage = item_obj
                                             .get("percentage")
-                                            .and_then(|v| v.as_i64())
-                                            .unwrap_or(0);
+                                            .and_then(|v| v.as_i64());
 
                                         entry_lines.push(name.to_string());
                                         if !context.is_empty() {
@@ -117,7 +116,10 @@ impl Renderer {
                                         if !url.is_empty() {
                                             entry_lines.push(url.to_string());
                                         }
-                                        entry_lines.push(format!("{}%", percentage));
+                                        // Only add percentage line if not null
+                                        if let Some(pct) = percentage {
+                                            entry_lines.push(format!("{}%", pct));
+                                        }
 
                                         // Apply filter if pattern is provided
                                         if !filter_pattern.is_empty() {
@@ -136,7 +138,7 @@ impl Renderer {
                                             name: Some(name.to_string()),
                                             url: if !url.is_empty() { Some(url.to_string()) } else { None },
                                             context: if !context.is_empty() { Some(context.to_string()) } else { None },
-                                            percentage: Some(percentage),
+                                            percentage,
                                             date: None,
                                         });
                                     } else if section_key == "inside" {

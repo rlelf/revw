@@ -30,14 +30,25 @@ impl App {
                                 let name = entry_obj.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string();
                                 let context = entry_obj.get("context").and_then(|v| v.as_str()).unwrap_or("").to_string();
                                 let url = entry_obj.get("url").and_then(|v| v.as_str()).unwrap_or("").to_string();
-                                let percentage = entry_obj.get("percentage").and_then(|v| v.as_i64()).unwrap_or(0);
+                                let percentage = entry_obj.get("percentage").and_then(|v| v.as_i64());
+
+                                let name_is_empty = name.is_empty();
+                                let context_is_empty = context.is_empty();
+                                let url_is_empty = url.is_empty();
 
                                 self.edit_buffer = vec![
-                                    if name.is_empty() { "name".to_string() } else { name },
-                                    if context.is_empty() { "context".to_string() } else { context },
-                                    if url.is_empty() { "url".to_string() } else { url },
-                                    if percentage == 0 && !entry_obj.contains_key("percentage") { "percentage".to_string() } else { percentage.to_string() },
+                                    if name_is_empty { "name".to_string() } else { name },
+                                    if context_is_empty { "context".to_string() } else { context },
+                                    if url_is_empty { "url".to_string() } else { url },
+                                    if let Some(pct) = percentage { pct.to_string() } else { "percentage".to_string() },
                                     "Exit".to_string(),
+                                ];
+                                self.edit_buffer_is_placeholder = vec![
+                                    name_is_empty,
+                                    context_is_empty,
+                                    url_is_empty,
+                                    percentage.is_none(),
+                                    false, // Exit is never a placeholder
                                 ];
                                 self.edit_field_index = 0;
                                 self.editing_entry = true;
@@ -61,10 +72,18 @@ impl App {
                                 let date = entry_obj.get("date").and_then(|v| v.as_str()).unwrap_or("").to_string();
                                 let context = entry_obj.get("context").and_then(|v| v.as_str()).unwrap_or("").to_string();
 
+                                let date_is_empty = date.is_empty();
+                                let context_is_empty = context.is_empty();
+
                                 self.edit_buffer = vec![
-                                    if date.is_empty() { "date".to_string() } else { date },
-                                    if context.is_empty() { "context".to_string() } else { context },
+                                    if date_is_empty { "date".to_string() } else { date },
+                                    if context_is_empty { "context".to_string() } else { context },
                                     "Exit".to_string(),
+                                ];
+                                self.edit_buffer_is_placeholder = vec![
+                                    date_is_empty,
+                                    context_is_empty,
+                                    false, // Exit is never a placeholder
                                 ];
                                 self.edit_field_index = 0;
                                 self.editing_entry = true;
@@ -107,19 +126,32 @@ impl App {
                             if target_idx < current_idx + outside_array.len() {
                                 let local_idx = target_idx - current_idx;
                                 if let Some(entry_obj) = outside_array[local_idx].as_object_mut() {
-                                    // Update fields
-                                    if self.edit_buffer.len() >= 1 {
-                                        entry_obj.insert("name".to_string(), Value::String(self.edit_buffer[0].clone()));
+                                    // Update fields - use placeholder flags to determine if value is placeholder
+                                    if self.edit_buffer.len() >= 1 && self.edit_buffer_is_placeholder.len() >= 1 {
+                                        let name_val = &self.edit_buffer[0];
+                                        let is_placeholder = self.edit_buffer_is_placeholder[0];
+                                        entry_obj.insert("name".to_string(),
+                                            Value::String(if is_placeholder { String::new() } else { name_val.clone() }));
                                     }
-                                    if self.edit_buffer.len() >= 2 {
-                                        entry_obj.insert("context".to_string(), Value::String(self.edit_buffer[1].clone()));
+                                    if self.edit_buffer.len() >= 2 && self.edit_buffer_is_placeholder.len() >= 2 {
+                                        let context_val = &self.edit_buffer[1];
+                                        let is_placeholder = self.edit_buffer_is_placeholder[1];
+                                        entry_obj.insert("context".to_string(),
+                                            Value::String(if is_placeholder { String::new() } else { context_val.clone() }));
                                     }
-                                    if self.edit_buffer.len() >= 3 {
-                                        entry_obj.insert("url".to_string(), Value::String(self.edit_buffer[2].clone()));
+                                    if self.edit_buffer.len() >= 3 && self.edit_buffer_is_placeholder.len() >= 3 {
+                                        let url_val = &self.edit_buffer[2];
+                                        let is_placeholder = self.edit_buffer_is_placeholder[2];
+                                        entry_obj.insert("url".to_string(),
+                                            Value::String(if is_placeholder { String::new() } else { url_val.clone() }));
                                     }
-                                    if self.edit_buffer.len() >= 4 {
-                                        // Parse percentage
-                                        if let Ok(pct) = self.edit_buffer[3].trim_end_matches('%').parse::<i64>() {
+                                    if self.edit_buffer.len() >= 4 && self.edit_buffer_is_placeholder.len() >= 4 {
+                                        // Parse percentage - save null if placeholder
+                                        let pct_val = &self.edit_buffer[3];
+                                        let is_placeholder = self.edit_buffer_is_placeholder[3];
+                                        if is_placeholder {
+                                            entry_obj.insert("percentage".to_string(), Value::Null);
+                                        } else if let Ok(pct) = pct_val.trim_end_matches('%').parse::<i64>() {
                                             entry_obj.insert("percentage".to_string(), Value::Number(pct.into()));
                                         }
                                     }
@@ -138,12 +170,18 @@ impl App {
                                 let local_idx = target_idx - current_idx;
                                 if local_idx < inside_array.len() {
                                     if let Some(entry_obj) = inside_array[local_idx].as_object_mut() {
-                                        // Update fields (date and context for inside)
-                                        if self.edit_buffer.len() >= 1 {
-                                            entry_obj.insert("date".to_string(), Value::String(self.edit_buffer[0].clone()));
+                                        // Update fields (date and context for inside) - use placeholder flags
+                                        if self.edit_buffer.len() >= 1 && self.edit_buffer_is_placeholder.len() >= 1 {
+                                            let date_val = &self.edit_buffer[0];
+                                            let is_placeholder = self.edit_buffer_is_placeholder[0];
+                                            entry_obj.insert("date".to_string(),
+                                                Value::String(if is_placeholder { String::new() } else { date_val.clone() }));
                                         }
-                                        if self.edit_buffer.len() >= 2 {
-                                            entry_obj.insert("context".to_string(), Value::String(self.edit_buffer[1].clone()));
+                                        if self.edit_buffer.len() >= 2 && self.edit_buffer_is_placeholder.len() >= 2 {
+                                            let context_val = &self.edit_buffer[1];
+                                            let is_placeholder = self.edit_buffer_is_placeholder[1];
+                                            entry_obj.insert("context".to_string(),
+                                                Value::String(if is_placeholder { String::new() } else { context_val.clone() }));
                                         }
                                         found = true;
                                     }
@@ -176,6 +214,7 @@ impl App {
     pub fn cancel_editing_entry(&mut self) {
         self.editing_entry = false;
         self.edit_buffer.clear();
+        self.edit_buffer_is_placeholder.clear();
         self.edit_field_index = 0;
         self.edit_insert_mode = false;
         self.edit_cursor_pos = 0;

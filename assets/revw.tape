@@ -8,6 +8,7 @@ Set Padding 20
 
 Hide
 Type "revw revw.json" Sleep 500ms Enter
+Sleep 1s
 Show
 
 Sleep 2s

@@ -713,7 +713,6 @@ fn render_outside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: R
     // Render labels on the border (outside the inner area)
     let name = entry.name.as_deref().unwrap_or("");
     let url = entry.url.as_deref().unwrap_or("");
-    let percentage = entry.percentage.unwrap_or(0);
 
     // Top-left: name (on the border) - only if not empty
     if !name.is_empty() {
@@ -749,20 +748,22 @@ fn render_outside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: R
         f.render_widget(url_para, url_area);
     }
 
-    // Bottom-right: percentage (on the border)
-    let percentage_text = format!(" {}% ", percentage);
-    let percentage_span = Line::styled(
-        percentage_text,
-        Style::default().fg(Color::Rgb(120, 170, 255)),
-    );
-    let percentage_area = Rect {
-        x: card_area.x + 2,
-        y: card_area.y + card_area.height.saturating_sub(1),
-        width: card_area.width.saturating_sub(4),
-        height: 1
-    };
-    let percentage_para = Paragraph::new(percentage_span).alignment(Alignment::Right);
-    f.render_widget(percentage_para, percentage_area);
+    // Bottom-right: percentage (on the border) - only if not null
+    if let Some(percentage) = entry.percentage {
+        let percentage_text = format!(" {}% ", percentage);
+        let percentage_span = Line::styled(
+            percentage_text,
+            Style::default().fg(Color::Rgb(120, 170, 255)),
+        );
+        let percentage_area = Rect {
+            x: card_area.x + 2,
+            y: card_area.y + card_area.height.saturating_sub(1),
+            width: card_area.width.saturating_sub(4),
+            height: 1
+        };
+        let percentage_para = Paragraph::new(percentage_span).alignment(Alignment::Right);
+        f.render_widget(percentage_para, percentage_area);
+    }
 
     // Middle: context (inside the card)
     let context = entry.context.as_deref().unwrap_or("");
@@ -915,7 +916,9 @@ fn render_edit_overlay(f: &mut Frame, app: &App) {
     };
 
     // Determine if editing INSIDE or OUTSIDE entry
-    let title = if app.edit_buffer.len() == 2 {
+    // INSIDE: date, context, Exit (3 fields)
+    // OUTSIDE: name, context, url, percentage, Exit (5 fields)
+    let title = if app.edit_buffer.len() == 3 {
         " Edit INSIDE Entry "
     } else {
         " Edit OUTSIDE Entry "
@@ -937,12 +940,19 @@ fn render_edit_overlay(f: &mut Frame, app: &App) {
     for (i, field) in app.edit_buffer.iter().enumerate() {
         let is_selected = i == app.edit_field_index;
 
+        // Check if this is a placeholder using the placeholder flag
+        let is_placeholder = i < app.edit_buffer_is_placeholder.len()
+                           && app.edit_buffer_is_placeholder[i];
+
         let style = if is_selected {
             if app.edit_insert_mode {
                 Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
             } else {
                 Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)
             }
+        } else if is_placeholder {
+            // Show placeholders in dim gray
+            Style::default().fg(Color::DarkGray)
         } else {
             Style::default().fg(Color::Gray)
         };
