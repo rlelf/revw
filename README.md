@@ -258,6 +258,10 @@ revw --stdout --outside file.json
 - `:%s/pattern/replacement/` substitute first occurrence in all lines
 - `:%s/pattern/replacement/g` substitute all occurrences in all lines
 
+## Changelog
+
+See [CHANGELOG](https://github.com/rlelf/revw/blob/main/CHANGELOG.md) for version history and changes.
+
 ## License
 
 MIT

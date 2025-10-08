@@ -9,7 +9,7 @@ repository = "https://github.com/rlelf/revw"
 keywords = ["tui", "json", "viewer", "vim", "ratatui"]
 categories = ["command-line-utilities", "text-editors"]
 readme = "README.md"
-exclude = [".github/", "assets/"]
+exclude = [".github/", "assets/", "CHANGELOG.md"]
 
 [[bin]]
 name = "revw"
