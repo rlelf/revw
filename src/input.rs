@@ -506,7 +506,7 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                             _ => continue,
                                         }
                                     }
-                                    FileOperation::Create | FileOperation::Copy(_) | FileOperation::Rename(_) => {
+                                    FileOperation::Create | FileOperation::CreateDir | FileOperation::Copy(_) | FileOperation::Rename(_) => {
                                         // Waiting for filename input
                                         match key.code {
                                             KeyCode::Esc => {
@@ -521,6 +521,7 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                                 app.file_op_prompt_buffer.push(c);
                                                 let prompt_msg = match op {
                                                     FileOperation::Create => "New file name (must end with .json):",
+                                                    FileOperation::CreateDir => "New directory name:",
                                                     FileOperation::Copy(src) => {
                                                         let name = src.file_name().and_then(|n| n.to_str()).unwrap_or("unknown");
                                                         &format!("Copy '{}' to (must end with .json):", name)
@@ -536,6 +537,7 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                                     app.file_op_prompt_buffer.pop();
                                                     let prompt_msg = match op {
                                                         FileOperation::Create => "New file name (must end with .json):",
+                                                        FileOperation::CreateDir => "New directory name:",
                                                         FileOperation::Copy(src) => {
                                                             let name = src.file_name().and_then(|n| n.to_str()).unwrap_or("unknown");
                                                             &format!("Copy '{}' to (must end with .json):", name)

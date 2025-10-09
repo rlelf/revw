@@ -930,6 +930,9 @@ fn render_edit_overlay(f: &mut Frame, app: &App) {
     // Create a centered popup area
     let area = f.area();
 
+    // First, clear the entire screen to ensure no artifacts from explorer
+    f.render_widget(Clear, area);
+
     let popup_width = area.width.min(80);
     // Increase height to show more of the background: use 70% of screen height or calculated size
     let calculated_height = app.edit_buffer.len() as u16 + 4;
@@ -951,9 +954,6 @@ fn render_edit_overlay(f: &mut Frame, app: &App) {
     } else {
         " OUTSIDE "
     };
-
-    // First, clear the popup area to remove background content
-    f.render_widget(Clear, popup_area);
 
     // Then render background color for entire overlay
     f.render_widget(
@@ -1102,13 +1102,21 @@ fn render_explorer(f: &mut Frame, app: &App, area: Rect) {
         let abs_index = start + i;
         let is_selected = abs_index == app.explorer_selected_index;
 
-        let name = entry
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("???");
+        // Check if this is parent directory
+        let is_parent = app.explorer_current_dir.parent().map(|p| p == entry).unwrap_or(false);
 
-        // No icons, just show name with different colors
-        let color = if entry.is_dir() {
+        let name = if is_parent {
+            "..".to_string()
+        } else {
+            entry
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("???")
+                .to_string()
+        };
+
+        // Show directories in cyan, files in gray
+        let color = if entry.is_dir() || is_parent {
             Color::Cyan
         } else {
             Color::Gray
@@ -1120,7 +1128,7 @@ fn render_explorer(f: &mut Frame, app: &App, area: Rect) {
             Style::default().fg(color)
         };
 
-        lines.push(Line::styled(name.to_string(), style));
+        lines.push(Line::styled(name, style));
     }
 
     let content = Paragraph::new(lines).wrap(Wrap { trim: false });

@@ -177,7 +177,10 @@ revw --stdout --outside file.json
 - `Ctrl+w l` move to file window (right)
 
 **Explorer File Operations (when explorer has focus):**
+- `Enter` or `o` open file or navigate into directory
+- `..` navigate to parent directory (shown at top of list)
 - `:a` create new JSON file in current directory
+- `:d` create new directory
 - `:m` rename selected file (must end with .json)
 - `:dd` delete selected file (confirms with y/n)
 - `:yy` copy selected file (prompts for new filename)

@@ -63,6 +63,9 @@ impl App {
             if cmd == "a" {
                 self.explorer_create_file();
                 return false;
+            } else if cmd == "d" {
+                self.explorer_create_dir();
+                return false;
             } else if cmd == "m" {
                 self.explorer_rename_file();
                 return false;

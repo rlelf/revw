@@ -114,6 +114,7 @@ pub enum FileOperation {
     Copy(PathBuf),           // Copy file (needs destination filename)
     Rename(PathBuf),         // Rename file (needs new filename)
     Create,                  // Create new file (needs filename)
+    CreateDir,               // Create new directory (needs directory name)
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -540,7 +541,10 @@ impl App {
             "  :set card=N                 - set max visible cards (1-10, default: 5)".to_string(),
             "".to_string(),
             "File Explorer Commands (when explorer has focus):".to_string(),
+            "  Enter or o   - open file or enter directory".to_string(),
+            "  ..           - navigate to parent directory".to_string(),
             "  :a           - create new JSON file".to_string(),
+            "  :d           - create new directory".to_string(),
             "  :m           - rename file".to_string(),
             "  :dd          - delete file (asks y/n)".to_string(),
             "  :yy          - copy file (asks destination)".to_string(),

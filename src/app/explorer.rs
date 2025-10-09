@@ -14,7 +14,11 @@ impl App {
     pub fn load_explorer_entries(&mut self) {
         let mut entries = Vec::new();
 
-        // Don't add parent directory - keep flat navigation
+        // Add parent directory (..) if not at root
+        if let Some(parent) = self.explorer_current_dir.parent() {
+            entries.push(parent.to_path_buf());
+        }
+
         // Read directory entries
         if let Ok(dir_entries) = fs::read_dir(&self.explorer_current_dir) {
             let mut dirs = Vec::new();
@@ -62,8 +66,10 @@ impl App {
             let selected = self.explorer_entries[self.explorer_selected_index].clone();
 
             if selected.is_dir() {
-                // Navigate into directory (but don't implement this - keep flat)
-                // Do nothing for directories
+                // Navigate into directory
+                self.explorer_current_dir = selected;
+                self.explorer_dir_changed = true;
+                self.load_explorer_entries();
             } else if selected.is_file() {
                 // Open file
                 if let Some(extension) = selected.extension() {

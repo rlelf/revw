@@ -77,6 +77,17 @@ impl App {
         self.set_status("New file name (must end with .json):");
     }
 
+    // Start create new directory operation
+    pub fn explorer_create_dir(&mut self) {
+        if !self.explorer_open || !self.explorer_has_focus {
+            return;
+        }
+
+        self.file_op_pending = Some(FileOperation::CreateDir);
+        self.file_op_prompt_buffer = String::new();
+        self.set_status("New directory name:");
+    }
+
     // Handle confirmation for delete operation (y/n)
     pub fn handle_file_op_confirmation(&mut self, response: char) {
         if let Some(FileOperation::Delete(path)) = self.file_op_pending.clone() {
@@ -106,16 +117,41 @@ impl App {
     pub fn execute_file_operation(&mut self) {
         let filename = self.file_op_prompt_buffer.trim().to_string();
 
-        // Validate .json extension
-        if !filename.ends_with(".json") {
-            self.set_status("Error: Filename must end with .json");
-            self.file_op_pending = None;
-            self.file_op_prompt_buffer.clear();
-            return;
-        }
-
         match self.file_op_pending.clone() {
+            Some(FileOperation::CreateDir) => {
+                // Create new directory (no .json requirement)
+                if filename.is_empty() {
+                    self.set_status("Error: Directory name cannot be empty");
+                    self.file_op_pending = None;
+                    self.file_op_prompt_buffer.clear();
+                    return;
+                }
+
+                let new_path = self.explorer_current_dir.join(&filename);
+
+                if new_path.exists() {
+                    self.set_status(&format!("Error: Directory '{}' already exists", filename));
+                } else {
+                    match fs::create_dir(&new_path) {
+                        Ok(()) => {
+                            self.set_status(&format!("Created directory '{}'", filename));
+                            // Reload explorer
+                            self.load_explorer_entries();
+                        }
+                        Err(e) => {
+                            self.set_status(&format!("Error creating directory: {}", e));
+                        }
+                    }
+                }
+            }
             Some(FileOperation::Create) => {
+                // Validate .json extension for files
+                if !filename.ends_with(".json") {
+                    self.set_status("Error: Filename must end with .json");
+                    self.file_op_pending = None;
+                    self.file_op_prompt_buffer.clear();
+                    return;
+                }
                 // Create new file in current directory
                 let new_path = self.explorer_current_dir.join(&filename);
 
@@ -158,6 +194,13 @@ impl App {
                 }
             }
             Some(FileOperation::Copy(source_path)) => {
+                // Validate .json extension for files
+                if !filename.ends_with(".json") {
+                    self.set_status("Error: Filename must end with .json");
+                    self.file_op_pending = None;
+                    self.file_op_prompt_buffer.clear();
+                    return;
+                }
                 // Copy file to new location in current directory
                 let dest_path = self.explorer_current_dir.join(&filename);
 
@@ -180,6 +223,13 @@ impl App {
                 }
             }
             Some(FileOperation::Rename(old_path)) => {
+                // Validate .json extension for files
+                if !filename.ends_with(".json") {
+                    self.set_status("Error: Filename must end with .json");
+                    self.file_op_pending = None;
+                    self.file_op_prompt_buffer.clear();
+                    return;
+                }
                 // Rename file in current directory
                 let new_path = self.explorer_current_dir.join(&filename);
 
