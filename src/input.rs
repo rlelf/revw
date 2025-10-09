@@ -285,6 +285,37 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                         app.edit_cursor_pos = field_len;
                                     }
                                 }
+                                KeyCode::Char('x') => {
+                                    // Delete character at cursor
+                                    if app.edit_field_index < app.edit_buffer.len() {
+                                        let field = &mut app.edit_buffer[app.edit_field_index];
+                                        let mut chars: Vec<char> = field.chars().collect();
+                                        if app.edit_cursor_pos < chars.len() {
+                                            chars.remove(app.edit_cursor_pos);
+                                            *field = chars.into_iter().collect();
+                                            // Mark as no longer a placeholder if it was
+                                            if app.edit_field_index < app.edit_buffer_is_placeholder.len() {
+                                                app.edit_buffer_is_placeholder[app.edit_field_index] = false;
+                                            }
+                                        }
+                                    }
+                                }
+                                KeyCode::Char('X') => {
+                                    // Delete character before cursor
+                                    if app.edit_field_index < app.edit_buffer.len() && app.edit_cursor_pos > 0 {
+                                        let field = &mut app.edit_buffer[app.edit_field_index];
+                                        let mut chars: Vec<char> = field.chars().collect();
+                                        if app.edit_cursor_pos > 0 && app.edit_cursor_pos <= chars.len() {
+                                            chars.remove(app.edit_cursor_pos - 1);
+                                            *field = chars.into_iter().collect();
+                                            app.edit_cursor_pos -= 1;
+                                            // Mark as no longer a placeholder if it was
+                                            if app.edit_field_index < app.edit_buffer_is_placeholder.len() {
+                                                app.edit_buffer_is_placeholder[app.edit_field_index] = false;
+                                            }
+                                        }
+                                    }
+                                }
                                 KeyCode::Char('i') => {
                                     // Enter insert mode (from normal mode within field)
                                     app.edit_insert_mode = true;
@@ -443,6 +474,18 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                     app.input_mode = InputMode::Insert;
                                     app.ensure_cursor_visible();
                                     app.set_status("-- INSERT --");
+                                }
+                            }
+                            KeyCode::Char('x') => {
+                                if !app.showing_help && app.format_mode == FormatMode::Edit {
+                                    app.delete_char();
+                                    app.is_modified = true;
+                                }
+                            }
+                            KeyCode::Char('X') => {
+                                if !app.showing_help && app.format_mode == FormatMode::Edit {
+                                    app.backspace();
+                                    app.is_modified = true;
                                 }
                             }
                             KeyCode::Char(':') => {

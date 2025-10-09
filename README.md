@@ -184,6 +184,8 @@ revw --stdout --outside file.json
 - `g` or `gg` jump to start
 - `G` jump to end
 - `i` enter insert mode
+- `x` delete character at cursor
+- `X` delete character before cursor
 - `Esc` or `Ctrl+[` exit to field selection mode
 
 **Insert Mode:**
@@ -208,6 +210,8 @@ revw --stdout --outside file.json
 
 **Editing:**
 - `i` enter insert mode
+- `x` delete character at cursor
+- `X` delete character before cursor
 - `Esc` or `Ctrl+[` exit insert mode
 - `:dd` delete current entry (entire object)
 - `:yy` duplicate current entry (entire object)

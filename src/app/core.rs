@@ -529,6 +529,8 @@ impl App {
             "".to_string(),
             "Editing:".to_string(),
             "  i            - enter insert mode".to_string(),
+            "  x            - delete character at cursor".to_string(),
+            "  X            - delete character before cursor".to_string(),
             "  Esc or Ctrl+[ - exit insert mode".to_string(),
             "  u            - undo".to_string(),
             "  Ctrl+r       - redo".to_string(),
