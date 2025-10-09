@@ -6,7 +6,7 @@ use notify::{Event as NotifyEvent, RecursiveMode, Watcher};
 use std::sync::mpsc::{self, Receiver, TryRecvError};
 use std::time::{Duration, Instant};
 
-use crate::app::{App, FormatMode, InputMode, ScrollbarType};
+use crate::app::{App, FileOperation, FormatMode, InputMode, ScrollbarType};
 
 pub fn run_app<B: ratatui::backend::Backend>(
     terminal: &mut ratatui::Terminal<B>,
@@ -487,6 +487,74 @@ pub fn run_app<B: ratatui::backend::Backend>(
 
                     match app.input_mode {
                         InputMode::Normal => {
+                            // Handle file operation confirmation/prompt if active
+                            if let Some(ref op) = app.file_op_pending.clone() {
+                                match op {
+                                    FileOperation::Delete(_) => {
+                                        // Waiting for y/n confirmation
+                                        match key.code {
+                                            KeyCode::Char('y') | KeyCode::Char('Y') | KeyCode::Char('n') | KeyCode::Char('N') => {
+                                                if let KeyCode::Char(c) = key.code {
+                                                    app.handle_file_op_confirmation(c);
+                                                }
+                                                continue;
+                                            }
+                                            KeyCode::Esc => {
+                                                app.cancel_file_operation();
+                                                continue;
+                                            }
+                                            _ => continue,
+                                        }
+                                    }
+                                    FileOperation::Create | FileOperation::Copy(_) | FileOperation::Rename(_) => {
+                                        // Waiting for filename input
+                                        match key.code {
+                                            KeyCode::Esc => {
+                                                app.cancel_file_operation();
+                                                continue;
+                                            }
+                                            KeyCode::Enter => {
+                                                app.execute_file_operation();
+                                                continue;
+                                            }
+                                            KeyCode::Char(c) => {
+                                                app.file_op_prompt_buffer.push(c);
+                                                let prompt_msg = match op {
+                                                    FileOperation::Create => "New file name (must end with .json):",
+                                                    FileOperation::Copy(src) => {
+                                                        let name = src.file_name().and_then(|n| n.to_str()).unwrap_or("unknown");
+                                                        &format!("Copy '{}' to (must end with .json):", name)
+                                                    }
+                                                    FileOperation::Rename(_) => "Rename to (must end with .json):",
+                                                    _ => "",
+                                                };
+                                                app.set_status(&format!("{} {}", prompt_msg, app.file_op_prompt_buffer));
+                                                continue;
+                                            }
+                                            KeyCode::Backspace => {
+                                                if !app.file_op_prompt_buffer.is_empty() {
+                                                    app.file_op_prompt_buffer.pop();
+                                                    let prompt_msg = match op {
+                                                        FileOperation::Create => "New file name (must end with .json):",
+                                                        FileOperation::Copy(src) => {
+                                                            let name = src.file_name().and_then(|n| n.to_str()).unwrap_or("unknown");
+                                                            &format!("Copy '{}' to (must end with .json):", name)
+                                                        }
+                                                        FileOperation::Rename(_) => "Rename to (must end with .json):",
+                                                        _ => "",
+                                                    };
+                                                    app.set_status(&format!("{} {}", prompt_msg, app.file_op_prompt_buffer));
+                                                } else {
+                                                    app.cancel_file_operation();
+                                                }
+                                                continue;
+                                            }
+                                            _ => continue,
+                                        }
+                                    }
+                                }
+                            }
+
                             // Handle substitute confirmation if active
                             if !app.substitute_confirmations.is_empty() {
                                 match key.code {

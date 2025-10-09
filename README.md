@@ -176,6 +176,12 @@ revw --stdout --outside file.json
 - `Ctrl+w h` move to explorer window (left)
 - `Ctrl+w l` move to file window (right)
 
+**Explorer File Operations (when explorer has focus):**
+- `:a` create new JSON file in current directory
+- `:m` rename selected file (must end with .json)
+- `:dd` delete selected file (confirms with y/n)
+- `:yy` copy selected file (prompts for new filename)
+
 #### Edit Overlay
 **Field Selection Mode (default):**
 - `j/k` or `↑/↓` navigate between fields

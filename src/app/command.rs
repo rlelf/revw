@@ -57,6 +57,24 @@ impl App {
     pub fn execute_command(&mut self) -> bool {
         let cmd = self.command_buffer.clone();
         let cmd = cmd.trim();
+
+        // Handle explorer-specific commands when explorer has focus
+        if self.explorer_open && self.explorer_has_focus {
+            if cmd == "a" {
+                self.explorer_create_file();
+                return false;
+            } else if cmd == "m" {
+                self.explorer_rename_file();
+                return false;
+            } else if cmd == "dd" {
+                self.explorer_delete_file();
+                return false;
+            } else if cmd == "yy" {
+                self.explorer_copy_file();
+                return false;
+            }
+        }
+
         if cmd == "w" {
             self.save_file();
         } else if cmd == "wq" {

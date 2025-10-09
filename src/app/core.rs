@@ -103,6 +103,17 @@ pub struct App {
     pub explorer_current_dir: PathBuf,
     pub explorer_has_focus: bool, // Track which window has focus
     pub explorer_dir_changed: bool, // Signal that explorer directory changed and watcher needs update
+    // File operation confirmation/prompt state
+    pub file_op_pending: Option<FileOperation>,
+    pub file_op_prompt_buffer: String, // Buffer for filename input during file operations
+}
+
+#[derive(Clone, PartialEq)]
+pub enum FileOperation {
+    Delete(PathBuf),         // Delete file (needs y/n confirmation)
+    Copy(PathBuf),           // Copy file (needs destination filename)
+    Rename(PathBuf),         // Rename file (needs new filename)
+    Create,                  // Create new file (needs filename)
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -182,6 +193,8 @@ impl App {
             explorer_current_dir: std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
             explorer_has_focus: true, // Explorer has focus when opened
             explorer_dir_changed: false,
+            file_op_pending: None,
+            file_op_prompt_buffer: String::new(),
         };
 
         app
@@ -525,6 +538,12 @@ impl App {
             "  :set number / :set nu       - enable line numbers (Edit mode)".to_string(),
             "  :set nonumber / :set nonu   - disable line numbers".to_string(),
             "  :set card=N                 - set max visible cards (1-10, default: 5)".to_string(),
+            "".to_string(),
+            "File Explorer Commands (when explorer has focus):".to_string(),
+            "  :a           - create new JSON file".to_string(),
+            "  :m           - rename file".to_string(),
+            "  :dd          - delete file (asks y/n)".to_string(),
+            "  :yy          - copy file (asks destination)".to_string(),
             "".to_string(),
             "Other:".to_string(),
             "  r            - toggle View/Edit mode".to_string(),
