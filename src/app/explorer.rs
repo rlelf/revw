@@ -6,20 +6,14 @@ impl App {
         self.explorer_open = !self.explorer_open;
         if self.explorer_open {
             self.load_explorer_entries();
-            self.set_status("Explorer opened");
-        } else {
-            self.set_status("Explorer closed");
+            self.explorer_has_focus = true;
         }
     }
 
     pub fn load_explorer_entries(&mut self) {
         let mut entries = Vec::new();
 
-        // Add parent directory entry if not at root
-        if self.explorer_current_dir.parent().is_some() {
-            entries.push(self.explorer_current_dir.join(".."));
-        }
-
+        // Don't add parent directory - keep flat navigation
         // Read directory entries
         if let Ok(dir_entries) = fs::read_dir(&self.explorer_current_dir) {
             let mut dirs = Vec::new();
@@ -67,11 +61,8 @@ impl App {
             let selected = self.explorer_entries[self.explorer_selected_index].clone();
 
             if selected.is_dir() {
-                // Navigate into directory
-                if let Ok(canonical) = selected.canonicalize() {
-                    self.explorer_current_dir = canonical;
-                    self.load_explorer_entries();
-                }
+                // Navigate into directory (but don't implement this - keep flat)
+                // Do nothing for directories
             } else if selected.is_file() {
                 // Open file
                 if let Some(extension) = selected.extension() {
@@ -81,15 +72,51 @@ impl App {
                         if let Ok(content) = fs::read_to_string(&selected) {
                             self.json_input = content;
                             self.convert_json();
-                            self.set_status(&format!("Loaded: {}", selected.display()));
+                            // Move focus to file window
+                            self.explorer_has_focus = false;
                         }
-                    } else {
-                        self.set_status("Only JSON files can be opened");
                     }
-                } else {
-                    self.set_status("Only JSON files can be opened");
                 }
             }
+        }
+    }
+
+    pub fn explorer_preview_entry(&mut self) {
+        // Like NERDTree's 'go' command - preview without moving focus
+        if self.explorer_selected_index < self.explorer_entries.len() {
+            let selected = self.explorer_entries[self.explorer_selected_index].clone();
+
+            if selected.is_file() {
+                if let Some(extension) = selected.extension() {
+                    if extension == "json" {
+                        self.file_path = Some(selected.clone());
+                        self.file_path_changed = true;
+                        if let Ok(content) = fs::read_to_string(&selected) {
+                            self.json_input = content;
+                            self.convert_json();
+                            // Keep focus on explorer
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn switch_window_focus(&mut self) {
+        if self.explorer_open {
+            self.explorer_has_focus = !self.explorer_has_focus;
+        }
+    }
+
+    pub fn focus_explorer(&mut self) {
+        if self.explorer_open {
+            self.explorer_has_focus = true;
+        }
+    }
+
+    pub fn focus_file(&mut self) {
+        if self.explorer_open {
+            self.explorer_has_focus = false;
         }
     }
 }

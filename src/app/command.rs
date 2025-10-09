@@ -5,6 +5,16 @@ impl App {
     pub fn handle_vim_input(&mut self, c: char) -> bool {
         self.vim_buffer.push(c);
 
+        // Handle explorer-specific commands
+        if self.explorer_open && self.explorer_has_focus {
+            if self.vim_buffer == "go" {
+                // Preview file without moving focus (NERDTree-like)
+                self.explorer_preview_entry();
+                self.vim_buffer.clear();
+                return true;
+            }
+        }
+
         if self.vim_buffer == "gg" {
             if self.showing_help {
                 // Allow scrolling to top in help mode (takes priority)
@@ -53,7 +63,14 @@ impl App {
             self.save_file();
             return true; // Signal to quit
         } else if cmd == "q" {
-            return true; // Signal to quit
+            // If explorer has focus, close explorer instead of quitting
+            if self.explorer_open && self.explorer_has_focus {
+                self.explorer_open = false;
+                self.explorer_has_focus = false;
+                return false; // Don't quit
+            } else {
+                return true; // Signal to quit
+            }
         } else if cmd.starts_with("w ") {
             let filename = cmd.strip_prefix("w ").unwrap().trim().to_string();
             self.save_file_as(&filename);

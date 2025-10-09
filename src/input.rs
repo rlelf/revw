@@ -91,6 +91,38 @@ pub fn run_app<B: ratatui::backend::Backend>(
                         continue;
                     }
 
+                    // Handle Ctrl+w window commands
+                    if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('w') {
+                        // Wait for next key
+                        if event::poll(Duration::from_millis(500))? {
+                            if let Event::Key(next_key) = event::read()? {
+                                #[cfg(target_os = "windows")]
+                                if next_key.kind != KeyEventKind::Press {
+                                    continue;
+                                }
+                                match next_key.code {
+                                    KeyCode::Char('w') => {
+                                        // Ctrl+w w: cycle between windows
+                                        app.switch_window_focus();
+                                        continue;
+                                    }
+                                    KeyCode::Char('h') => {
+                                        // Ctrl+w h: move to left window (explorer)
+                                        app.focus_explorer();
+                                        continue;
+                                    }
+                                    KeyCode::Char('l') => {
+                                        // Ctrl+w l: move to right window (file)
+                                        app.focus_file();
+                                        continue;
+                                    }
+                                    _ => {}
+                                }
+                            }
+                        }
+                        continue;
+                    }
+
                     // Handle editing overlay input separately
                     if app.editing_entry {
                         if app.edit_insert_mode {
@@ -415,8 +447,8 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                 }
                             }
 
-                            // Handle explorer navigation if explorer is open
-                            if app.explorer_open {
+                            // Handle explorer navigation if explorer has focus
+                            if app.explorer_open && app.explorer_has_focus {
                                 match key.code {
                                     KeyCode::Char('j') | KeyCode::Down => {
                                         app.explorer_move_down();
@@ -426,9 +458,14 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                         app.explorer_move_up();
                                         continue;
                                     }
-                                    KeyCode::Enter => {
+                                    KeyCode::Char('o') | KeyCode::Enter => {
+                                        // Open file and move focus to right
                                         app.explorer_select_entry();
                                         continue;
+                                    }
+                                    KeyCode::Char('q') => {
+                                        // Quit program
+                                        return Ok(());
                                     }
                                     _ => {}
                                 }

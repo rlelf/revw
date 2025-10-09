@@ -261,7 +261,13 @@ pub fn ui(f: &mut Frame, app: &mut App) {
 fn render_empty_content(f: &mut Frame, app: &App, area: Rect) {
     // Render background cards with colors but no text when overlay is active
     let title = match &app.file_path {
-        Some(path) => format!(" {} ", path.display()),
+        Some(path) => {
+            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                format!(" {} ", name)
+            } else {
+                String::new()
+            }
+        }
         None => String::new(),
     };
 
@@ -640,7 +646,13 @@ fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
     };
 
     let title = match &app.file_path {
-        Some(path) => format!(" {} ", path.display()),
+        Some(path) => {
+            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                format!(" {} ", name)
+            } else {
+                String::new()
+            }
+        }
         None => String::new(),
     };
 
@@ -702,7 +714,13 @@ fn render_help_content(f: &mut Frame, app: &mut App, area: Rect) {
 
 fn render_relf_cards(f: &mut Frame, app: &mut App, area: Rect) {
     let title = match &app.file_path {
-        Some(path) => format!(" {} ", path.display()),
+        Some(path) => {
+            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                format!(" {} ", name)
+            } else {
+                String::new()
+            }
+        }
         None => String::new(),
     };
 
@@ -1115,13 +1133,25 @@ fn render_status_bar(f: &mut Frame, app: &App, area: Rect) {
 }
 
 fn render_explorer(f: &mut Frame, app: &App, area: Rect) {
-    let title = format!(" {} ", app.explorer_current_dir.display());
+    // Show only folder name, not full path
+    let title = if let Some(folder_name) = app.explorer_current_dir.file_name().and_then(|n| n.to_str()) {
+        format!(" {} ", folder_name)
+    } else {
+        " . ".to_string()
+    };
+
+    // Change border color based on focus
+    let border_color = if app.explorer_has_focus {
+        Color::Cyan
+    } else {
+        Color::DarkGray
+    };
 
     let block = Block::default()
         .title(title)
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
-        .style(Style::default().fg(Color::DarkGray).bg(Color::Rgb(26, 28, 34)));
+        .style(Style::default().fg(border_color).bg(Color::Rgb(26, 28, 34)));
 
     let inner_area = block.inner(area);
     f.render_widget(block, area);
@@ -1145,10 +1175,11 @@ fn render_explorer(f: &mut Frame, app: &App, area: Rect) {
             .and_then(|n| n.to_str())
             .unwrap_or("???");
 
-        let (symbol, color) = if entry.is_dir() {
-            ("📁 ", Color::Cyan)
+        // No icons, just show name with different colors
+        let color = if entry.is_dir() {
+            Color::Cyan
         } else {
-            ("📄 ", Color::Gray)
+            Color::Gray
         };
 
         let style = if is_selected {
@@ -1157,8 +1188,7 @@ fn render_explorer(f: &mut Frame, app: &App, area: Rect) {
             Style::default().fg(color)
         };
 
-        let display_name = format!("{}{}", symbol, name);
-        lines.push(Line::styled(display_name, style));
+        lines.push(Line::styled(name.to_string(), style));
     }
 
     let content = Paragraph::new(lines).wrap(Wrap { trim: false });
