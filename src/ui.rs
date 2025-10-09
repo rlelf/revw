@@ -2,7 +2,7 @@ use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Margin, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, BorderType, Borders, Paragraph, Wrap},
+    widgets::{Block, BorderType, Borders, Clear, Paragraph, Wrap},
     Frame,
 };
 
@@ -243,84 +243,13 @@ pub fn ui(f: &mut Frame, app: &mut App) {
         chunks[0]
     };
 
-    // Always render content and status bar
-    if !app.editing_entry {
-        render_content(f, app, content_area);
-    } else {
-        // Render empty content area with border when overlay is active
-        render_empty_content(f, app, content_area);
-    }
+    // Always render content and status bar (even when overlay is active)
+    render_content(f, app, content_area);
     render_status_bar(f, app, chunks[1]);
 
     // Render editing overlay on top if active
     if app.editing_entry {
         render_edit_overlay(f, app);
-    }
-}
-
-fn render_empty_content(f: &mut Frame, app: &App, area: Rect) {
-    // Render background cards with colors but no text when overlay is active
-    let title = match &app.file_path {
-        Some(path) => {
-            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                format!(" {} ", name)
-            } else {
-                String::new()
-            }
-        }
-        None => String::new(),
-    };
-
-    let outer_block = Block::default()
-        .title(title)
-        .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
-        .style(Style::default().fg(Color::DarkGray).bg(Color::Rgb(26, 28, 34)));
-
-    let inner_area = outer_block.inner(area);
-    f.render_widget(outer_block, area);
-
-    // Render empty cards with background colors
-    let num_entries = app.relf_entries.len();
-    if num_entries == 0 {
-        return;
-    }
-
-    let selected = app.selected_entry_index;
-    let max_visible_cards = app.max_visible_cards;
-    let scroll_start = if selected < max_visible_cards {
-        0
-    } else {
-        selected - max_visible_cards + 1
-    };
-
-    let visible_entries: Vec<(usize, &RelfEntry)> = app.relf_entries
-        .iter()
-        .enumerate()
-        .skip(scroll_start)
-        .take(max_visible_cards)
-        .collect();
-
-    if visible_entries.is_empty() {
-        return;
-    }
-
-    let constraints: Vec<Constraint> = visible_entries
-        .iter()
-        .map(|_| Constraint::Min(3))
-        .collect();
-
-    let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints(constraints)
-        .split(inner_area);
-
-    // Render only background colors (no borders, no text)
-    for (i, (_entry_idx, entry)) in visible_entries.iter().enumerate() {
-        // Fill the entire card area with just background color
-        let filler = Block::default()
-            .style(Style::default().bg(entry.bg_color));
-        f.render_widget(filler, chunks[i]);
     }
 }
 
@@ -1023,7 +952,16 @@ fn render_edit_overlay(f: &mut Frame, app: &App) {
         " Edit OUTSIDE Entry "
     };
 
-    // Render the popup as a single card with rounded borders
+    // First, clear the popup area to remove background content
+    f.render_widget(Clear, popup_area);
+
+    // Then render background color for entire overlay
+    f.render_widget(
+        Block::default().style(Style::default().bg(Color::Rgb(30, 30, 35))),
+        popup_area,
+    );
+
+    // Render the popup as a single card with rounded borders on top
     let block = Block::default()
         .title(title)
         .borders(Borders::ALL)
