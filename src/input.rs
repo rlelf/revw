@@ -105,36 +105,7 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                         app.edit_skip_normal_mode = false;
                                     }
                                     // Otherwise stay in field editing mode (normal mode)
-                                    // Restore placeholder if field is empty
-                                    if app.edit_field_index < app.edit_buffer.len() {
-                                        let field = &app.edit_buffer[app.edit_field_index];
-                                        if field.is_empty() {
-                                            // Determine placeholder based on edit_buffer length
-                                            let placeholder = if app.edit_buffer.len() == 3 {
-                                                // INSIDE entry: date, context, Exit
-                                                match app.edit_field_index {
-                                                    0 => "date",
-                                                    1 => "context",
-                                                    _ => "",
-                                                }
-                                            } else {
-                                                // OUTSIDE entry: name, context, url, percentage, Exit
-                                                match app.edit_field_index {
-                                                    0 => "name",
-                                                    1 => "context",
-                                                    2 => "url",
-                                                    3 => "percentage",
-                                                    _ => "",
-                                                }
-                                            };
-                                            if !placeholder.is_empty() {
-                                                app.edit_buffer[app.edit_field_index] = placeholder.to_string();
-                                                if app.edit_field_index < app.edit_buffer_is_placeholder.len() {
-                                                    app.edit_buffer_is_placeholder[app.edit_field_index] = true;
-                                                }
-                                            }
-                                        }
-                                    }
+                                    // Keep field empty to reflect actual buffer content
                                 }
                                 KeyCode::Backspace => {
                                     if app.edit_field_index < app.edit_buffer.len() && app.edit_cursor_pos > 0 {
@@ -856,15 +827,11 @@ pub fn run_app<B: ratatui::backend::Backend>(
                             // Don't scroll vertically if horizontal scrollbar is being dragged
                             if app.dragging_scrollbar != Some(ScrollbarType::Horizontal) {
                                 if app.format_mode == FormatMode::Edit {
-                                    // Move cursor up if it is not at the top of the visible area; otherwise scroll
-                                    let (cursor_visual_line, _) =
-                                        app.calculate_cursor_visual_position();
-                                    let visible_top = app.scroll;
-                                    if cursor_visual_line > visible_top {
-                                        app.move_cursor_up();
-                                    } else {
-                                        // Faster scrolling for vim-like feel
-                                        for _ in 0..5 {
+                                    // Scroll and move cursor together
+                                    for _ in 0..5 {
+                                        if app.content_cursor_line > 0 {
+                                            app.move_cursor_up();
+                                        } else {
                                             app.scroll_up();
                                         }
                                     }
@@ -884,28 +851,9 @@ pub fn run_app<B: ratatui::backend::Backend>(
                             // Don't scroll vertically if horizontal scrollbar is being dragged
                             if app.dragging_scrollbar != Some(ScrollbarType::Horizontal) {
                                 if app.format_mode == FormatMode::Edit {
-                                    // Move cursor down while within the visible area; otherwise scroll
-                                    let (cursor_visual_line, _) =
-                                        app.calculate_cursor_visual_position();
-                                    let visible_height = app.get_visible_height();
-                                    let visible_bottom =
-                                        app.scroll.saturating_add(visible_height).saturating_sub(1);
-                                    // Estimate total visual lines to avoid overshooting content
-                                    let mut total_visual: u16 = 0;
-                                    for l in app.json_input.lines() {
-                                        total_visual = total_visual
-                                            .saturating_add(app.calculate_visual_lines(l));
-                                    }
-                                    let last_visual = total_visual.saturating_sub(1);
-                                    let effective_bottom =
-                                        std::cmp::min(visible_bottom, last_visual);
-                                    if cursor_visual_line < effective_bottom {
+                                    // Scroll and move cursor together
+                                    for _ in 0..5 {
                                         app.move_cursor_down();
-                                    } else {
-                                        // Faster scrolling for vim-like feel
-                                        for _ in 0..5 {
-                                            app.scroll_down();
-                                        }
                                     }
                                 } else if !app.relf_entries.is_empty() {
                                     // Card view: move selection down

@@ -172,6 +172,55 @@ fn highlight_json_line(line: &str) -> Vec<Span<'static>> {
     spans
 }
 
+// Slice spans by display width (for horizontal scrolling)
+fn slice_spans_by_width(app: &App, spans: Vec<Span>, start_col: usize, width: usize) -> Vec<Span<'static>> {
+    let mut result = Vec::new();
+    let mut current_col = 0;
+    let end_col = start_col + width;
+
+    for span in spans {
+        let text = span.content.to_string();
+        let span_width = app.display_width_str(&text);
+        let span_start = current_col;
+        let span_end = current_col + span_width;
+
+        if span_end <= start_col {
+            // This span is entirely before the visible range
+            current_col = span_end;
+            continue;
+        }
+
+        if span_start >= end_col {
+            // This span is entirely after the visible range
+            break;
+        }
+
+        // This span overlaps with visible range - need to slice it
+        let visible_start = if span_start < start_col {
+            start_col - span_start
+        } else {
+            0
+        };
+
+        let visible_end = if span_end > end_col {
+            span_width - (span_end - end_col)
+        } else {
+            span_width
+        };
+
+        // Slice the text by display width
+        let sliced_text = app.slice_columns(&text, visible_start, visible_end - visible_start);
+
+        if !sliced_text.is_empty() {
+            result.push(Span::styled(sliced_text, span.style));
+        }
+
+        current_col = span_end;
+    }
+
+    result
+}
+
 pub fn ui(f: &mut Frame, app: &mut App) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -344,12 +393,12 @@ fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
             let mut content_spans: Vec<Span> = Vec::new();
 
             if !app.search_query.is_empty() && app.format_mode == FormatMode::Edit {
-                // In Edit mode with search: apply JSON highlighting first, then add search backgrounds
-                let json_spans = highlight_json_line(&slice);
+                // In Edit mode with search: apply JSON highlighting to full line first
+                let json_spans = highlight_json_line(s);
 
-                // Merge JSON highlighting with search match backgrounds
+                // Merge JSON highlighting with search match backgrounds on full line
                 let query_lower = app.search_query.to_lowercase();
-                let line_lower = slice.to_lowercase();
+                let line_lower = s.to_lowercase();
                 let mut result_spans: Vec<Span> = Vec::new();
                 let mut char_pos = 0;
 
@@ -376,7 +425,7 @@ fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
                         let is_current_match = app
                             .current_match_index
                             .and_then(|idx| app.search_matches.get(idx))
-                            .map(|(line, col)| *line == actual_idx && *col == abs_match_pos + off_cols)
+                            .map(|(line, col)| *line == actual_idx && *col == abs_match_pos)
                             .unwrap_or(false);
 
                         let bg_color = if is_current_match {
@@ -413,7 +462,8 @@ fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
                     char_pos = span_end;
                 }
 
-                content_spans = result_spans;
+                // Slice the result spans to visible range
+                content_spans = slice_spans_by_width(app, result_spans, off_cols, adjusted_w_cols);
             } else if !app.search_query.is_empty() {
                 // View mode with search: original search highlighting logic
                 let query_lower = app.search_query.to_lowercase();
@@ -464,8 +514,9 @@ fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
             } else {
                 // No search highlighting
                 if app.format_mode == FormatMode::Edit {
-                    // Apply JSON syntax highlighting in Edit mode
-                    content_spans = highlight_json_line(&slice);
+                    // Apply JSON syntax highlighting to full line, then slice
+                    let full_line_spans = highlight_json_line(s);
+                    content_spans = slice_spans_by_width(app, full_line_spans, off_cols, adjusted_w_cols);
                 } else {
                     // In View mode, use plain text with line style
                     content_spans.push(Span::styled(
@@ -487,26 +538,40 @@ fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
                         // Insert cursor while preserving existing highlighting
                         let insert_col_in_view = prefix_cols - off_cols;
 
-                        // Calculate character position across all spans
-                        let mut char_count = 0;
+                        // Calculate display width position across all spans
+                        let mut display_width_count = 0;
                         let mut cursor_inserted = false;
                         let mut new_spans: Vec<Span> = Vec::new();
 
                         for span in content_spans.iter() {
                             let span_text = span.content.to_string();
-                            let span_chars: Vec<char> = span_text.chars().collect();
-                            let span_len = span_chars.len();
+                            let span_display_width = app.display_width_str(&span_text);
 
-                            if !cursor_inserted && char_count + span_len >= insert_col_in_view {
+                            if !cursor_inserted && display_width_count + span_display_width >= insert_col_in_view {
                                 // Cursor belongs in this span
-                                let pos_in_span = insert_col_in_view - char_count;
+                                // Find the character position within this span
+                                let target_width_in_span = insert_col_in_view - display_width_count;
+
+                                let span_chars: Vec<char> = span_text.chars().collect();
+                                let mut pos_in_span = 0;
+                                let mut accumulated_width = 0;
+
+                                for (i, ch) in span_chars.iter().enumerate() {
+                                    let ch_width = app.display_width_str(&ch.to_string());
+                                    if accumulated_width >= target_width_in_span {
+                                        pos_in_span = i;
+                                        break;
+                                    }
+                                    accumulated_width += ch_width;
+                                    pos_in_span = i + 1;
+                                }
 
                                 // Split span at cursor position
                                 if pos_in_span == 0 {
                                     // Cursor at start
                                     new_spans.push(Span::styled("│".to_string(), span.style));
                                     new_spans.push(span.clone());
-                                } else if pos_in_span >= span_len {
+                                } else if pos_in_span >= span_chars.len() {
                                     // Cursor at end
                                     new_spans.push(span.clone());
                                     new_spans.push(Span::styled("│".to_string(), span.style));
@@ -524,7 +589,7 @@ fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
                                 new_spans.push(span.clone());
                             }
 
-                            char_count += span_len;
+                            display_width_count += span_display_width;
                         }
 
                         // If cursor wasn't inserted yet, add it at the end

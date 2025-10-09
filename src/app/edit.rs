@@ -556,12 +556,18 @@ impl App {
         if self.format_mode == FormatMode::Edit {
             if self.content_cursor_line < lines.len() {
                 let current = &lines[self.content_cursor_line];
-                let col = self.prefix_display_width(current, self.content_cursor_col) as u16;
+                let cursor_display_col = self.prefix_display_width(current, self.content_cursor_col) as u16;
                 let w = self.get_content_width();
-                if col < self.hscroll {
-                    self.hscroll = col;
-                } else if col >= self.hscroll + w {
-                    self.hscroll = col - w + 1;
+
+                // Add margin to scroll before cursor reaches edge
+                let margin = 8u16;
+
+                if cursor_display_col < self.hscroll + margin {
+                    // Cursor near left edge - scroll left
+                    self.hscroll = cursor_display_col.saturating_sub(margin);
+                } else if cursor_display_col >= self.hscroll + w.saturating_sub(margin) {
+                    // Cursor near right edge - scroll right
+                    self.hscroll = cursor_display_col + margin - w + 1;
                 }
             }
         }
