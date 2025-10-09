@@ -80,6 +80,10 @@ impl App {
                             }
                             self.set_status(&format!("Created new file: {}", final_path_display));
                             self.convert_json();
+                            // Reload explorer if open
+                            if self.explorer_open {
+                                self.load_explorer_entries();
+                            }
                         }
                         Err(create_err) => {
                             self.set_status(&format!("Error creating '{}': {}", final_path_display, create_err));
@@ -98,6 +102,10 @@ impl App {
                     self.is_modified = false;
                     self.last_save_time = Some(Instant::now());
                     self.set_status(&format!("Saved: {}", path.display()));
+                    // Reload explorer if open
+                    if self.explorer_open {
+                        self.load_explorer_entries();
+                    }
                 }
                 Err(e) => {
                     self.set_status(&format!("Error saving: {}", e));
@@ -120,6 +128,10 @@ impl App {
                     self.file_path_changed = true;
                 }
                 self.set_status(&format!("Saved: {}", path.display()));
+                // Reload explorer if open
+                if self.explorer_open {
+                    self.load_explorer_entries();
+                }
             }
             Err(e) => {
                 self.set_status(&format!("Error saving: {}", e));

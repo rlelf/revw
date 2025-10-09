@@ -73,19 +73,32 @@ impl App {
             }
         } else if cmd.starts_with("w ") {
             let filename = cmd.strip_prefix("w ").unwrap().trim().to_string();
-            self.save_file_as(&filename);
+            if !filename.ends_with(".json") {
+                self.set_status("Error: Filename must end with .json");
+            } else {
+                self.save_file_as(&filename);
+            }
         } else if cmd.starts_with("wq ") {
             let filename = cmd.strip_prefix("wq ").unwrap().trim().to_string();
-            self.save_file_as(&filename);
-            return true; // Signal to quit
+            if !filename.ends_with(".json") {
+                self.set_status("Error: Filename must end with .json");
+                return false; // Don't quit on error
+            } else {
+                self.save_file_as(&filename);
+                return true; // Signal to quit
+            }
         } else if cmd == "e" {
             // Refresh/reload the file
             self.reload_file();
         } else if cmd.starts_with("e ") {
             // Open a different file
             let filename = cmd.strip_prefix("e ").unwrap().trim().to_string();
-            let path = PathBuf::from(filename);
-            self.load_file(path);
+            if !filename.ends_with(".json") {
+                self.set_status("Error: Filename must end with .json");
+            } else {
+                let path = PathBuf::from(filename);
+                self.load_file(path);
+            }
         } else if cmd == "ar" {
             // Toggle auto-reload
             self.auto_reload = !self.auto_reload;
@@ -170,7 +183,7 @@ impl App {
             } else {
                 self.set_status("Filter only works in View mode");
             }
-        } else if cmd == "Lexplore" || cmd == "Lex" {
+        } else if cmd == "Lexplore" || cmd == "Lex" || cmd == "lx" {
             // Toggle file explorer (like vim netrw)
             self.toggle_explorer();
         } else if cmd == "h" {

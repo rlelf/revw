@@ -75,8 +75,14 @@ impl App {
                             self.convert_json();
                             // Move focus to file window
                             self.explorer_has_focus = false;
+                        } else {
+                            self.set_status(&format!("Error: Cannot read file '{}'", selected.display()));
                         }
+                    } else {
+                        self.set_status(&format!("Error: Only JSON files can be opened ({})", selected.display()));
                     }
+                } else {
+                    self.set_status(&format!("Error: Only JSON files can be opened ({})", selected.display()));
                 }
             }
         }
@@ -96,8 +102,14 @@ impl App {
                             self.json_input = content;
                             self.convert_json();
                             // Keep focus on explorer
+                        } else {
+                            self.set_status(&format!("Error: Cannot read file '{}'", selected.display()));
                         }
+                    } else {
+                        self.set_status(&format!("Error: Only JSON files can be opened ({})", selected.display()));
                     }
+                } else {
+                    self.set_status(&format!("Error: Only JSON files can be opened ({})", selected.display()));
                 }
             }
         }

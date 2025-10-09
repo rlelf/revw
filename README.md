@@ -163,7 +163,7 @@ revw --stdout --outside file.json
 
 **Other:**
 - `r` toggle View/Edit mode
-- `:Lexplore` or `:Lex` toggle file explorer
+- `:Lexplore` or `:Lex` or `:lx` toggle file explorer
 - `:x` clear content
 - `:h` or `?` toggle help mode
 - `q` or `Esc` quit
@@ -171,7 +171,10 @@ revw --stdout --outside file.json
 **File Explorer:**
 - `j/k` or `↑/↓` navigate files/directories
 - `Enter` open file (JSON only) or enter directory
-- `:Lexplore` or `:Lex` close explorer
+- `:Lexplore` or `:Lex` or `:lx` close explorer
+- `Ctrl+w w` cycle between explorer and file window
+- `Ctrl+w h` move to explorer window (left)
+- `Ctrl+w l` move to file window (right)
 
 #### Edit Overlay
 **Field Selection Mode (default):**
@@ -255,7 +258,10 @@ revw --stdout --outside file.json
 - `:q` quit
 - `:e` reload file
 - `:ar` toggle auto-reload (default: on)
-- `:Lexplore` or `:Lex` toggle file explorer
+- `:Lexplore` or `:Lex` or `:lx` toggle file explorer
+- `Ctrl+w w` cycle between explorer and file window
+- `Ctrl+w h` move to explorer window (left)
+- `Ctrl+w l` move to file window (right)
 - `:h` or `?` help
 
 **Settings:**

@@ -947,9 +947,9 @@ fn render_edit_overlay(f: &mut Frame, app: &App) {
     // INSIDE: date, context, Exit (3 fields)
     // OUTSIDE: name, context, url, percentage, Exit (5 fields)
     let title = if app.edit_buffer.len() == 3 {
-        " Edit INSIDE Entry "
+        " INSIDE "
     } else {
-        " Edit OUTSIDE Entry "
+        " OUTSIDE "
     };
 
     // First, clear the popup area to remove background content
