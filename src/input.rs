@@ -93,33 +93,34 @@ pub fn run_app<B: ratatui::backend::Backend>(
 
                     // Handle Ctrl+w window commands
                     if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('w') {
-                        app.ctrl_w_pressed = true;
-                        continue;
-                    }
+                        // Wait for next key (500ms timeout)
+                        if let Ok(true) = event::poll(Duration::from_millis(500)) {
+                            if let Ok(Event::Key(next_key)) = event::read() {
+                                #[cfg(target_os = "windows")]
+                                if next_key.kind != KeyEventKind::Press {
+                                    continue;
+                                }
 
-                    // Handle second key after Ctrl+w
-                    if app.ctrl_w_pressed {
-                        app.ctrl_w_pressed = false;
-                        match key.code {
-                            KeyCode::Char('w') => {
-                                // Ctrl+w w: cycle between windows
-                                app.switch_window_focus();
-                                continue;
-                            }
-                            KeyCode::Char('h') => {
-                                // Ctrl+w h: move to left window (explorer)
-                                app.focus_explorer();
-                                continue;
-                            }
-                            KeyCode::Char('l') => {
-                                // Ctrl+w l: move to right window (file)
-                                app.focus_file();
-                                continue;
-                            }
-                            _ => {
-                                // Any other key cancels Ctrl+w
+                                match next_key.code {
+                                    KeyCode::Char('w') => {
+                                        // Ctrl+w w: cycle between windows
+                                        app.switch_window_focus();
+                                    }
+                                    KeyCode::Char('h') => {
+                                        // Ctrl+w h: move to left window (explorer)
+                                        app.focus_explorer();
+                                    }
+                                    KeyCode::Char('l') => {
+                                        // Ctrl+w l: move to right window (file)
+                                        app.focus_file();
+                                    }
+                                    _ => {
+                                        // Any other key - do nothing
+                                    }
+                                }
                             }
                         }
+                        continue;
                     }
 
                     // Handle editing overlay input separately
@@ -134,6 +135,33 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                     if app.edit_skip_normal_mode {
                                         app.edit_field_editing_mode = false;
                                         app.edit_skip_normal_mode = false;
+                                        // Restore placeholder if field is empty (for :ai/:ao flow)
+                                        if app.edit_field_index < app.edit_buffer.len() {
+                                            let field = &app.edit_buffer[app.edit_field_index];
+                                            if field.is_empty() {
+                                                let placeholder = if app.edit_buffer.len() == 3 {
+                                                    match app.edit_field_index {
+                                                        0 => "date",
+                                                        1 => "context",
+                                                        _ => "",
+                                                    }
+                                                } else {
+                                                    match app.edit_field_index {
+                                                        0 => "name",
+                                                        1 => "context",
+                                                        2 => "url",
+                                                        3 => "percentage",
+                                                        _ => "",
+                                                    }
+                                                };
+                                                if !placeholder.is_empty() {
+                                                    app.edit_buffer[app.edit_field_index] = placeholder.to_string();
+                                                    if app.edit_field_index < app.edit_buffer_is_placeholder.len() {
+                                                        app.edit_buffer_is_placeholder[app.edit_field_index] = true;
+                                                    }
+                                                }
+                                            }
+                                        }
                                     }
                                     // Otherwise stay in field editing mode (normal mode)
                                     // Keep field empty to reflect actual buffer content
@@ -279,29 +307,23 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                     if app.edit_field_index < app.edit_buffer.len() {
                                         let field = &app.edit_buffer[app.edit_field_index];
                                         let chars: Vec<char> = field.chars().collect();
-                                        if chars.is_empty() {
-                                            return Ok(());
-                                        }
-                                        let mut pos = app.edit_cursor_pos;
+                                        if !chars.is_empty() && app.edit_cursor_pos < chars.len() {
+                                            let mut pos = app.edit_cursor_pos;
 
-                                        // If we're at the end, don't move
-                                        if pos >= chars.len() {
-                                            return Ok(());
-                                        }
+                                            // Skip whitespace if we're on it
+                                            while pos < chars.len() && chars[pos].is_whitespace() {
+                                                pos += 1;
+                                            }
 
-                                        // Skip whitespace if we're on it
-                                        while pos < chars.len() && chars[pos].is_whitespace() {
-                                            pos += 1;
-                                        }
+                                            // Move to end of current word
+                                            while pos < chars.len() && !chars[pos].is_whitespace() {
+                                                pos += 1;
+                                            }
 
-                                        // Move to end of current word
-                                        while pos < chars.len() && !chars[pos].is_whitespace() {
-                                            pos += 1;
-                                        }
-
-                                        // Position on last character of word (not the space after)
-                                        if pos > 0 {
-                                            app.edit_cursor_pos = pos - 1;
+                                            // Position on last character of word (not the space after)
+                                            if pos > 0 {
+                                                app.edit_cursor_pos = pos - 1;
+                                            }
                                         }
                                     }
                                 }
