@@ -26,12 +26,17 @@ pub fn run_app<B: ratatui::backend::Backend>(
         let _ = watcher.watch(path, RecursiveMode::NonRecursive);
     }
 
+    // Watch explorer directory if open
+    if app.explorer_open {
+        let _ = watcher.watch(&app.explorer_current_dir, RecursiveMode::NonRecursive);
+    }
+
     loop {
         terminal.draw(|f| crate::ui::ui(f, &mut app))?;
         app.update_status();
 
-        // Update watcher if file path changed
-        if app.file_path_changed {
+        // Update watcher if file path or explorer directory changed
+        if app.file_path_changed || app.explorer_dir_changed {
             // Unwatch all (recreate watcher to avoid keeping old watches)
             drop(watcher);
             let (new_tx, new_rx): (std::sync::mpsc::Sender<NotifyEvent>, Receiver<NotifyEvent>) = mpsc::channel();
@@ -46,16 +51,22 @@ pub fn run_app<B: ratatui::backend::Backend>(
                 let _ = watcher.watch(path, RecursiveMode::NonRecursive);
             }
 
+            // Watch explorer directory if open
+            if app.explorer_open {
+                let _ = watcher.watch(&app.explorer_current_dir, RecursiveMode::NonRecursive);
+            }
+
             // Update the receiver to use the new channel
             rx = new_rx;
             app.file_path_changed = false;
+            app.explorer_dir_changed = false;
         }
 
         // Check for file changes
-        if app.auto_reload && app.file_path.is_some() {
+        if app.auto_reload {
             match rx.try_recv() {
                 Ok(event) => {
-                    // Check if it's a modify event
+                    // Check if it's a modify event for files
                     if matches!(event.kind, notify::EventKind::Modify(_)) {
                         // Ignore file changes within 1 second after saving (to avoid reloading our own save)
                         let should_reload = if let Some(last_save) = app.last_save_time {
@@ -65,9 +76,14 @@ pub fn run_app<B: ratatui::backend::Backend>(
                         };
 
                         // Only reload if not modified by user and not recently saved
-                        if !app.is_modified && should_reload {
+                        if !app.is_modified && should_reload && app.file_path.is_some() {
                             app.reload_file();
                         }
+                    }
+                    // Check for create/delete events in explorer directory
+                    if app.explorer_open && (matches!(event.kind, notify::EventKind::Create(_)) || matches!(event.kind, notify::EventKind::Remove(_))) {
+                        // Reload explorer entries
+                        app.load_explorer_entries();
                     }
                 }
                 Err(TryRecvError::Empty) => {}
@@ -92,32 +108,52 @@ pub fn run_app<B: ratatui::backend::Backend>(
                     }
 
                     // Handle Ctrl+w window commands
-                    if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('w') {
-                        // Wait for next key (500ms timeout)
-                        if let Ok(true) = event::poll(Duration::from_millis(500)) {
-                            if let Ok(Event::Key(next_key)) = event::read() {
-                                #[cfg(target_os = "windows")]
-                                if next_key.kind != KeyEventKind::Press {
-                                    continue;
-                                }
+                    if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('w') {
+                        // Wait for next key (1000ms timeout)
+                        loop {
+                            if let Ok(true) = event::poll(Duration::from_millis(1000)) {
+                                if let Ok(Event::Key(next_key)) = event::read() {
+                                    #[cfg(target_os = "windows")]
+                                    {
+                                        // Skip release events on Windows
+                                        if next_key.kind != KeyEventKind::Press {
+                                            continue;
+                                        }
+                                    }
 
-                                match next_key.code {
-                                    KeyCode::Char('w') => {
-                                        // Ctrl+w w: cycle between windows
-                                        app.switch_window_focus();
-                                    }
-                                    KeyCode::Char('h') => {
-                                        // Ctrl+w h: move to left window (explorer)
-                                        app.focus_explorer();
-                                    }
-                                    KeyCode::Char('l') => {
-                                        // Ctrl+w l: move to right window (file)
-                                        app.focus_file();
-                                    }
-                                    _ => {
-                                        // Any other key - do nothing
+                                    match next_key.code {
+                                        KeyCode::Char('w') => {
+                                            // Ctrl+w w: cycle between windows (accept with or without Ctrl)
+                                            app.switch_window_focus();
+                                            let focus_msg = if app.explorer_has_focus {
+                                                "Focused explorer"
+                                            } else {
+                                                "Focused file window"
+                                            };
+                                            app.set_status(focus_msg);
+                                            break;
+                                        }
+                                        KeyCode::Char('h') => {
+                                            // Ctrl+w h: move to left window (explorer)
+                                            app.focus_explorer();
+                                            app.set_status("Focused explorer");
+                                            break;
+                                        }
+                                        KeyCode::Char('l') => {
+                                            // Ctrl+w l: move to right window (file)
+                                            app.focus_file();
+                                            app.set_status("Focused file window");
+                                            break;
+                                        }
+                                        _ => {
+                                            // Any other key - cancel
+                                            break;
+                                        }
                                     }
                                 }
+                            } else {
+                                // Timeout
+                                break;
                             }
                         }
                         continue;

@@ -102,6 +102,7 @@ pub struct App {
     pub explorer_scroll: u16,
     pub explorer_current_dir: PathBuf,
     pub explorer_has_focus: bool, // Track which window has focus
+    pub explorer_dir_changed: bool, // Signal that explorer directory changed and watcher needs update
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -180,6 +181,7 @@ impl App {
             explorer_scroll: 0,
             explorer_current_dir: std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
             explorer_has_focus: true, // Explorer has focus when opened
+            explorer_dir_changed: false,
         };
 
         app

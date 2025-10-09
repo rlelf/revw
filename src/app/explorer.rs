@@ -8,6 +8,7 @@ impl App {
             self.load_explorer_entries();
             self.explorer_has_focus = true;
         }
+        self.explorer_dir_changed = true; // Signal watcher to update
     }
 
     pub fn load_explorer_entries(&mut self) {
