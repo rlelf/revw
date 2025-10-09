@@ -153,6 +153,9 @@ impl App {
             } else {
                 self.set_status("Filter only works in View mode");
             }
+        } else if cmd == "Lexplore" || cmd == "Lex" {
+            // Toggle file explorer (like vim netrw)
+            self.toggle_explorer();
         } else if cmd == "h" {
             self.toggle_help();
         } else if cmd == "c" {

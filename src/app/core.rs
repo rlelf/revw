@@ -95,6 +95,12 @@ pub struct App {
     pub search_history: Vec<String>,      // History for / searches
     pub command_history_index: Option<usize>, // Current position in command history
     pub search_history_index: Option<usize>,  // Current position in search history
+    // File explorer (like vim :Lexplore)
+    pub explorer_open: bool,
+    pub explorer_entries: Vec<PathBuf>,
+    pub explorer_selected_index: usize,
+    pub explorer_scroll: u16,
+    pub explorer_current_dir: PathBuf,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -167,6 +173,11 @@ impl App {
             search_history: Vec::new(),
             command_history_index: None,
             search_history_index: None,
+            explorer_open: false,
+            explorer_entries: Vec::new(),
+            explorer_selected_index: 0,
+            explorer_scroll: 0,
+            explorer_current_dir: std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
         };
 
         app
@@ -513,6 +524,7 @@ impl App {
             "".to_string(),
             "Other:".to_string(),
             "  r            - toggle View/Edit mode".to_string(),
+            "  :Lexplore / :Lex - toggle file explorer".to_string(),
             "  :h or ?      - help".to_string(),
             "  q or Esc     - quit".to_string(),
             "".to_string(),
@@ -564,6 +576,7 @@ impl App {
             "  :ar          - toggle auto-reload (default: on)".to_string(),
             "  :f pattern   - filter entries".to_string(),
             "  :nof         - clear filter".to_string(),
+            "  :Lexplore / :Lex - toggle file explorer".to_string(),
             "  :h or ?      - help".to_string(),
             "".to_string(),
             "Settings:".to_string(),

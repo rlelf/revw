@@ -227,12 +227,28 @@ pub fn ui(f: &mut Frame, app: &mut App) {
         .constraints([Constraint::Min(0), Constraint::Length(1)])
         .split(f.area());
 
+    // Split horizontally if explorer is open
+    let content_area = if app.explorer_open {
+        let horizontal_chunks = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([Constraint::Percentage(25), Constraint::Percentage(75)])
+            .split(chunks[0]);
+
+        // Render explorer in left panel
+        render_explorer(f, app, horizontal_chunks[0]);
+
+        // Return right panel for main content
+        horizontal_chunks[1]
+    } else {
+        chunks[0]
+    };
+
     // Always render content and status bar
     if !app.editing_entry {
-        render_content(f, app, chunks[0]);
+        render_content(f, app, content_area);
     } else {
         // Render empty content area with border when overlay is active
-        render_empty_content(f, app, chunks[0]);
+        render_empty_content(f, app, content_area);
     }
     render_status_bar(f, app, chunks[1]);
 
@@ -1096,4 +1112,55 @@ fn render_status_bar(f: &mut Frame, app: &App, area: Rect) {
         .alignment(Alignment::Left);
 
     f.render_widget(status_widget, area);
+}
+
+fn render_explorer(f: &mut Frame, app: &App, area: Rect) {
+    let title = format!(" {} ", app.explorer_current_dir.display());
+
+    let block = Block::default()
+        .title(title)
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .style(Style::default().fg(Color::DarkGray).bg(Color::Rgb(26, 28, 34)));
+
+    let inner_area = block.inner(area);
+    f.render_widget(block, area);
+
+    // Calculate visible range
+    let visible_height = inner_area.height as usize;
+    let scroll_pos = app.explorer_scroll as usize;
+    let total_entries = app.explorer_entries.len();
+
+    let start = scroll_pos.min(total_entries.saturating_sub(1));
+    let end = (start + visible_height).min(total_entries);
+
+    // Render entries
+    let mut lines = Vec::new();
+    for (i, entry) in app.explorer_entries[start..end].iter().enumerate() {
+        let abs_index = start + i;
+        let is_selected = abs_index == app.explorer_selected_index;
+
+        let name = entry
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("???");
+
+        let (symbol, color) = if entry.is_dir() {
+            ("📁 ", Color::Cyan)
+        } else {
+            ("📄 ", Color::Gray)
+        };
+
+        let style = if is_selected {
+            Style::default().fg(color).bg(Color::Rgb(60, 60, 60)).add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(color)
+        };
+
+        let display_name = format!("{}{}", symbol, name);
+        lines.push(Line::styled(display_name, style));
+    }
+
+    let content = Paragraph::new(lines).wrap(Wrap { trim: false });
+    f.render_widget(content, inner_area);
 }

@@ -415,6 +415,25 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                 }
                             }
 
+                            // Handle explorer navigation if explorer is open
+                            if app.explorer_open {
+                                match key.code {
+                                    KeyCode::Char('j') | KeyCode::Down => {
+                                        app.explorer_move_down();
+                                        continue;
+                                    }
+                                    KeyCode::Char('k') | KeyCode::Up => {
+                                        app.explorer_move_up();
+                                        continue;
+                                    }
+                                    KeyCode::Enter => {
+                                        app.explorer_select_entry();
+                                        continue;
+                                    }
+                                    _ => {}
+                                }
+                            }
+
                             match key.code {
                             KeyCode::Char('u') => {
                                 if !app.showing_help && app.format_mode == FormatMode::Edit {
