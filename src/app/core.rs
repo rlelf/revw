@@ -102,6 +102,8 @@ pub struct App {
     pub explorer_scroll: u16,
     pub explorer_current_dir: PathBuf,
     pub explorer_has_focus: bool, // Track which window has focus
+    // Window navigation state
+    pub ctrl_w_pressed: bool, // Track if Ctrl+w was just pressed
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -180,6 +182,7 @@ impl App {
             explorer_scroll: 0,
             explorer_current_dir: std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
             explorer_has_focus: true, // Explorer has focus when opened
+            ctrl_w_pressed: false,
         };
 
         app

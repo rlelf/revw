@@ -1140,18 +1140,12 @@ fn render_explorer(f: &mut Frame, app: &App, area: Rect) {
         " . ".to_string()
     };
 
-    // Change border color based on focus
-    let border_color = if app.explorer_has_focus {
-        Color::Cyan
-    } else {
-        Color::DarkGray
-    };
-
+    // Use same gray color as file window
     let block = Block::default()
         .title(title)
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
-        .style(Style::default().fg(border_color).bg(Color::Rgb(26, 28, 34)));
+        .style(Style::default().fg(Color::DarkGray).bg(Color::Rgb(26, 28, 34)));
 
     let inner_area = block.inner(area);
     f.render_widget(block, area);

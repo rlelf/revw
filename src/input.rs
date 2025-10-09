@@ -93,34 +93,33 @@ pub fn run_app<B: ratatui::backend::Backend>(
 
                     // Handle Ctrl+w window commands
                     if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('w') {
-                        // Wait for next key
-                        if event::poll(Duration::from_millis(500))? {
-                            if let Event::Key(next_key) = event::read()? {
-                                #[cfg(target_os = "windows")]
-                                if next_key.kind != KeyEventKind::Press {
-                                    continue;
-                                }
-                                match next_key.code {
-                                    KeyCode::Char('w') => {
-                                        // Ctrl+w w: cycle between windows
-                                        app.switch_window_focus();
-                                        continue;
-                                    }
-                                    KeyCode::Char('h') => {
-                                        // Ctrl+w h: move to left window (explorer)
-                                        app.focus_explorer();
-                                        continue;
-                                    }
-                                    KeyCode::Char('l') => {
-                                        // Ctrl+w l: move to right window (file)
-                                        app.focus_file();
-                                        continue;
-                                    }
-                                    _ => {}
-                                }
+                        app.ctrl_w_pressed = true;
+                        continue;
+                    }
+
+                    // Handle second key after Ctrl+w
+                    if app.ctrl_w_pressed {
+                        app.ctrl_w_pressed = false;
+                        match key.code {
+                            KeyCode::Char('w') => {
+                                // Ctrl+w w: cycle between windows
+                                app.switch_window_focus();
+                                continue;
+                            }
+                            KeyCode::Char('h') => {
+                                // Ctrl+w h: move to left window (explorer)
+                                app.focus_explorer();
+                                continue;
+                            }
+                            KeyCode::Char('l') => {
+                                // Ctrl+w l: move to right window (file)
+                                app.focus_file();
+                                continue;
+                            }
+                            _ => {
+                                // Any other key cancels Ctrl+w
                             }
                         }
-                        continue;
                     }
 
                     // Handle editing overlay input separately
@@ -458,14 +457,30 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                         app.explorer_move_up();
                                         continue;
                                     }
-                                    KeyCode::Char('o') | KeyCode::Enter => {
+                                    KeyCode::Enter => {
                                         // Open file and move focus to right
                                         app.explorer_select_entry();
+                                        continue;
+                                    }
+                                    KeyCode::Char('o') => {
+                                        // Check if this might be part of 'go'
+                                        if app.vim_buffer == "g" {
+                                            // Let handle_vim_input process 'go'
+                                            app.handle_vim_input('o');
+                                        } else {
+                                            // Standalone 'o' - open file
+                                            app.explorer_select_entry();
+                                        }
                                         continue;
                                     }
                                     KeyCode::Char('q') => {
                                         // Quit program
                                         return Ok(());
+                                    }
+                                    KeyCode::Char('g') => {
+                                        // Start of potential 'go' or 'gg'
+                                        app.handle_vim_input('g');
+                                        continue;
                                     }
                                     _ => {}
                                 }
@@ -925,7 +940,10 @@ pub fn run_app<B: ratatui::backend::Backend>(
                         MouseEventKind::ScrollUp => {
                             // Don't scroll vertically if horizontal scrollbar is being dragged
                             if app.dragging_scrollbar != Some(ScrollbarType::Horizontal) {
-                                if app.format_mode == FormatMode::Edit {
+                                // If explorer has focus, scroll explorer
+                                if app.explorer_open && app.explorer_has_focus {
+                                    app.explorer_move_up();
+                                } else if app.format_mode == FormatMode::Edit {
                                     // Scroll and move cursor together
                                     for _ in 0..5 {
                                         if app.content_cursor_line > 0 {
@@ -949,7 +967,10 @@ pub fn run_app<B: ratatui::backend::Backend>(
                         MouseEventKind::ScrollDown => {
                             // Don't scroll vertically if horizontal scrollbar is being dragged
                             if app.dragging_scrollbar != Some(ScrollbarType::Horizontal) {
-                                if app.format_mode == FormatMode::Edit {
+                                // If explorer has focus, scroll explorer
+                                if app.explorer_open && app.explorer_has_focus {
+                                    app.explorer_move_down();
+                                } else if app.format_mode == FormatMode::Edit {
                                     // Scroll and move cursor together
                                     for _ in 0..5 {
                                         app.move_cursor_down();
@@ -1013,24 +1034,27 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                 let new_scroll = (app.max_scroll as f32 * click_ratio) as u16;
                                 app.scroll = new_scroll.min(app.max_scroll);
                             } else {
-                                // Not on any scrollbar - check for double-click in View mode
-                                if app.format_mode == FormatMode::View && !app.relf_entries.is_empty() {
-                                    // Check for double-click (clicks within 500ms)
-                                    let now = Instant::now();
-                                    let is_double_click = if let Some(last_time) = app.last_click_time {
-                                        now.duration_since(last_time).as_millis() < 500
-                                    } else {
-                                        false
-                                    };
+                                // Not on any scrollbar - check for double-click
+                                // Check for double-click (clicks within 500ms)
+                                let now = Instant::now();
+                                let is_double_click = if let Some(last_time) = app.last_click_time {
+                                    now.duration_since(last_time).as_millis() < 500
+                                } else {
+                                    false
+                                };
 
-                                    if is_double_click {
+                                if is_double_click {
+                                    // If explorer has focus, open file and move to file window
+                                    if app.explorer_open && app.explorer_has_focus {
+                                        app.explorer_select_entry();
+                                    } else if app.format_mode == FormatMode::View && !app.relf_entries.is_empty() {
                                         // Double-click: open the overlay for the currently selected entry
                                         app.open_entry_overlay();
-                                        app.last_click_time = None; // Reset after double-click
-                                    } else {
-                                        // First click: just record the time
-                                        app.last_click_time = Some(now);
                                     }
+                                    app.last_click_time = None; // Reset after double-click
+                                } else {
+                                    // First click: just record the time
+                                    app.last_click_time = Some(now);
                                 }
                                 app.dragging_scrollbar = None;
                             }
