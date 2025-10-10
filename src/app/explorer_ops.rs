@@ -71,16 +71,13 @@ impl App {
         if self.explorer_selected_index < self.explorer_entries.len() {
             let selected = &self.explorer_entries[self.explorer_selected_index];
             self.file_op_pending = Some(FileOperation::Rename(selected.path.clone()));
-            // Pre-fill with current filename/directory name
-            self.file_op_prompt_buffer = selected.path.file_name()
-                .and_then(|n| n.to_str())
-                .unwrap_or("")
-                .to_string();
+            // Start with empty buffer (no pre-fill)
+            self.file_op_prompt_buffer = String::new();
 
             if selected.path.is_dir() {
-                self.set_status("Rename directory to:");
+                self.set_status("Rename/Move directory to:");
             } else {
-                self.set_status("Rename to (must end with .json):");
+                self.set_status("Rename/Move to (must end with .json):");
             }
         }
     }
@@ -261,36 +258,67 @@ impl App {
             }
             Some(FileOperation::Rename(old_path)) => {
                 let is_dir = old_path.is_dir();
+                let old_name = old_path.file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("unknown");
+                let item_type = if is_dir { "directory" } else { "file" };
 
-                // Validate .json extension for files only
-                if !is_dir && !filename.ends_with(".json") {
-                    self.set_status("Error: Filename must end with .json");
-                    self.file_op_pending = None;
-                    self.file_op_prompt_buffer.clear();
-                    return;
+                // Determine operation type: rename or move
+                let is_move_operation = filename.contains('/') || filename.contains('\\');
+
+                // Build new path
+                let new_path = if is_move_operation {
+                    // Move operation: relative path from current explorer directory
+                    self.explorer_current_dir.join(&filename)
+                } else {
+                    // Rename operation: same directory as original file
+                    old_path.parent()
+                        .map(|p| p.join(&filename))
+                        .unwrap_or_else(|| self.explorer_current_dir.join(&filename))
+                };
+
+                // Validation: only validate .json for files (not directories)
+                if !is_dir {
+                    // Source is a file: must end with .json
+                    if !new_path.to_string_lossy().ends_with(".json") {
+                        self.set_status("Error: File must end with .json");
+                        self.file_op_pending = None;
+                        self.file_op_prompt_buffer.clear();
+                        return;
+                    }
+                }
+                // If source is directory, no extension validation needed
+
+                // Create parent directories if moving to a subdirectory
+                if is_move_operation {
+                    if let Some(parent) = new_path.parent() {
+                        if !parent.exists() {
+                            if let Err(e) = fs::create_dir_all(parent) {
+                                self.set_status(&format!("Error creating directories: {}", e));
+                                self.file_op_pending = None;
+                                self.file_op_prompt_buffer.clear();
+                                return;
+                            }
+                        }
+                    }
                 }
 
-                // Rename file/directory in its parent directory
-                let new_path = old_path.parent()
-                    .map(|p| p.join(&filename))
-                    .unwrap_or_else(|| self.explorer_current_dir.join(&filename));
-
+                // Check if destination already exists
                 if new_path.exists() && new_path != old_path {
-                    let item_type = if is_dir { "directory" } else { "file" };
                     self.set_status(&format!("Error: {} '{}' already exists", item_type, filename));
                 } else {
+                    // Execute rename/move
                     match fs::rename(&old_path, &new_path) {
                         Ok(()) => {
-                            let old_name = old_path.file_name()
-                                .and_then(|n| n.to_str())
-                                .unwrap_or("unknown");
-                            let item_type = if is_dir { "directory" } else { "file" };
-                            self.set_status(&format!("Renamed {} '{}' to '{}'", item_type, old_name, filename));
-                            // Reload explorer
+                            if is_move_operation {
+                                self.set_status(&format!("Moved {} '{}' to '{}'", item_type, old_name, filename));
+                            } else {
+                                self.set_status(&format!("Renamed {} '{}' to '{}'", item_type, old_name, filename));
+                            }
                             self.load_explorer_entries();
                         }
                         Err(e) => {
-                            self.set_status(&format!("Error renaming: {}", e));
+                            self.set_status(&format!("Error: {}", e));
                         }
                     }
                 }

@@ -84,7 +84,6 @@ pub fn run_app<B: ratatui::backend::Backend>(
                     if app.explorer_open && (matches!(event.kind, notify::EventKind::Create(_)) || matches!(event.kind, notify::EventKind::Remove(_)) || matches!(event.kind, notify::EventKind::Modify(_))) {
                         // Reload explorer entries
                         app.load_explorer_entries();
-                        app.set_status("Explorer reloaded (external change detected)");
                     }
                 }
                 Err(TryRecvError::Empty) => {}
@@ -527,7 +526,13 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                                         let name = src.file_name().and_then(|n| n.to_str()).unwrap_or("unknown");
                                                         &format!("Copy '{}' to (must end with .json):", name)
                                                     }
-                                                    FileOperation::Rename(_) => "Rename to (must end with .json):",
+                                                    FileOperation::Rename(path) => {
+                                                        if path.is_dir() {
+                                                            "Rename/Move directory to:"
+                                                        } else {
+                                                            "Rename/Move to (must end with .json):"
+                                                        }
+                                                    }
                                                     _ => "",
                                                 };
                                                 app.set_status(&format!("{} {}", prompt_msg, app.file_op_prompt_buffer));
@@ -543,7 +548,13 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                                             let name = src.file_name().and_then(|n| n.to_str()).unwrap_or("unknown");
                                                             &format!("Copy '{}' to (must end with .json):", name)
                                                         }
-                                                        FileOperation::Rename(_) => "Rename to (must end with .json):",
+                                                        FileOperation::Rename(path) => {
+                                                            if path.is_dir() {
+                                                                "Rename/Move directory to:"
+                                                            } else {
+                                                                "Rename/Move to (must end with .json):"
+                                                            }
+                                                        }
                                                         _ => "",
                                                     };
                                                     app.set_status(&format!("{} {}", prompt_msg, app.file_op_prompt_buffer));

@@ -1,7 +1,7 @@
 [package]
 name = "revw"
-version = "0.2.1"
-edition = "2021"
+version = "0.2.2"
+edition = "2024"
 authors = ["rlelf"]
 license = "MIT"
 description = "A vim-like TUI for managing notes and resources"

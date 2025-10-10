@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.2.2
+
+- Added file explorer with tree view and directory operations
+- Added file operations: `:a` (create file), `:d` (create directory), `:m` (rename/move), `:dd` (delete), `:yy` (copy)
+- Enhanced `:m` command to support relative paths for moving files/directories
+- Added window navigation: `Ctrl+w w` (cycle), `Ctrl+w h` (left), `Ctrl+w l` (right)
+- Added `:lx` as alias for `:Lexplore`
+- Added mouse support in explorer (scroll, double-click)
+- Added `x` and `X` delete commands for edit and overlay modes
+- Improved overlay rendering and behavior
+- Updated to Rust edition 2024
+
 ## 0.2.1
 
 - Fixed autoreload to work when file path changes

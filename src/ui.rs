@@ -936,15 +936,36 @@ fn render_edit_overlay(f: &mut Frame, app: &App) {
     let max_height = (area.height * 7) / 10; // 70% of screen height
     let popup_height = calculated_height.max(max_height.min(area.height - 4));
 
+    // Align x to even column to prevent wide-char (CJK) rendering issues with borders
+    let x_centered = (area.width.saturating_sub(popup_width)) / 2;
+    let x_aligned = x_centered & !1; // Force to even number
+
     let popup_area = Rect {
-        x: (area.width.saturating_sub(popup_width)) / 2,
+        x: x_aligned,
         y: (area.height.saturating_sub(popup_height)) / 2,
         width: popup_width,
         height: popup_height,
     };
 
-    // Clear only the popup area, not the entire screen
-    f.render_widget(Clear, popup_area);
+    // Create a slightly wider clear area to avoid cutting wide characters at boundaries
+    let clear_area = Rect {
+        x: x_aligned.saturating_sub(1),
+        y: popup_area.y,
+        width: popup_width.saturating_add(2).min(area.width.saturating_sub(x_aligned.saturating_sub(1))),
+        height: popup_height,
+    };
+
+    // Clear the wider area to fully erase any wide characters
+    f.render_widget(Clear, clear_area);
+
+    // Fill the clear area with background color using spaces
+    // This ensures complete coverage, especially for wide characters
+    let blank_lines: Vec<Line> = (0..clear_area.height)
+        .map(|_| Line::from(" ".repeat(clear_area.width as usize)))
+        .collect();
+    let blank_paragraph = Paragraph::new(blank_lines)
+        .style(Style::default().bg(Color::Rgb(30, 30, 35)));
+    f.render_widget(blank_paragraph, clear_area);
 
     // Determine if editing INSIDE or OUTSIDE entry
     // INSIDE: date, context, Exit (3 fields)
@@ -954,12 +975,6 @@ fn render_edit_overlay(f: &mut Frame, app: &App) {
     } else {
         " OUTSIDE "
     };
-
-    // Then render background color for entire overlay
-    f.render_widget(
-        Block::default().style(Style::default().bg(Color::Rgb(30, 30, 35))),
-        popup_area,
-    );
 
     // Render the popup as a single card with rounded borders on top
     let block = Block::default()
