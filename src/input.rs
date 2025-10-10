@@ -80,10 +80,11 @@ pub fn run_app<B: ratatui::backend::Backend>(
                             app.reload_file();
                         }
                     }
-                    // Check for create/delete events in explorer directory
-                    if app.explorer_open && (matches!(event.kind, notify::EventKind::Create(_)) || matches!(event.kind, notify::EventKind::Remove(_))) {
+                    // Check for create/delete/modify events in explorer directory
+                    if app.explorer_open && (matches!(event.kind, notify::EventKind::Create(_)) || matches!(event.kind, notify::EventKind::Remove(_)) || matches!(event.kind, notify::EventKind::Modify(_))) {
                         // Reload explorer entries
                         app.load_explorer_entries();
+                        app.set_status("Explorer reloaded (external change detected)");
                     }
                 }
                 Err(TryRecvError::Empty) => {}

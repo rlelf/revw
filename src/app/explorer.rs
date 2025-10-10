@@ -1,5 +1,6 @@
-use super::App;
+use super::{App, ExplorerEntry};
 use std::fs;
+use std::path::PathBuf;
 
 impl App {
     pub fn toggle_explorer(&mut self) {
@@ -12,15 +13,18 @@ impl App {
     }
 
     pub fn load_explorer_entries(&mut self) {
+        // Build tree from current directory (depth 0)
+        self.explorer_entries = self.build_tree_from_dir(&self.explorer_current_dir.clone(), 0);
+        self.explorer_selected_index = 0;
+        self.explorer_scroll = 0;
+    }
+
+    // Build tree structure recursively, only descending into expanded directories
+    fn build_tree_from_dir(&self, dir: &PathBuf, depth: usize) -> Vec<ExplorerEntry> {
         let mut entries = Vec::new();
 
-        // Add parent directory (..) if not at root
-        if let Some(parent) = self.explorer_current_dir.parent() {
-            entries.push(parent.to_path_buf());
-        }
-
         // Read directory entries
-        if let Ok(dir_entries) = fs::read_dir(&self.explorer_current_dir) {
+        if let Ok(dir_entries) = fs::read_dir(dir) {
             let mut dirs = Vec::new();
             let mut files = Vec::new();
 
@@ -39,14 +43,42 @@ impl App {
             dirs.sort();
             files.sort();
 
-            // Add directories first, then files
-            entries.extend(dirs);
-            entries.extend(files);
+            // Add directories first
+            for dir_path in dirs {
+                let is_expanded = self.is_directory_expanded(&dir_path);
+                entries.push(ExplorerEntry {
+                    path: dir_path.clone(),
+                    is_expanded,
+                    depth,
+                });
+
+                // If this directory is expanded, recursively add its children
+                if is_expanded {
+                    let children = self.build_tree_from_dir(&dir_path, depth + 1);
+                    entries.extend(children);
+                }
+            }
+
+            // Then add files
+            for file_path in files {
+                entries.push(ExplorerEntry {
+                    path: file_path,
+                    is_expanded: false, // Files are never expanded
+                    depth,
+                });
+            }
         }
 
-        self.explorer_entries = entries;
-        self.explorer_selected_index = 0;
-        self.explorer_scroll = 0;
+        entries
+    }
+
+    // Check if a directory is currently expanded in the tree
+    fn is_directory_expanded(&self, dir_path: &PathBuf) -> bool {
+        self.explorer_entries
+            .iter()
+            .find(|e| &e.path == dir_path)
+            .map(|e| e.is_expanded)
+            .unwrap_or(false)
     }
 
     pub fn explorer_move_up(&mut self) {
@@ -63,32 +95,51 @@ impl App {
 
     pub fn explorer_select_entry(&mut self) {
         if self.explorer_selected_index < self.explorer_entries.len() {
-            let selected = self.explorer_entries[self.explorer_selected_index].clone();
+            let selected = &self.explorer_entries[self.explorer_selected_index];
 
-            if selected.is_dir() {
-                // Navigate into directory
-                self.explorer_current_dir = selected;
-                self.explorer_dir_changed = true;
-                self.load_explorer_entries();
-            } else if selected.is_file() {
+            if selected.path.is_dir() {
+                // Toggle expand/collapse for directories
+                self.toggle_directory_expansion();
+            } else if selected.path.is_file() {
                 // Open file
-                if let Some(extension) = selected.extension() {
+                if let Some(extension) = selected.path.extension() {
                     if extension == "json" {
-                        self.file_path = Some(selected.clone());
+                        self.file_path = Some(selected.path.clone());
                         self.file_path_changed = true;
-                        if let Ok(content) = fs::read_to_string(&selected) {
+                        if let Ok(content) = fs::read_to_string(&selected.path) {
                             self.json_input = content;
                             self.convert_json();
                             // Move focus to file window
                             self.explorer_has_focus = false;
                         } else {
-                            self.set_status(&format!("Error: Cannot read file '{}'", selected.display()));
+                            self.set_status(&format!("Error: Cannot read file '{}'", selected.path.display()));
                         }
                     } else {
-                        self.set_status(&format!("Error: Only JSON files can be opened ({})", selected.display()));
+                        self.set_status(&format!("Error: Only JSON files can be opened ({})", selected.path.display()));
                     }
                 } else {
-                    self.set_status(&format!("Error: Only JSON files can be opened ({})", selected.display()));
+                    self.set_status(&format!("Error: Only JSON files can be opened ({})", selected.path.display()));
+                }
+            }
+        }
+    }
+
+    // Toggle expansion state of currently selected directory
+    fn toggle_directory_expansion(&mut self) {
+        if self.explorer_selected_index < self.explorer_entries.len() {
+            let selected_path = self.explorer_entries[self.explorer_selected_index].path.clone();
+
+            if selected_path.is_dir() {
+                // Toggle the expansion state
+                let new_state = !self.explorer_entries[self.explorer_selected_index].is_expanded;
+                self.explorer_entries[self.explorer_selected_index].is_expanded = new_state;
+
+                // Rebuild the tree to reflect the change
+                self.explorer_entries = self.build_tree_from_dir(&self.explorer_current_dir.clone(), 0);
+
+                // Try to keep selection on the same path
+                if let Some(new_index) = self.explorer_entries.iter().position(|e| e.path == selected_path) {
+                    self.explorer_selected_index = new_index;
                 }
             }
         }
@@ -97,27 +148,47 @@ impl App {
     pub fn explorer_preview_entry(&mut self) {
         // Like NERDTree's 'go' command - preview without moving focus
         if self.explorer_selected_index < self.explorer_entries.len() {
-            let selected = self.explorer_entries[self.explorer_selected_index].clone();
+            let selected = &self.explorer_entries[self.explorer_selected_index];
 
-            if selected.is_file() {
-                if let Some(extension) = selected.extension() {
+            if selected.path.is_file() {
+                if let Some(extension) = selected.path.extension() {
                     if extension == "json" {
-                        self.file_path = Some(selected.clone());
+                        self.file_path = Some(selected.path.clone());
                         self.file_path_changed = true;
-                        if let Ok(content) = fs::read_to_string(&selected) {
+                        if let Ok(content) = fs::read_to_string(&selected.path) {
                             self.json_input = content;
                             self.convert_json();
                             // Keep focus on explorer
                         } else {
-                            self.set_status(&format!("Error: Cannot read file '{}'", selected.display()));
+                            self.set_status(&format!("Error: Cannot read file '{}'", selected.path.display()));
                         }
                     } else {
-                        self.set_status(&format!("Error: Only JSON files can be opened ({})", selected.display()));
+                        self.set_status(&format!("Error: Only JSON files can be opened ({})", selected.path.display()));
                     }
                 } else {
-                    self.set_status(&format!("Error: Only JSON files can be opened ({})", selected.display()));
+                    self.set_status(&format!("Error: Only JSON files can be opened ({})", selected.path.display()));
                 }
             }
+        }
+    }
+
+    // Get the directory where a new file/folder should be created based on cursor position
+    pub fn get_target_directory(&self) -> PathBuf {
+        if self.explorer_selected_index < self.explorer_entries.len() {
+            let selected = &self.explorer_entries[self.explorer_selected_index];
+
+            if selected.path.is_dir() {
+                // If cursor is on a directory, create inside it
+                selected.path.clone()
+            } else {
+                // If cursor is on a file, create in its parent directory
+                selected.path.parent()
+                    .map(|p| p.to_path_buf())
+                    .unwrap_or_else(|| self.explorer_current_dir.clone())
+            }
+        } else {
+            // Default to current directory
+            self.explorer_current_dir.clone()
         }
     }
 

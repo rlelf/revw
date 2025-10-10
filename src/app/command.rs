@@ -120,6 +120,17 @@ impl App {
                 let path = PathBuf::from(filename);
                 self.load_file(path);
             }
+        } else if cmd == "enew" {
+            // Clear file window (like vim :enew)
+            self.json_input = String::new();
+            self.file_path = None;
+            self.file_path_changed = false;
+            self.is_modified = false;
+            self.content_cursor_line = 0;
+            self.content_cursor_col = 0;
+            self.scroll = 0;
+            self.convert_json();
+            self.set_status("New empty buffer");
         } else if cmd == "ar" {
             // Toggle auto-reload
             self.auto_reload = !self.auto_reload;

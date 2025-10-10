@@ -930,9 +930,6 @@ fn render_edit_overlay(f: &mut Frame, app: &App) {
     // Create a centered popup area
     let area = f.area();
 
-    // First, clear the entire screen to ensure no artifacts from explorer
-    f.render_widget(Clear, area);
-
     let popup_width = area.width.min(80);
     // Increase height to show more of the background: use 70% of screen height or calculated size
     let calculated_height = app.edit_buffer.len() as u16 + 4;
@@ -945,6 +942,9 @@ fn render_edit_overlay(f: &mut Frame, app: &App) {
         width: popup_width,
         height: popup_height,
     };
+
+    // Clear only the popup area, not the entire screen
+    f.render_widget(Clear, popup_area);
 
     // Determine if editing INSIDE or OUTSIDE entry
     // INSIDE: date, context, Exit (3 fields)
@@ -1102,21 +1102,32 @@ fn render_explorer(f: &mut Frame, app: &App, area: Rect) {
         let abs_index = start + i;
         let is_selected = abs_index == app.explorer_selected_index;
 
-        // Check if this is parent directory
-        let is_parent = app.explorer_current_dir.parent().map(|p| p == entry).unwrap_or(false);
+        // Build indentation based on depth
+        let indent = "  ".repeat(entry.depth);
 
-        let name = if is_parent {
-            "..".to_string()
+        // Get file/directory name
+        let name = entry.path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("???")
+            .to_string();
+
+        // Add expand/collapse indicator for directories
+        let indicator = if entry.path.is_dir() {
+            if entry.is_expanded {
+                "▾ " // Expanded
+            } else {
+                "▸ " // Collapsed
+            }
         } else {
-            entry
-                .file_name()
-                .and_then(|n| n.to_str())
-                .unwrap_or("???")
-                .to_string()
+            "  " // File (no indicator)
         };
 
+        // Combine indent, indicator, and name
+        let display_text = format!("{}{}{}", indent, indicator, name);
+
         // Show directories in cyan, files in gray
-        let color = if entry.is_dir() || is_parent {
+        let color = if entry.path.is_dir() {
             Color::Cyan
         } else {
             Color::Gray
@@ -1128,7 +1139,7 @@ fn render_explorer(f: &mut Frame, app: &App, area: Rect) {
             Style::default().fg(color)
         };
 
-        lines.push(Line::styled(name, style));
+        lines.push(Line::styled(display_text, style));
     }
 
     let content = Paragraph::new(lines).wrap(Wrap { trim: false });

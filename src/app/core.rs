@@ -97,7 +97,7 @@ pub struct App {
     pub search_history_index: Option<usize>,  // Current position in search history
     // File explorer (like vim :Lexplore)
     pub explorer_open: bool,
-    pub explorer_entries: Vec<PathBuf>,
+    pub explorer_entries: Vec<ExplorerEntry>,
     pub explorer_selected_index: usize,
     pub explorer_scroll: u16,
     pub explorer_current_dir: PathBuf,
@@ -106,6 +106,13 @@ pub struct App {
     // File operation confirmation/prompt state
     pub file_op_pending: Option<FileOperation>,
     pub file_op_prompt_buffer: String, // Buffer for filename input during file operations
+}
+
+#[derive(Clone)]
+pub struct ExplorerEntry {
+    pub path: PathBuf,
+    pub is_expanded: bool,  // Only meaningful for directories
+    pub depth: usize,       // Indentation level from root (0 = root)
 }
 
 #[derive(Clone, PartialEq)]
