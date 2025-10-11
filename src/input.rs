@@ -641,6 +641,12 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                 }
                                 KeyCode::Char('v') => {
                                     // Enter View Edit mode: render \n as newlines
+                                    // ONLY allow View Edit mode for context field (index 1)
+                                    if app.edit_field_index != 1 {
+                                        // Not on context field, ignore 'v' key
+                                        continue;
+                                    }
+
                                     // Check if Exit field is selected
                                     if app.edit_field_index < app.edit_buffer.len() {
                                         let field = &app.edit_buffer[app.edit_field_index];
