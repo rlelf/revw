@@ -242,14 +242,43 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                 }
                                 KeyCode::Left => {
                                     if app.edit_cursor_pos > 0 {
-                                        app.edit_cursor_pos -= 1;
+                                        // In View Edit mode, skip over \n as a unit
+                                        if app.view_edit_mode && app.edit_cursor_pos >= 2 && app.edit_field_index < app.edit_buffer.len() {
+                                            let field = &app.edit_buffer[app.edit_field_index];
+                                            let chars: Vec<char> = field.chars().collect();
+                                            // Check if cursor is right after \n (at position after 'n')
+                                            if app.edit_cursor_pos >= 2
+                                                && chars.get(app.edit_cursor_pos - 2) == Some(&'\\')
+                                                && chars.get(app.edit_cursor_pos - 1) == Some(&'n') {
+                                                // Skip over both characters of \n
+                                                app.edit_cursor_pos -= 2;
+                                            } else {
+                                                app.edit_cursor_pos -= 1;
+                                            }
+                                        } else {
+                                            app.edit_cursor_pos -= 1;
+                                        }
                                     }
                                 }
                                 KeyCode::Right => {
                                     if app.edit_field_index < app.edit_buffer.len() {
                                         let field_len = app.edit_buffer[app.edit_field_index].chars().count();
                                         if app.edit_cursor_pos < field_len {
-                                            app.edit_cursor_pos += 1;
+                                            // In View Edit mode, skip over \n as a unit
+                                            if app.view_edit_mode {
+                                                let field = &app.edit_buffer[app.edit_field_index];
+                                                let chars: Vec<char> = field.chars().collect();
+                                                // Check if cursor is at \ and next char is n
+                                                if chars.get(app.edit_cursor_pos) == Some(&'\\')
+                                                    && chars.get(app.edit_cursor_pos + 1) == Some(&'n') {
+                                                    // Skip over both characters of \n (but don't exceed field length)
+                                                    app.edit_cursor_pos = (app.edit_cursor_pos + 2).min(field_len);
+                                                } else {
+                                                    app.edit_cursor_pos += 1;
+                                                }
+                                            } else {
+                                                app.edit_cursor_pos += 1;
+                                            }
                                         }
                                     }
                                 }

@@ -722,8 +722,8 @@ fn render_relf_cards(f: &mut Frame, app: &mut App, area: Rect) {
 
         // Highlight selected card with different border color
         let border_style = if in_visual_range {
-            // Visual mode selection: white border
-            Style::default().fg(Color::White).bg(entry.bg_color)
+            // Visual mode selection: blue border (same as title color)
+            Style::default().fg(Color::Rgb(120, 170, 255)).bg(entry.bg_color)
         } else if is_selected {
             // Current cursor: yellow border
             Style::default().fg(Color::Yellow).bg(entry.bg_color)

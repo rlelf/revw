@@ -761,6 +761,18 @@ impl App {
             return;
         }
 
+        // Get outside_count to determine which entries are OUTSIDE/INSIDE
+        let outside_count = if let Ok(json_value) = serde_json::from_str::<Value>(&self.json_input) {
+            json_value
+                .as_object()
+                .and_then(|obj| obj.get("outside"))
+                .and_then(|v| v.as_array())
+                .map(|arr| arr.len())
+                .unwrap_or(0)
+        } else {
+            0
+        };
+
         let (start_idx, end_idx) = if self.visual_mode {
             let start = self.visual_start_index.min(self.visual_end_index);
             let end = self.visual_start_index.max(self.visual_end_index);
@@ -770,21 +782,52 @@ impl App {
             (self.selected_entry_index, self.selected_entry_index)
         };
 
-        let mut content_lines = Vec::new();
+        // Separate OUTSIDE and INSIDE entries
+        let mut outside_lines = Vec::new();
+        let mut inside_lines = Vec::new();
+
         for idx in start_idx..=end_idx {
             if idx >= self.relf_entries.len() {
                 break;
             }
             let entry = &self.relf_entries[idx];
+            let original_idx = entry.original_index;
 
-            // Add blank line between entries
-            if idx > start_idx {
+            if original_idx < outside_count {
+                // OUTSIDE entry
+                if !outside_lines.is_empty() {
+                    outside_lines.push(String::new());
+                }
+                for line in &entry.lines {
+                    outside_lines.push(line.clone());
+                }
+            } else {
+                // INSIDE entry
+                if !inside_lines.is_empty() {
+                    inside_lines.push(String::new());
+                }
+                for line in &entry.lines {
+                    inside_lines.push(line.clone());
+                }
+            }
+        }
+
+        // Build final content with headers
+        let mut content_lines = Vec::new();
+
+        if !outside_lines.is_empty() {
+            content_lines.push("OUTSIDE".to_string());
+            content_lines.push(String::new());
+            content_lines.extend(outside_lines);
+        }
+
+        if !inside_lines.is_empty() {
+            if !content_lines.is_empty() {
                 content_lines.push(String::new());
             }
-
-            for line in &entry.lines {
-                content_lines.push(line.clone());
-            }
+            content_lines.push("INSIDE".to_string());
+            content_lines.push(String::new());
+            content_lines.extend(inside_lines);
         }
 
         if content_lines.is_empty() {

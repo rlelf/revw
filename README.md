@@ -137,6 +137,14 @@ revw --stdout --outside file.json
 - `:o` order entries and auto-save
 - `:f pattern` filter entries by pattern
 
+**Visual Mode (multi-card selection):**
+- `v` enter Visual mode
+- `j/k` extend selection
+- `:cc` copy selected cards (rendered format)
+- `:ccj` copy selected cards (JSON format)
+- `:dc` delete selected cards
+- `Esc` or `Ctrl+[` exit Visual mode
+
 **Copy/Paste:**
 - `:c` copy all rendered content (with OUTSIDE/INSIDE headers)
 - `:ci` copy INSIDE section only
@@ -188,6 +196,8 @@ revw --stdout --outside file.json
 **Field Selection Mode (default):**
 - `j/k` or `↑/↓` navigate between fields
 - `Enter` enter field editing mode (shows cursor)
+- `i` enter insert mode directly
+- `v` enter View Edit mode (renders `\n` as newlines)
 - `w` save changes
 - `Esc` or `q` cancel
 
@@ -210,6 +220,15 @@ revw --stdout --outside file.json
 - `←/→` move cursor
 - `Backspace` delete character
 - `Esc` or `Ctrl+[` exit to field editing mode
+
+**View Edit Mode (from Field Selection):**
+- `v` enter View Edit mode (renders `\n` as newlines, yellow text)
+- Type to edit text (h/j/k/l are text input, not navigation)
+- `↑/↓` move between lines
+- `←/→` move cursor
+- `Enter` insert `\n` (literal newline)
+- `Backspace` delete character (or `\n` together)
+- `Esc` or `Ctrl+[` exit to field selection mode
 
 ### Edit Mode
 **Navigation:**
