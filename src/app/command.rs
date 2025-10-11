@@ -163,6 +163,15 @@ impl App {
         } else if cmd == "cu" {
             // Copy URL from selected entry
             self.copy_selected_url();
+        } else if cmd == "cc" {
+            // Copy card(s) with rendering
+            self.copy_cards_rendered();
+        } else if cmd == "ccj" {
+            // Copy card(s) as JSON
+            self.copy_cards_json();
+        } else if cmd == "dc" {
+            // Delete card(s)
+            self.delete_cards();
         } else if cmd == "vu" {
             // Paste URL from clipboard to selected entry
             self.paste_url_to_selected();

@@ -752,6 +752,254 @@ impl App {
         }
     }
 
+    pub fn copy_cards_rendered(&mut self) {
+        // Copy card(s) with rendering
+        // In Visual mode: copy selected range and exit Visual mode
+        // In View mode (non-Visual): copy current card only
+        if self.format_mode != FormatMode::View || self.relf_entries.is_empty() {
+            self.set_status("Not in card view mode");
+            return;
+        }
+
+        let (start_idx, end_idx) = if self.visual_mode {
+            let start = self.visual_start_index.min(self.visual_end_index);
+            let end = self.visual_start_index.max(self.visual_end_index);
+            (start, end)
+        } else {
+            // Single card mode
+            (self.selected_entry_index, self.selected_entry_index)
+        };
+
+        let mut content_lines = Vec::new();
+        for idx in start_idx..=end_idx {
+            if idx >= self.relf_entries.len() {
+                break;
+            }
+            let entry = &self.relf_entries[idx];
+
+            // Add blank line between entries
+            if idx > start_idx {
+                content_lines.push(String::new());
+            }
+
+            for line in &entry.lines {
+                content_lines.push(line.clone());
+            }
+        }
+
+        if content_lines.is_empty() {
+            self.set_status("No cards to copy");
+            return;
+        }
+
+        let content = content_lines.join("\n");
+        match Clipboard::new() {
+            Ok(mut clipboard) => match clipboard.set_text(content) {
+                Ok(()) => {
+                    let count = end_idx - start_idx + 1;
+                    self.set_status(&format!("Copied {} card(s)", count));
+                    // Exit Visual mode after copy
+                    if self.visual_mode {
+                        self.visual_mode = false;
+                    }
+                }
+                Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
+            },
+            Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
+        }
+    }
+
+    pub fn copy_cards_json(&mut self) {
+        // Copy card(s) as JSON
+        // In Visual mode: copy selected range and exit Visual mode
+        // In View mode (non-Visual): copy current card only
+        if self.format_mode != FormatMode::View || self.relf_entries.is_empty() {
+            self.set_status("Not in card view mode");
+            return;
+        }
+
+        if let Ok(json_value) = serde_json::from_str::<Value>(&self.json_input) {
+            if let Some(obj) = json_value.as_object() {
+                let outside_count = obj
+                    .get("outside")
+                    .and_then(|v| v.as_array())
+                    .map(|arr| arr.len())
+                    .unwrap_or(0);
+
+                let (start_idx, end_idx) = if self.visual_mode {
+                    let start = self.visual_start_index.min(self.visual_end_index);
+                    let end = self.visual_start_index.max(self.visual_end_index);
+                    (start, end)
+                } else {
+                    (self.selected_entry_index, self.selected_entry_index)
+                };
+
+                // Collect selected entries from JSON
+                let mut selected_outside = Vec::new();
+                let mut selected_inside = Vec::new();
+
+                for idx in start_idx..=end_idx {
+                    if idx >= self.relf_entries.len() {
+                        break;
+                    }
+                    let original_idx = self.relf_entries[idx].original_index;
+
+                    if original_idx < outside_count {
+                        // Outside entry
+                        if let Some(outside) = obj.get("outside").and_then(|v| v.as_array()) {
+                            if original_idx < outside.len() {
+                                selected_outside.push(outside[original_idx].clone());
+                            }
+                        }
+                    } else {
+                        // Inside entry
+                        let inside_idx = original_idx - outside_count;
+                        if let Some(inside) = obj.get("inside").and_then(|v| v.as_array()) {
+                            if inside_idx < inside.len() {
+                                selected_inside.push(inside[inside_idx].clone());
+                            }
+                        }
+                    }
+                }
+
+                // Build JSON object
+                let mut result_obj = serde_json::Map::new();
+                if !selected_outside.is_empty() {
+                    result_obj.insert("outside".to_string(), Value::Array(selected_outside));
+                }
+                if !selected_inside.is_empty() {
+                    result_obj.insert("inside".to_string(), Value::Array(selected_inside));
+                }
+
+                if result_obj.is_empty() {
+                    self.set_status("No cards to copy");
+                    return;
+                }
+
+                match serde_json::to_string_pretty(&Value::Object(result_obj)) {
+                    Ok(json_str) => {
+                        match Clipboard::new() {
+                            Ok(mut clipboard) => match clipboard.set_text(json_str) {
+                                Ok(()) => {
+                                    let count = end_idx - start_idx + 1;
+                                    self.set_status(&format!("Copied {} card(s) as JSON", count));
+                                    // Exit Visual mode after copy
+                                    if self.visual_mode {
+                                        self.visual_mode = false;
+                                    }
+                                }
+                                Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
+                            },
+                            Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
+                        }
+                    }
+                    Err(e) => self.set_status(&format!("JSON error: {}", e)),
+                }
+            }
+        }
+    }
+
+    pub fn delete_cards(&mut self) {
+        // Delete card(s)
+        // In Visual mode: delete selected range and exit Visual mode
+        // In View mode (non-Visual): delete current card only
+        if self.format_mode != FormatMode::View || self.relf_entries.is_empty() {
+            self.set_status("Not in card view mode");
+            return;
+        }
+
+        let (start_idx, end_idx) = if self.visual_mode {
+            let start = self.visual_start_index.min(self.visual_end_index);
+            let end = self.visual_start_index.max(self.visual_end_index);
+            (start, end)
+        } else {
+            (self.selected_entry_index, self.selected_entry_index)
+        };
+
+        // Get original indices to delete
+        let mut original_indices = Vec::new();
+        for idx in start_idx..=end_idx {
+            if idx < self.relf_entries.len() {
+                original_indices.push(self.relf_entries[idx].original_index);
+            }
+        }
+
+        if original_indices.is_empty() {
+            self.set_status("No cards to delete");
+            return;
+        }
+
+        // Delete from JSON
+        if let Ok(mut json_value) = serde_json::from_str::<Value>(&self.json_input) {
+            if let Some(obj) = json_value.as_object_mut() {
+                let outside_count = obj
+                    .get("outside")
+                    .and_then(|v| v.as_array())
+                    .map(|arr| arr.len())
+                    .unwrap_or(0);
+
+                // Separate indices into outside and inside
+                let mut outside_to_delete = Vec::new();
+                let mut inside_to_delete = Vec::new();
+
+                for original_idx in original_indices {
+                    if original_idx < outside_count {
+                        outside_to_delete.push(original_idx);
+                    } else {
+                        inside_to_delete.push(original_idx - outside_count);
+                    }
+                }
+
+                // Sort in reverse to delete from end to start
+                outside_to_delete.sort_by(|a, b| b.cmp(a));
+                inside_to_delete.sort_by(|a, b| b.cmp(a));
+
+                // Delete from outside
+                if let Some(outside) = obj.get_mut("outside").and_then(|v| v.as_array_mut()) {
+                    for idx in outside_to_delete {
+                        if idx < outside.len() {
+                            outside.remove(idx);
+                        }
+                    }
+                }
+
+                // Delete from inside
+                if let Some(inside) = obj.get_mut("inside").and_then(|v| v.as_array_mut()) {
+                    for idx in inside_to_delete {
+                        if idx < inside.len() {
+                            inside.remove(idx);
+                        }
+                    }
+                }
+
+                // Update JSON and re-render
+                match serde_json::to_string_pretty(&json_value) {
+                    Ok(formatted) => {
+                        self.save_undo_state();
+                        self.json_input = formatted;
+                        self.is_modified = true;
+                        self.convert_json();
+
+                        // Adjust selected index
+                        if self.selected_entry_index >= self.relf_entries.len() && !self.relf_entries.is_empty() {
+                            self.selected_entry_index = self.relf_entries.len() - 1;
+                        }
+
+                        let count = end_idx - start_idx + 1;
+                        self.set_status(&format!("Deleted {} card(s)", count));
+
+                        // Exit Visual mode and save
+                        if self.visual_mode {
+                            self.visual_mode = false;
+                        }
+                        self.save_file();
+                    }
+                    Err(e) => self.set_status(&format!("Format error: {}", e)),
+                }
+            }
+        }
+    }
+
     pub fn duplicate_selected_entry(&mut self) {
         // Duplicate selected entry in View mode or current line in Edit mode
         if self.format_mode == FormatMode::View && !self.relf_entries.is_empty() {

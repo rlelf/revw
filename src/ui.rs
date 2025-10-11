@@ -711,8 +711,21 @@ fn render_relf_cards(f: &mut Frame, app: &mut App, area: Rect) {
     for (i, (entry_idx, entry)) in visible_entries.iter().enumerate() {
         let is_selected = *entry_idx == selected;
 
+        // Check if this card is in Visual mode selection range
+        let in_visual_range = if app.visual_mode {
+            let visual_start = app.visual_start_index.min(app.visual_end_index);
+            let visual_end = app.visual_start_index.max(app.visual_end_index);
+            *entry_idx >= visual_start && *entry_idx <= visual_end
+        } else {
+            false
+        };
+
         // Highlight selected card with different border color
-        let border_style = if is_selected {
+        let border_style = if in_visual_range {
+            // Visual mode selection: white border
+            Style::default().fg(Color::White).bg(entry.bg_color)
+        } else if is_selected {
+            // Current cursor: yellow border
             Style::default().fg(Color::Yellow).bg(entry.bg_color)
         } else {
             Style::default().bg(entry.bg_color)
@@ -796,15 +809,22 @@ fn render_outside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: R
     // Middle: context (inside the card)
     let context = entry.context.as_deref().unwrap_or("");
     if !context.is_empty() {
-        let context_lines: Vec<Line> = if !app.search_query.is_empty() {
-            vec![highlight_search_in_line(
-                context,
-                &app.search_query,
-                Style::default().fg(Color::Gray),
-            )]
-        } else {
-            vec![Line::styled(context, Style::default().fg(Color::Gray))]
-        };
+        // Split context by \n for rendering - handle both literal \n and actual newlines
+        let context_with_newlines = context.replace("\\n", "\n");
+        let context_lines: Vec<Line> = context_with_newlines
+            .lines()
+            .map(|line| {
+                if !app.search_query.is_empty() {
+                    highlight_search_in_line(
+                        line,
+                        &app.search_query,
+                        Style::default().fg(Color::Gray),
+                    )
+                } else {
+                    Line::styled(line.to_string(), Style::default().fg(Color::Gray))
+                }
+            })
+            .collect();
 
         let context_para = Paragraph::new(context_lines)
             .wrap(Wrap { trim: false })
@@ -836,15 +856,22 @@ fn render_inside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: Re
 
     // Context inside the card
     if let Some(context) = &entry.context {
-        let context_lines: Vec<Line> = if !app.search_query.is_empty() {
-            vec![highlight_search_in_line(
-                context,
-                &app.search_query,
-                Style::default().fg(Color::Gray),
-            )]
-        } else {
-            vec![Line::styled(context.as_str(), Style::default().fg(Color::Gray))]
-        };
+        // Split context by \n for rendering - handle both literal \n and actual newlines
+        let context_with_newlines = context.replace("\\n", "\n");
+        let context_lines: Vec<Line> = context_with_newlines
+            .lines()
+            .map(|line| {
+                if !app.search_query.is_empty() {
+                    highlight_search_in_line(
+                        line,
+                        &app.search_query,
+                        Style::default().fg(Color::Gray),
+                    )
+                } else {
+                    Line::styled(line.to_string(), Style::default().fg(Color::Gray))
+                }
+            })
+            .collect();
 
         let context_para = Paragraph::new(context_lines).wrap(Wrap { trim: false });
         f.render_widget(context_para, inner_area);
@@ -997,7 +1024,9 @@ fn render_edit_overlay(f: &mut Frame, app: &App) {
                            && app.edit_buffer_is_placeholder[i];
 
         let style = if is_selected {
-            if app.edit_insert_mode {
+            // View Edit mode or Insert mode: Yellow (both are editing modes)
+            // Normal mode: Cyan
+            if app.edit_insert_mode || app.view_edit_mode {
                 Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
             } else {
                 Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)
@@ -1029,7 +1058,26 @@ fn render_edit_overlay(f: &mut Frame, app: &App) {
             field.clone()
         };
 
-        lines.push(Line::styled(display_text, style));
+        // Split field by \n for rendering (context field typically)
+        // For context fields (index 1 in both INSIDE and OUTSIDE), render \n as newlines
+        // EXCEPT when in Field editing mode (Normal/Insert mode)
+        let is_context_field = (app.edit_buffer.len() == 3 && i == 1) || // INSIDE context
+                               (app.edit_buffer.len() == 5 && i == 1);   // OUTSIDE context
+
+        // Render newlines when:
+        // - In Field selection mode (not editing any field yet)
+        // - OR in View Edit mode (even when editing)
+        let should_render_newlines = !app.edit_field_editing_mode || app.view_edit_mode;
+
+        if is_context_field && !is_placeholder && should_render_newlines {
+            // Render \n as actual newlines (Field selection mode or View Edit mode)
+            for line in display_text.replace("\\n", "\n").lines() {
+                lines.push(Line::styled(line.to_string(), style));
+            }
+        } else {
+            // Show raw data with literal \n (Normal/Insert mode when not in View Edit mode)
+            lines.push(Line::styled(display_text, style));
+        }
 
         // Add blank line between fields
         if i < app.edit_buffer.len() - 1 {

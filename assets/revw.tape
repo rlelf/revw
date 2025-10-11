@@ -17,13 +17,18 @@ Sleep 2s
 Type "j" Sleep 500ms
 Type "j" Sleep 500ms
 
-Sleep 500ms
-
 # Navigate up twice
 Type "k" Sleep 500ms
 Type "k" Sleep 500ms
 
-Sleep 500ms
+# Explorer commands
+Type ":lx" Enter Sleep 500ms
+Type "j" Sleep 500ms
+Type "j" Sleep 500ms
+Type "k" Sleep 500ms
+Type "k" Sleep 500ms
+Ctrl+W Sleep 500ms
+Type "w" Sleep 500ms
 
 # Open entry
 Enter
@@ -31,7 +36,7 @@ Sleep 2s
 
 # Close entry
 Type "q"
-Sleep 1s
+Sleep 500ms
 
 # Toggle to Edit mode
 Type "r"
@@ -47,6 +52,8 @@ Sleep 1s
 
 # Toggle back to View mode
 Type "r"
-Sleep 2s
+Sleep 500ms
+
+Type ":lx" Enter Sleep 500ms
 
 Hide

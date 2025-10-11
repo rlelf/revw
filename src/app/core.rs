@@ -106,6 +106,12 @@ pub struct App {
     // File operation confirmation/prompt state
     pub file_op_pending: Option<FileOperation>,
     pub file_op_prompt_buffer: String, // Buffer for filename input during file operations
+    // Visual/Select mode (View mode only)
+    pub visual_mode: bool,
+    pub visual_start_index: usize, // Start of visual selection
+    pub visual_end_index: usize,   // End of visual selection (inclusive)
+    // View Edit mode (Overlay mode only) - render \n as newlines
+    pub view_edit_mode: bool,
 }
 
 #[derive(Clone)]
@@ -203,6 +209,10 @@ impl App {
             explorer_dir_changed: false,
             file_op_pending: None,
             file_op_prompt_buffer: String::new(),
+            visual_mode: false,
+            visual_start_index: 0,
+            visual_end_index: 0,
+            view_edit_mode: false,
         };
 
         app

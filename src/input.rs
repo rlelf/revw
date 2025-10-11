@@ -167,7 +167,9 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                 KeyCode::Esc | KeyCode::Char('[') if key.code == KeyCode::Esc || key.modifiers.contains(KeyModifiers::CONTROL) => {
                                     // Exit insert mode
                                     app.edit_insert_mode = false;
-                                    // If entered insert mode directly with 'i', skip normal mode and go back to field selection
+                                    // Exit View Edit mode if active
+                                    app.view_edit_mode = false;
+                                    // If entered insert mode directly with 'i' or 'v', skip normal mode and go back to field selection
                                     if app.edit_skip_normal_mode {
                                         app.edit_field_editing_mode = false;
                                         app.edit_skip_normal_mode = false;
@@ -205,12 +207,36 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                 KeyCode::Backspace => {
                                     if app.edit_field_index < app.edit_buffer.len() && app.edit_cursor_pos > 0 {
                                         let field = &mut app.edit_buffer[app.edit_field_index];
-                                        // Find byte index for character position
-                                        let char_indices: Vec<_> = field.char_indices().collect();
-                                        if app.edit_cursor_pos > 0 && app.edit_cursor_pos <= char_indices.len() {
-                                            let byte_pos = char_indices[app.edit_cursor_pos - 1].0;
-                                            field.remove(byte_pos);
-                                            app.edit_cursor_pos -= 1;
+
+                                        // In View Edit mode, check if we're deleting \n (2 characters)
+                                        if app.view_edit_mode && app.edit_cursor_pos >= 2 {
+                                            let char_indices: Vec<_> = field.char_indices().collect();
+                                            if app.edit_cursor_pos >= 2 && app.edit_cursor_pos <= char_indices.len() {
+                                                // Check if the two characters before cursor are '\' and 'n'
+                                                let chars: Vec<char> = field.chars().collect();
+                                                if app.edit_cursor_pos >= 2
+                                                    && chars[app.edit_cursor_pos - 2] == '\\'
+                                                    && chars[app.edit_cursor_pos - 1] == 'n' {
+                                                    // Delete both characters of \n
+                                                    let byte_pos_1 = char_indices[app.edit_cursor_pos - 2].0;
+                                                    field.remove(byte_pos_1);
+                                                    field.remove(byte_pos_1); // Remove again at same position (since indices shift)
+                                                    app.edit_cursor_pos -= 2;
+                                                } else {
+                                                    // Normal single character deletion
+                                                    let byte_pos = char_indices[app.edit_cursor_pos - 1].0;
+                                                    field.remove(byte_pos);
+                                                    app.edit_cursor_pos -= 1;
+                                                }
+                                            }
+                                        } else {
+                                            // Normal mode or cursor position < 2: normal single character deletion
+                                            let char_indices: Vec<_> = field.char_indices().collect();
+                                            if app.edit_cursor_pos > 0 && app.edit_cursor_pos <= char_indices.len() {
+                                                let byte_pos = char_indices[app.edit_cursor_pos - 1].0;
+                                                field.remove(byte_pos);
+                                                app.edit_cursor_pos -= 1;
+                                            }
                                         }
                                     }
                                 }
@@ -224,6 +250,109 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                         let field_len = app.edit_buffer[app.edit_field_index].chars().count();
                                         if app.edit_cursor_pos < field_len {
                                             app.edit_cursor_pos += 1;
+                                        }
+                                    }
+                                }
+                                KeyCode::Enter => {
+                                    // In View Edit mode, insert literal \n string
+                                    if app.view_edit_mode && app.edit_field_index < app.edit_buffer.len() {
+                                        let field = &mut app.edit_buffer[app.edit_field_index];
+                                        // Find byte index for character position
+                                        let byte_pos = if app.edit_cursor_pos == 0 {
+                                            0
+                                        } else if app.edit_cursor_pos >= field.chars().count() {
+                                            field.len()
+                                        } else {
+                                            field.char_indices().nth(app.edit_cursor_pos).map(|(i, _)| i).unwrap_or(field.len())
+                                        };
+                                        // Insert \n as a string (backslash followed by n)
+                                        field.insert_str(byte_pos, "\\n");
+                                        app.edit_cursor_pos += 2; // Move cursor past \n
+                                    }
+                                }
+                                KeyCode::Up => {
+                                    // In View Edit mode, move up one line
+                                    if app.view_edit_mode && app.edit_field_index < app.edit_buffer.len() {
+                                        let field = &app.edit_buffer[app.edit_field_index];
+                                        let lines: Vec<&str> = field.split("\\n").collect();
+
+                                        // Find current line and column
+                                        let mut current_pos = 0;
+                                        let mut current_line = 0;
+                                        let mut col_in_line = 0;
+
+                                        for (line_idx, line) in lines.iter().enumerate() {
+                                            let line_len = line.chars().count();
+                                            let separator_len = if line_idx < lines.len() - 1 { 2 } else { 0 };
+
+                                            if app.edit_cursor_pos <= current_pos + line_len {
+                                                current_line = line_idx;
+                                                col_in_line = app.edit_cursor_pos - current_pos;
+                                                break;
+                                            }
+
+                                            current_pos += line_len + separator_len;
+                                        }
+
+                                        // Move to previous line if possible
+                                        if current_line > 0 {
+                                            let prev_line = lines[current_line - 1];
+                                            let prev_line_len = prev_line.chars().count();
+
+                                            // Calculate position in previous line
+                                            let mut new_pos = 0;
+                                            for (i, _line) in lines.iter().enumerate().take(current_line - 1) {
+                                                let line_len = lines[i].chars().count();
+                                                let separator_len = if i < lines.len() - 1 { 2 } else { 0 };
+                                                new_pos += line_len + separator_len;
+                                            }
+
+                                            // Keep same column or go to end of line
+                                            new_pos += col_in_line.min(prev_line_len);
+                                            app.edit_cursor_pos = new_pos;
+                                        }
+                                    }
+                                }
+                                KeyCode::Down => {
+                                    // In View Edit mode, move down one line
+                                    if app.view_edit_mode && app.edit_field_index < app.edit_buffer.len() {
+                                        let field = &app.edit_buffer[app.edit_field_index];
+                                        let lines: Vec<&str> = field.split("\\n").collect();
+
+                                        // Find current line and column
+                                        let mut current_pos = 0;
+                                        let mut current_line = 0;
+                                        let mut col_in_line = 0;
+
+                                        for (line_idx, line) in lines.iter().enumerate() {
+                                            let line_len = line.chars().count();
+                                            let separator_len = if line_idx < lines.len() - 1 { 2 } else { 0 };
+
+                                            if app.edit_cursor_pos <= current_pos + line_len {
+                                                current_line = line_idx;
+                                                col_in_line = app.edit_cursor_pos - current_pos;
+                                                break;
+                                            }
+
+                                            current_pos += line_len + separator_len;
+                                        }
+
+                                        // Move to next line if possible
+                                        if current_line + 1 < lines.len() {
+                                            let next_line = lines[current_line + 1];
+                                            let next_line_len = next_line.chars().count();
+
+                                            // Calculate position in next line
+                                            let mut new_pos = 0;
+                                            for (i, _line) in lines.iter().enumerate().take(current_line + 1) {
+                                                let line_len = lines[i].chars().count();
+                                                let separator_len = if i < lines.len() - 1 { 2 } else { 0 };
+                                                new_pos += line_len + separator_len;
+                                            }
+
+                                            // Keep same column or go to end of line
+                                            new_pos += col_in_line.min(next_line_len);
+                                            app.edit_cursor_pos = new_pos;
                                         }
                                     }
                                 }
@@ -251,6 +380,8 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                     // Exit field editing mode, go back to field selection
                                     app.edit_field_editing_mode = false;
                                     app.edit_cursor_pos = 0;
+                                    // Exit View Edit mode if active
+                                    app.view_edit_mode = false;
                                     // Restore placeholder if field is empty
                                     if app.edit_field_index < app.edit_buffer.len() {
                                         let field = &app.edit_buffer[app.edit_field_index];
@@ -479,6 +610,32 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                         }
                                     }
                                 }
+                                KeyCode::Char('v') => {
+                                    // Enter View Edit mode: render \n as newlines
+                                    // Check if Exit field is selected
+                                    if app.edit_field_index < app.edit_buffer.len() {
+                                        let field = &app.edit_buffer[app.edit_field_index];
+                                        if field == "Exit" {
+                                            // Don't enter View Edit mode on Exit field
+                                            continue;
+                                        }
+                                        // Clear placeholder text when entering View Edit mode
+                                        if app.edit_field_index < app.edit_buffer_is_placeholder.len()
+                                            && app.edit_buffer_is_placeholder[app.edit_field_index] {
+                                            app.edit_buffer[app.edit_field_index] = String::new();
+                                            app.edit_buffer_is_placeholder[app.edit_field_index] = false;
+                                            app.edit_cursor_pos = 0;
+                                        } else {
+                                            // Move cursor to end of field
+                                            app.edit_cursor_pos = field.chars().count();
+                                        }
+                                    }
+                                    // Enter View Edit mode directly in insert mode (skip normal mode)
+                                    app.view_edit_mode = true;
+                                    app.edit_field_editing_mode = true;
+                                    app.edit_insert_mode = true;
+                                    app.edit_skip_normal_mode = true;
+                                }
                                 _ => {}
                             }
                         }
@@ -632,11 +789,33 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                     app.undo();
                                 }
                             }
+                            KeyCode::Char('v') => {
+                                // Enter Visual/Select mode in View mode
+                                if !app.showing_help && app.format_mode == FormatMode::View && !app.relf_entries.is_empty() {
+                                    app.visual_mode = true;
+                                    app.visual_start_index = app.selected_entry_index;
+                                    app.visual_end_index = app.selected_entry_index;
+                                    app.set_status("-- VISUAL --");
+                                }
+                            }
                             KeyCode::Char('?') => {
                                 // Toggle help
                                 app.toggle_help();
                             }
-                            KeyCode::Char('q') | KeyCode::Esc => return Ok(()),
+                            KeyCode::Char('q') | KeyCode::Esc | KeyCode::Char('[') => {
+                                // Check for Ctrl+[ to exit Visual mode
+                                if key.code == KeyCode::Char('[') && !key.modifiers.contains(KeyModifiers::CONTROL) {
+                                    // Not Ctrl+[, ignore
+                                } else {
+                                    // Exit Visual mode if active, otherwise quit
+                                    if app.visual_mode {
+                                        app.visual_mode = false;
+                                        app.set_status("");
+                                    } else {
+                                        return Ok(());
+                                    }
+                                }
+                            }
                             KeyCode::Char('w') => {
                                 // Vim-like: move to start of next word (Edit mode)
                                 if !app.showing_help && app.format_mode == FormatMode::Edit {
@@ -716,6 +895,10 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                     // Move selection up in card view
                                     if app.selected_entry_index > 0 {
                                         app.selected_entry_index -= 1;
+                                        // In Visual mode, extend selection
+                                        if app.visual_mode {
+                                            app.visual_end_index = app.selected_entry_index;
+                                        }
                                     }
                                 } else {
                                     app.relf_jump_up();
@@ -731,6 +914,10 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                     // Move selection down in card view
                                     if app.selected_entry_index + 1 < app.relf_entries.len() {
                                         app.selected_entry_index += 1;
+                                        // In Visual mode, extend selection
+                                        if app.visual_mode {
+                                            app.visual_end_index = app.selected_entry_index;
+                                        }
                                     }
                                 } else {
                                     app.relf_jump_down();
