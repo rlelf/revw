@@ -302,6 +302,47 @@ revw --stdout --outside file.json
 - `:%s/pattern/replacement/` substitute first occurrence in all lines
 - `:%s/pattern/replacement/g` substitute all occurrences in all lines
 
+## Configuration
+
+Revw can be configured using a `.revwrc` file in your home directory (`~/.revwrc`).
+
+### Configuration Options
+
+**Line Numbers:**
+```vim
+set number        # Enable line numbers (Edit mode)
+set nonumber      # Disable line numbers (default)
+```
+
+**Color Schemes:**
+```vim
+colorscheme Default      # Default color scheme
+colorscheme Monokai      # Monokai theme
+colorscheme Solarized    # Solarized Dark theme
+colorscheme Nord         # Nord theme
+```
+
+You can also change the color scheme at runtime using `:colorscheme <name>`.
+
+### Example `.revwrc`
+
+```vim
+# Enable line numbers by default
+set number
+
+# Use Nord color scheme
+colorscheme Nord
+```
+
+### Available Color Schemes
+
+| Scheme | Background | Border | Text | Highlight | Key Color | String Color |
+|--------|------------|--------|------|-----------|-----------|--------------|
+| **Default** | Dark Blue-Gray | Dark Gray | Gray | Yellow | Light Blue | Orange/Peach |
+| **Monokai** | Dark Gray | Charcoal | Off-White | Yellow | Cyan | Yellow |
+| **Solarized** | Dark Blue | Blue-Gray | Gray-Blue | Orange | Blue | Cyan |
+| **Nord** | Dark Blue-Gray | Blue-Gray | Light Gray | Yellow | Frost Cyan | Green |
+
 ## Changelog
 
 See [CHANGELOG](https://github.com/rlelf/revw/blob/main/CHANGELOG.md) for version history and changes.
