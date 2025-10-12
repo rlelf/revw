@@ -303,7 +303,7 @@ impl App {
     }
 
     fn render_relf(&self) -> RelfRenderResult {
-        Renderer::render_relf(&self.json_input, &self.filter_pattern)
+        Renderer::render_relf(&self.json_input, &self.filter_pattern, self.colorscheme.background)
     }
 
     fn render_json(&self) -> Vec<String> {

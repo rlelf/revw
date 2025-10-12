@@ -73,12 +73,11 @@ impl Renderer {
         out
     }
 
-    pub fn render_relf(json_input: &str, filter_pattern: &str) -> RelfRenderResult {
+    pub fn render_relf(json_input: &str, filter_pattern: &str, card_bg: Color) -> RelfRenderResult {
         if let Ok(json_value) = serde_json::from_str::<serde_json::Value>(json_input) {
             let mut result = RelfRenderResult::default();
 
             if let Some(obj) = json_value.as_object() {
-                let card_bg = Color::Rgb(26, 28, 34);
                 let mut global_index = 0; // Track the original index across all entries
 
                 for (section_key, section_value) in obj {

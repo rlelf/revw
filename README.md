@@ -316,15 +316,12 @@ set nonumber      # Disable line numbers (default)
 
 **Max Visible Cards:**
 ```vim
-set card=4        # Set max visible cards (1-10, default: 5)
+set card=5        # Set max visible cards (1-10, default: 5)
 ```
 
 **Color Schemes:**
 ```vim
 colorscheme Default      # Default color scheme
-colorscheme Monokai      # Monokai theme
-colorscheme Solarized    # Solarized Dark theme
-colorscheme Nord         # Nord theme
 ```
 
 You can also change the color scheme at runtime using `:colorscheme <name>`.
