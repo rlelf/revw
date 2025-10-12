@@ -218,6 +218,8 @@ impl App {
         self.edit_field_index = 0;
         self.edit_insert_mode = false;
         self.edit_cursor_pos = 0;
+        self.edit_hscroll = 0;
+        self.edit_vscroll = 0;
     }
 
     pub fn insert_char(&mut self, c: char) {

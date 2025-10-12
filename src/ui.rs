@@ -722,8 +722,8 @@ fn render_relf_cards(f: &mut Frame, app: &mut App, area: Rect) {
 
         // Highlight selected card with different border color
         let border_style = if in_visual_range {
-            // Visual mode selection: blue border (same as title color)
-            Style::default().fg(Color::Rgb(120, 170, 255)).bg(entry.bg_color)
+            // Visual mode selection: cyan border
+            Style::default().fg(Color::Cyan).bg(entry.bg_color)
         } else if is_selected {
             // Current cursor: yellow border
             Style::default().fg(Color::Yellow).bg(entry.bg_color)
@@ -762,10 +762,10 @@ fn render_outside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: R
             highlight_search_in_line(
                 &name_text,
                 &app.search_query,
-                Style::default().fg(Color::Rgb(120, 170, 255)),
+                Style::default().fg(Color::Rgb(156, 220, 254)),
             )
         } else {
-            Line::styled(name_text, Style::default().fg(Color::Rgb(120, 170, 255)))
+            Line::styled(name_text, Style::default().fg(Color::Rgb(156, 220, 254)))
         };
         let name_area = Rect { x: card_area.x + 2, y: card_area.y, width: card_area.width.saturating_sub(4), height: 1 };
         let name_para = Paragraph::new(name_span).alignment(Alignment::Left);
@@ -779,10 +779,10 @@ fn render_outside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: R
             highlight_search_in_line(
                 &url_text,
                 &app.search_query,
-                Style::default().fg(Color::Rgb(120, 170, 255)),
+                Style::default().fg(Color::Rgb(156, 220, 254)),
             )
         } else {
-            Line::styled(url_text, Style::default().fg(Color::Rgb(120, 170, 255)))
+            Line::styled(url_text, Style::default().fg(Color::Rgb(156, 220, 254)))
         };
         let url_area = Rect { x: card_area.x + 2, y: card_area.y, width: card_area.width.saturating_sub(4), height: 1 };
         let url_para = Paragraph::new(url_span).alignment(Alignment::Right);
@@ -794,7 +794,7 @@ fn render_outside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: R
         let percentage_text = format!(" {}% ", percentage);
         let percentage_span = Line::styled(
             percentage_text,
-            Style::default().fg(Color::Rgb(120, 170, 255)),
+            Style::default().fg(Color::Rgb(156, 220, 254)),
         );
         let percentage_area = Rect {
             x: card_area.x + 2,
@@ -841,12 +841,12 @@ fn render_inside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: Re
             highlight_search_in_line(
                 &date_text,
                 &app.search_query,
-                Style::default().fg(Color::Rgb(120, 170, 255)),
+                Style::default().fg(Color::Rgb(156, 220, 254)),
             )
         } else {
             Line::styled(
                 date_text,
-                Style::default().fg(Color::Rgb(120, 170, 255)),
+                Style::default().fg(Color::Rgb(156, 220, 254)),
             )
         };
         let date_area = Rect { x: card_area.x + 2, y: card_area.y, width: card_area.width.saturating_sub(4), height: 1 };

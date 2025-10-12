@@ -409,6 +409,7 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                     // Exit field editing mode, go back to field selection
                                     app.edit_field_editing_mode = false;
                                     app.edit_cursor_pos = 0;
+                                    app.edit_hscroll = 0;
                                     // Exit View Edit mode if active
                                     app.view_edit_mode = false;
                                     // Restore placeholder if field is empty
@@ -592,12 +593,14 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                     if app.edit_field_index > 0 {
                                         app.edit_field_index -= 1;
                                         app.edit_cursor_pos = 0;
+                                        app.edit_hscroll = 0;
                                     }
                                 }
                                 KeyCode::Down | KeyCode::Char('j') => {
                                     if app.edit_field_index + 1 < app.edit_buffer.len() {
                                         app.edit_field_index += 1;
                                         app.edit_cursor_pos = 0;
+                                        app.edit_hscroll = 0;
                                     }
                                 }
                                 KeyCode::Enter => {
@@ -619,6 +622,7 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                     // Enter field editing mode
                                     app.edit_field_editing_mode = true;
                                     app.edit_cursor_pos = 0;
+                                    app.edit_hscroll = 0;
                                 }
                                 KeyCode::Char('i') => {
                                     // Skip field editing mode, go straight to insert mode with cursor at end
@@ -1261,18 +1265,28 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                 }
                                 continue;
                             }
-                            // Allow scrolling in overlay
+                            // Allow scrolling in overlay (only in field selection mode)
                             MouseEventKind::ScrollUp => {
+                                // Block if in field editing mode (normal/insert)
+                                if app.edit_field_editing_mode {
+                                    continue;
+                                }
                                 if app.edit_field_index > 0 {
                                     app.edit_field_index -= 1;
                                     app.edit_cursor_pos = 0;
+                                    app.edit_hscroll = 0;
                                 }
                                 continue;
                             }
                             MouseEventKind::ScrollDown => {
+                                // Block if in field editing mode (normal/insert)
+                                if app.edit_field_editing_mode {
+                                    continue;
+                                }
                                 if app.edit_field_index + 1 < app.edit_buffer.len() {
                                     app.edit_field_index += 1;
                                     app.edit_cursor_pos = 0;
+                                    app.edit_hscroll = 0;
                                 }
                                 continue;
                             }

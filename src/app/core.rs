@@ -44,6 +44,8 @@ pub struct App {
     pub edit_insert_mode: bool, // Whether in insert mode within overlay
     pub edit_skip_normal_mode: bool, // True if entered insert mode directly with 'i' (skip normal mode on Esc)
     pub edit_cursor_pos: usize, // Cursor position within current field
+    pub edit_hscroll: u16, // Horizontal scroll offset for overlay fields
+    pub edit_vscroll: u16, // Vertical scroll offset for context field
     pub showing_help: bool, // Track if help is being shown
     pub scroll: u16,
     pub max_scroll: u16,
@@ -162,6 +164,8 @@ impl App {
             edit_insert_mode: false,
             edit_skip_normal_mode: false,
             edit_cursor_pos: 0,
+            edit_hscroll: 0,
+            edit_vscroll: 0,
             showing_help: false,
             scroll: 0,
             max_scroll: 0,
