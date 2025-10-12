@@ -1170,11 +1170,20 @@ fn render_edit_overlay(f: &mut Frame, app: &App) {
                 display_text.insert(byte_pos, '|');
             }
 
+            // Calculate available height dynamically (similar to View Edit mode)
+            let num_other_fields = app.edit_buffer.len() - 1; // All fields except context
+            let other_fields_height = num_other_fields * 2; // Each field + blank line
+            let available_height = inner_area.height as usize;
+            let min_window_height = 5;
+            let max_wrapped_lines = if available_height > other_fields_height {
+                (available_height - other_fields_height).max(min_window_height)
+            } else {
+                min_window_height
+            };
+
             // Split text into chunks that fit within window width (wrapping)
-            // Limit to max 5 lines to ensure Exit field is visible
             let chars: Vec<char> = display_text.chars().collect();
             let mut line_start = 0;
-            let max_wrapped_lines = 5;
             let mut wrapped_line_count = 0;
 
             while line_start < chars.len() && wrapped_line_count < max_wrapped_lines {
