@@ -1086,12 +1086,9 @@ fn render_edit_overlay(f: &mut Frame, app: &App) {
             let window_height = if !app.edit_field_editing_mode {
                 // Field selection mode: use max window height (like View mode)
                 max_window_height
-            } else if actual_lines < min_window_height {
-                // View Edit mode: use actual lines if fewer than minimum
-                actual_lines.max(1) // At least 1 line for empty content
             } else {
-                // View Edit mode: use smaller of actual lines or max window height
-                actual_lines.min(max_window_height)
+                // View Edit mode: use actual lines clamped between min and max
+                actual_lines.max(min_window_height).min(max_window_height)
             };
 
             let vscroll = app.edit_vscroll as usize;
@@ -1151,6 +1148,11 @@ fn render_edit_overlay(f: &mut Frame, app: &App) {
                 // Context field doesn't use horizontal scrolling, just display as-is
                 // Text will wrap naturally in the Paragraph widget
                 lines.push(Line::styled(display_line, style));
+            }
+
+            // Pad with empty lines to reach window_height (for View Edit mode with few lines)
+            for _ in visible_lines.len()..window_height {
+                lines.push(Line::styled(String::new(), style));
             }
         } else if is_context_field {
             // Context field in Normal/Insert mode: show raw \n with wrapping
