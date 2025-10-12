@@ -116,10 +116,9 @@ impl Renderer {
                                         if !url.is_empty() {
                                             entry_lines.push(url.to_string());
                                         }
-                                        // Only add percentage line if not null
-                                        if let Some(pct) = percentage {
-                                            entry_lines.push(format!("{}%", pct));
-                                        }
+                                        // Add percentage line, defaulting to 0% if not specified
+                                        let pct = percentage.unwrap_or(0);
+                                        entry_lines.push(format!("{}%", pct));
 
                                         // Apply filter if pattern is provided
                                         if !filter_pattern.is_empty() {

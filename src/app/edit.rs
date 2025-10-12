@@ -220,6 +220,9 @@ impl App {
         self.edit_cursor_pos = 0;
         self.edit_hscroll = 0;
         self.edit_vscroll = 0;
+        self.view_edit_mode = false;
+        self.edit_field_editing_mode = false;
+        self.edit_skip_normal_mode = false;
     }
 
     pub fn insert_char(&mut self, c: char) {
@@ -590,6 +593,84 @@ impl App {
                 self.set_status(&message);
             }
             Err(e) => self.set_status(&format!("Error: {}", e)),
+        }
+    }
+
+    pub fn ensure_overlay_cursor_visible(&mut self) {
+        // Ensure horizontal and vertical scroll follows cursor in overlay field editing
+        if !self.edit_field_editing_mode {
+            return;
+        }
+
+        if self.edit_field_index >= self.edit_buffer.len() {
+            return;
+        }
+
+        let field = &self.edit_buffer[self.edit_field_index];
+        let cursor_pos = self.edit_cursor_pos;
+
+        // Check if this is context field (index 1 in both INSIDE and OUTSIDE)
+        let is_context_field = (self.edit_buffer.len() == 3 && self.edit_field_index == 1) ||
+                               (self.edit_buffer.len() == 5 && self.edit_field_index == 1);
+
+        if is_context_field && self.view_edit_mode {
+            // Context field in View Edit mode: calculate line and column from cursor position
+            let lines: Vec<&str> = field.split("\\n").collect();
+
+            // Find which line the cursor is on
+            let mut char_count = 0;
+            let mut current_line = 0;
+
+            for (line_idx, line) in lines.iter().enumerate() {
+                let line_len = line.chars().count();
+                let separator_len = if line_idx < lines.len() - 1 { 2 } else { 0 }; // "\\n" = 2 chars
+
+                if cursor_pos <= char_count + line_len {
+                    current_line = line_idx;
+                    break;
+                }
+
+                char_count += line_len + separator_len;
+            }
+
+            // Vertical scroll: ensure current line is visible
+            // Use same dynamic window height calculation as rendering
+            let num_lines = lines.len();
+            let min_window_height = 5;
+            let window_height = if num_lines < min_window_height {
+                num_lines.max(1) as u16
+            } else {
+                // We don't have access to inner_area here, so use a reasonable max
+                // This matches the rendering logic but with a fixed max
+                num_lines.min(20) as u16
+            };
+            let margin_v = 1u16;
+
+            if (current_line as u16) < self.edit_vscroll + margin_v {
+                // Cursor near top edge - scroll up
+                self.edit_vscroll = (current_line as u16).saturating_sub(margin_v);
+            } else if (current_line as u16) >= self.edit_vscroll + window_height.saturating_sub(margin_v) {
+                // Cursor near bottom edge - scroll down
+                self.edit_vscroll = (current_line as u16) + margin_v - window_height + 1;
+            }
+
+            // Context field doesn't use horizontal scrolling
+            // Reset horizontal scroll to 0 for context field
+            self.edit_hscroll = 0;
+        } else {
+            // Non-context field: simple horizontal scroll
+            let cursor_display_col = self.prefix_display_width(field, cursor_pos) as u16;
+
+            let window_width = 70u16;
+            let margin = 4u16;
+
+            if cursor_display_col < self.edit_hscroll + margin {
+                // Cursor near left edge - scroll left
+                self.edit_hscroll = cursor_display_col.saturating_sub(margin);
+            } else if cursor_display_col >= self.edit_hscroll + window_width.saturating_sub(margin) {
+                // Cursor near right edge - scroll right
+                self.edit_hscroll = cursor_display_col + margin - window_width + 1;
+            }
         }
     }
 

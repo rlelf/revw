@@ -1014,8 +1014,10 @@ fn render_edit_overlay(f: &mut Frame, app: &App) {
 
     let inner_area = block.inner(popup_area);
 
-    // Render each field as simple lines with color-based selection
+    // Render each field with proper windowing and scrolling
     let mut lines = Vec::new();
+    let window_width = inner_area.width as usize;
+
     for (i, field) in app.edit_buffer.iter().enumerate() {
         let is_selected = i == app.edit_field_index;
 
@@ -1038,50 +1040,188 @@ fn render_edit_overlay(f: &mut Frame, app: &App) {
             Style::default().fg(Color::Gray)
         };
 
-        // Add cursor in insert mode or field editing mode
-        let display_text = if is_selected && (app.edit_insert_mode || app.edit_field_editing_mode) {
-            // Convert character position to byte index
-            let char_count = field.chars().count();
-            let cursor_char_pos = app.edit_cursor_pos.min(char_count);
-            let byte_pos = if cursor_char_pos == 0 {
-                0
-            } else if cursor_char_pos >= char_count {
-                field.len()
-            } else {
-                field.char_indices().nth(cursor_char_pos).map(|(i, _)| i).unwrap_or(field.len())
-            };
-
-            let mut text = field.clone();
-            text.insert(byte_pos, '|');
-            text
-        } else {
-            field.clone()
-        };
-
-        // Split field by \n for rendering (context field typically)
-        // For context fields (index 1 in both INSIDE and OUTSIDE), render \n as newlines
+        // Check if this is context field (index 1 in both INSIDE and OUTSIDE)
         let is_context_field = (app.edit_buffer.len() == 3 && i == 1) || // INSIDE context
                                (app.edit_buffer.len() == 5 && i == 1);   // OUTSIDE context
 
         // Render newlines for context field:
-        // - Always show \n as newlines (for display)
-        // - EXCEPT when editing THIS specific field in normal/insert mode (not View Edit mode)
-        let should_render_newlines = if is_context_field {
-            // If we're currently editing this context field AND not in View Edit mode, show raw \n
-            !(i == app.edit_field_index && app.edit_field_editing_mode && !app.view_edit_mode)
-        } else {
-            // Non-context fields never render \n as newlines
-            false
-        };
+        // - Field selection mode (not editing): render \n as newlines (multi-line)
+        // - View Edit mode: render \n as newlines (multi-line)
+        // - Normal/Insert mode: show raw \n (single-line with wrapping)
+        // - Other fields: never render \n as newlines
+        let should_render_newlines = is_context_field && (!app.edit_field_editing_mode || app.view_edit_mode);
 
-        if is_context_field && !is_placeholder && should_render_newlines {
-            // Render \n as actual newlines (Field selection mode or View Edit mode)
-            for line in display_text.replace("\\n", "\n").lines() {
-                lines.push(Line::styled(line.to_string(), style));
+        if is_context_field && should_render_newlines {
+            // Context field with newlines: dynamic window with scrolling
+            let text_with_newlines = field.replace("\\n", "\n");
+            let field_lines: Vec<&str> = text_with_newlines.lines().collect();
+
+            // Dynamic window size for context field
+            // Calculate available space: inner_area height minus other fields
+            // Each non-context field takes 1 line + 1 blank line = 2 lines each
+            let num_other_fields = app.edit_buffer.len() - 1; // All fields except context
+            let other_fields_height = num_other_fields * 2; // Each field + blank line
+            let available_height = inner_area.height as usize;
+            let min_window_height = 5;
+            let max_window_height = if available_height > other_fields_height {
+                (available_height - other_fields_height).max(min_window_height)
+            } else {
+                min_window_height
+            };
+
+            // Use actual content lines or max window height, whichever is smaller
+            let actual_lines = field_lines.len();
+            let window_height = if actual_lines < min_window_height {
+                actual_lines.max(1) // At least 1 line for empty content
+            } else {
+                actual_lines.min(max_window_height)
+            };
+
+            let vscroll = app.edit_vscroll as usize;
+
+            // Apply vertical scroll
+            let visible_lines: Vec<&str> = field_lines
+                .iter()
+                .skip(vscroll)
+                .take(window_height)
+                .copied()
+                .collect();
+
+            // Calculate cursor position if editing
+            let (cursor_line, cursor_col) = if is_selected && (app.edit_insert_mode || app.edit_field_editing_mode) {
+                // Calculate which line and column the cursor is on
+                let mut char_count = 0;
+                let mut cursor_line_idx = 0;
+                let mut cursor_col_in_line = 0;
+
+                for (line_idx, line) in field_lines.iter().enumerate() {
+                    let line_len = line.chars().count();
+                    let separator_len = if line_idx < field_lines.len() - 1 { 2 } else { 0 }; // "\\n" = 2 chars
+
+                    if app.edit_cursor_pos <= char_count + line_len {
+                        cursor_line_idx = line_idx;
+                        cursor_col_in_line = app.edit_cursor_pos - char_count;
+                        break;
+                    }
+
+                    char_count += line_len + separator_len;
+                }
+
+                (cursor_line_idx, cursor_col_in_line)
+            } else {
+                (0, 0)
+            };
+
+            // Render each visible line (no horizontal scrolling for context field)
+            for (visible_idx, line_text) in visible_lines.iter().enumerate() {
+                let actual_line_idx = vscroll + visible_idx;
+                let mut display_line = line_text.to_string();
+
+                // Add cursor if this is the line with the cursor
+                if is_selected && (app.edit_insert_mode || app.edit_field_editing_mode) && actual_line_idx == cursor_line {
+                    let char_count = display_line.chars().count();
+                    let cursor_char_pos = cursor_col.min(char_count);
+                    let byte_pos = if cursor_char_pos == 0 {
+                        0
+                    } else if cursor_char_pos >= char_count {
+                        display_line.len()
+                    } else {
+                        display_line.char_indices().nth(cursor_char_pos).map(|(i, _)| i).unwrap_or(display_line.len())
+                    };
+                    display_line.insert(byte_pos, '|');
+                }
+
+                // Context field doesn't use horizontal scrolling, just display as-is
+                // Text will wrap naturally in the Paragraph widget
+                lines.push(Line::styled(display_line, style));
+            }
+        } else if is_context_field {
+            // Context field in Normal/Insert mode: show raw \n with wrapping
+            let mut display_text = field.clone();
+
+            // Add cursor in insert mode or field editing mode
+            if is_selected && (app.edit_insert_mode || app.edit_field_editing_mode) {
+                let char_count = field.chars().count();
+                let cursor_char_pos = app.edit_cursor_pos.min(char_count);
+                let byte_pos = if cursor_char_pos == 0 {
+                    0
+                } else if cursor_char_pos >= char_count {
+                    field.len()
+                } else {
+                    field.char_indices().nth(cursor_char_pos).map(|(i, _)| i).unwrap_or(field.len())
+                };
+                display_text.insert(byte_pos, '|');
+            }
+
+            // Split text into chunks that fit within window width (wrapping)
+            // Limit to max 5 lines to ensure Exit field is visible
+            let chars: Vec<char> = display_text.chars().collect();
+            let mut line_start = 0;
+            let max_wrapped_lines = 5;
+            let mut wrapped_line_count = 0;
+
+            while line_start < chars.len() && wrapped_line_count < max_wrapped_lines {
+                let mut line_width = 0;
+                let mut line_end = line_start;
+
+                for (idx, ch) in chars[line_start..].iter().enumerate() {
+                    let char_width = app.display_width_str(&ch.to_string());
+                    if line_width + char_width > window_width && line_width > 0 {
+                        break;
+                    }
+                    line_width += char_width;
+                    line_end = line_start + idx + 1;
+                }
+
+                if line_end == line_start {
+                    // Edge case: single character wider than window
+                    line_end = line_start + 1;
+                }
+
+                let line_text: String = chars[line_start..line_end].iter().collect();
+                lines.push(Line::styled(line_text, style));
+
+                line_start = line_end;
+                wrapped_line_count += 1;
+            }
+
+            // If empty, add at least one line
+            if chars.is_empty() {
+                lines.push(Line::styled(String::new(), style));
             }
         } else {
-            // Show raw data with literal \n (Normal/Insert mode when not in View Edit mode)
-            lines.push(Line::styled(display_text, style));
+            // Single-line field: apply horizontal scrolling
+            let mut display_text = field.clone();
+
+            // Add cursor in insert mode or field editing mode
+            if is_selected && (app.edit_insert_mode || app.edit_field_editing_mode) {
+                let char_count = field.chars().count();
+                let cursor_char_pos = app.edit_cursor_pos.min(char_count);
+                let byte_pos = if cursor_char_pos == 0 {
+                    0
+                } else if cursor_char_pos >= char_count {
+                    field.len()
+                } else {
+                    field.char_indices().nth(cursor_char_pos).map(|(i, _)| i).unwrap_or(field.len())
+                };
+                display_text.insert(byte_pos, '|');
+            }
+
+            // Apply horizontal scroll if this is the selected field and in editing mode
+            let scrolled_text = if is_selected && app.edit_field_editing_mode {
+                let hscroll = app.edit_hscroll as usize;
+                // Use display width slicing
+                app.slice_columns(&display_text, hscroll, window_width)
+            } else {
+                // No scrolling for non-editing fields, just truncate if too long
+                if app.display_width_str(&display_text) > window_width {
+                    app.slice_columns(&display_text, 0, window_width)
+                } else {
+                    display_text
+                }
+            };
+
+            lines.push(Line::styled(scrolled_text, style));
         }
 
         // Add blank line between fields
