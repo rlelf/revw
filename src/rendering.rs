@@ -11,7 +11,6 @@ pub struct RelfLineStyle {
 #[derive(Clone, Debug)]
 pub struct RelfEntry {
     pub lines: Vec<String>, // For backward compatibility and inside entries
-    pub bg_color: Color,
     pub original_index: usize, // Index in the original JSON (before filtering)
     // Fields for corner layout (outside entries)
     pub name: Option<String>,
@@ -73,7 +72,7 @@ impl Renderer {
         out
     }
 
-    pub fn render_relf(json_input: &str, filter_pattern: &str, card_bg: Color) -> RelfRenderResult {
+    pub fn render_relf(json_input: &str, filter_pattern: &str) -> RelfRenderResult {
         if let Ok(json_value) = serde_json::from_str::<serde_json::Value>(json_input) {
             let mut result = RelfRenderResult::default();
 
@@ -131,7 +130,6 @@ impl Renderer {
 
                                         result.entries.push(RelfEntry {
                                             lines: entry_lines,
-                                            bg_color: card_bg,
                                             original_index,
                                             name: Some(name.to_string()),
                                             url: if !url.is_empty() { Some(url.to_string()) } else { None },
@@ -169,7 +167,6 @@ impl Renderer {
 
                                         result.entries.push(RelfEntry {
                                             lines: entry_lines,
-                                            bg_color: card_bg,
                                             original_index,
                                             name: None,
                                             url: None,

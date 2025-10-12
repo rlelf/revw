@@ -331,7 +331,8 @@ You can also change the color scheme at runtime using `:colorscheme <name>`.
 ### Example `.revwrc`
 
 ```vim
-# Test configuration for revw
+# Example configuration
+colorscheme default
 set number
 set card=5
 ```

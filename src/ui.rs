@@ -589,9 +589,11 @@ fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
     let content = Paragraph::new(content_text).block(
         Block::default()
             .title(title)
+            .title_style(Style::default().fg(app.colorscheme.window_title))
             .borders(Borders::ALL)
             .border_type(BorderType::Rounded)
-            .style(Style::default().fg(app.colorscheme.border).bg(app.colorscheme.background)),
+            .border_style(Style::default().fg(app.colorscheme.window_border))
+            .style(Style::default().bg(app.colorscheme.background)),
     );
 
     f.render_widget(content, area);
@@ -602,7 +604,8 @@ fn render_help_content(f: &mut Frame, app: &mut App, area: Rect) {
     let block = Block::default()
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
-        .style(Style::default().fg(app.colorscheme.border).bg(app.colorscheme.background));
+        .border_style(Style::default().fg(app.colorscheme.window_border))
+        .style(Style::default().bg(app.colorscheme.background));
 
     let inner_area = block.inner(area);
 
@@ -656,9 +659,11 @@ fn render_relf_cards(f: &mut Frame, app: &mut App, area: Rect) {
 
     let outer_block = Block::default()
         .title(title)
+        .title_style(Style::default().fg(app.colorscheme.window_title))
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
-        .style(Style::default().fg(app.colorscheme.border).bg(app.colorscheme.background));
+        .border_style(Style::default().fg(app.colorscheme.window_border))
+        .style(Style::default().bg(app.colorscheme.background));
 
     let inner_area = outer_block.inner(area);
     f.render_widget(outer_block, area);
@@ -723,13 +728,14 @@ fn render_relf_cards(f: &mut Frame, app: &mut App, area: Rect) {
 
         // Highlight selected card with different border color
         let border_style = if in_visual_range {
-            // Visual mode selection: cyan border
-            Style::default().fg(Color::Cyan).bg(entry.bg_color)
+            // Visual mode selection border
+            Style::default().fg(app.colorscheme.card_visual).bg(app.colorscheme.background)
         } else if is_selected {
-            // Current cursor: yellow border
-            Style::default().fg(Color::Yellow).bg(entry.bg_color)
+            // Selected card border
+            Style::default().fg(app.colorscheme.card_selected).bg(app.colorscheme.background)
         } else {
-            Style::default().bg(entry.bg_color)
+            // Normal card border
+            Style::default().fg(app.colorscheme.card_border).bg(app.colorscheme.background)
         };
 
         let block = Block::default()
@@ -763,10 +769,10 @@ fn render_outside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: R
             highlight_search_in_line(
                 &name_text,
                 &app.search_query,
-                Style::default().fg(app.colorscheme.key),
+                Style::default().fg(app.colorscheme.card_title),
             )
         } else {
-            Line::styled(name_text, Style::default().fg(app.colorscheme.key))
+            Line::styled(name_text, Style::default().fg(app.colorscheme.card_title))
         };
         let name_area = Rect { x: card_area.x + 2, y: card_area.y, width: card_area.width.saturating_sub(4), height: 1 };
         let name_para = Paragraph::new(name_span).alignment(Alignment::Left);
@@ -780,10 +786,10 @@ fn render_outside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: R
             highlight_search_in_line(
                 &url_text,
                 &app.search_query,
-                Style::default().fg(app.colorscheme.key),
+                Style::default().fg(app.colorscheme.card_title),
             )
         } else {
-            Line::styled(url_text, Style::default().fg(app.colorscheme.key))
+            Line::styled(url_text, Style::default().fg(app.colorscheme.card_title))
         };
         let url_area = Rect { x: card_area.x + 2, y: card_area.y, width: card_area.width.saturating_sub(4), height: 1 };
         let url_para = Paragraph::new(url_span).alignment(Alignment::Right);
@@ -795,7 +801,7 @@ fn render_outside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: R
         let percentage_text = format!(" {}% ", percentage);
         let percentage_span = Line::styled(
             percentage_text,
-            Style::default().fg(app.colorscheme.key),
+            Style::default().fg(app.colorscheme.card_title),
         );
         let percentage_area = Rect {
             x: card_area.x + 2,
@@ -825,10 +831,10 @@ fn render_outside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: R
                     highlight_search_in_line(
                         line,
                         &app.search_query,
-                        Style::default().fg(app.colorscheme.text),
+                        Style::default().fg(app.colorscheme.card_content),
                     )
                 } else {
-                    Line::styled(line.to_string(), Style::default().fg(app.colorscheme.text))
+                    Line::styled(line.to_string(), Style::default().fg(app.colorscheme.card_content))
                 }
             })
             .collect();
@@ -848,12 +854,12 @@ fn render_inside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: Re
             highlight_search_in_line(
                 &date_text,
                 &app.search_query,
-                Style::default().fg(app.colorscheme.key),
+                Style::default().fg(app.colorscheme.card_title),
             )
         } else {
             Line::styled(
                 date_text,
-                Style::default().fg(app.colorscheme.key),
+                Style::default().fg(app.colorscheme.card_title),
             )
         };
         let date_area = Rect { x: card_area.x + 2, y: card_area.y, width: card_area.width.saturating_sub(4), height: 1 };
@@ -878,10 +884,10 @@ fn render_inside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: Re
                     highlight_search_in_line(
                         line,
                         &app.search_query,
-                        Style::default().fg(app.colorscheme.text),
+                        Style::default().fg(app.colorscheme.card_content),
                     )
                 } else {
-                    Line::styled(line.to_string(), Style::default().fg(app.colorscheme.text))
+                    Line::styled(line.to_string(), Style::default().fg(app.colorscheme.card_content))
                 }
             })
             .collect();
@@ -1039,18 +1045,18 @@ fn render_edit_overlay(f: &mut Frame, app: &App) {
                            && app.edit_buffer_is_placeholder[i];
 
         let style = if is_selected {
-            // View Edit mode or Insert mode: Yellow (both are editing modes)
-            // Normal mode: Cyan
+            // View Edit mode or Insert mode: active color (both are editing modes)
+            // Normal mode: selected color
             if app.edit_insert_mode || app.view_edit_mode {
-                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+                Style::default().fg(app.colorscheme.overlay_field_active).add_modifier(Modifier::BOLD)
             } else {
-                Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)
+                Style::default().fg(app.colorscheme.overlay_field_selected).add_modifier(Modifier::BOLD)
             }
         } else if is_placeholder {
-            // Show placeholders in dim gray
-            Style::default().fg(Color::DarkGray)
+            // Show placeholders in dim color
+            Style::default().fg(app.colorscheme.overlay_field_placeholder)
         } else {
-            Style::default().fg(app.colorscheme.text)
+            Style::default().fg(app.colorscheme.overlay_field_normal)
         };
 
         // Check if this is context field (index 1 in both INSIDE and OUTSIDE)
@@ -1075,18 +1081,18 @@ fn render_edit_overlay(f: &mut Frame, app: &App) {
             let num_other_fields = app.edit_buffer.len() - 1; // All fields except context
             let other_fields_height = num_other_fields * 2; // Each field + blank line
             let available_height = inner_area.height as usize;
-            let min_window_height = 5;
+            let min_window_height = 1;
             let max_window_height = if available_height > other_fields_height {
                 (available_height - other_fields_height).max(min_window_height)
             } else {
                 min_window_height
             };
 
-            // Determine window height based on mode
+            // Determine window height based on mode and actual content
             let actual_lines = field_lines.len();
             let window_height = if !app.edit_field_editing_mode {
-                // Field selection mode: use max window height (like View mode)
-                max_window_height
+                // Field selection mode: use actual lines clamped between min and max (now flexible)
+                actual_lines.max(min_window_height).min(max_window_height)
             } else {
                 // View Edit mode: use actual lines clamped between min and max
                 actual_lines.max(min_window_height).min(max_window_height)
@@ -1177,7 +1183,7 @@ fn render_edit_overlay(f: &mut Frame, app: &App) {
             let num_other_fields = app.edit_buffer.len() - 1; // All fields except context
             let other_fields_height = num_other_fields * 2; // Each field + blank line
             let available_height = inner_area.height as usize;
-            let min_window_height = 5;
+            let min_window_height = 1;
             let max_wrapped_lines = if available_height > other_fields_height {
                 (available_height - other_fields_height).max(min_window_height)
             } else {
@@ -1271,7 +1277,7 @@ fn render_status_bar(f: &mut Frame, app: &App, area: Rect) {
         let status_text = format!(" {} ", app.status_message);
         spans.push(Span::styled(
             status_text,
-            Style::default().fg(Color::Cyan),
+            Style::default().fg(app.colorscheme.status_bar),
         ));
     }
 
@@ -1315,12 +1321,14 @@ fn render_explorer(f: &mut Frame, app: &App, area: Rect) {
         " . ".to_string()
     };
 
-    // Use same gray color as file window
+    // Use explorer-specific colors
     let block = Block::default()
         .title(title)
+        .title_style(Style::default().fg(app.colorscheme.explorer_title))
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
-        .style(Style::default().fg(app.colorscheme.border).bg(app.colorscheme.background));
+        .border_style(Style::default().fg(app.colorscheme.explorer_border))
+        .style(Style::default().bg(app.colorscheme.background));
 
     let inner_area = block.inner(area);
     f.render_widget(block, area);
@@ -1363,11 +1371,14 @@ fn render_explorer(f: &mut Frame, app: &App, area: Rect) {
         // Combine indent, indicator, and name
         let display_text = format!("{}{}{}", indent, indicator, name);
 
-        // Show directories in cyan, files in colorscheme text color
-        let color = if entry.path.is_dir() {
-            Color::Cyan
+        // Show directories and files with colorscheme colors
+        let color = if is_selected {
+            // Selected file/folder uses bright color
+            app.colorscheme.explorer_file_selected
+        } else if entry.path.is_dir() {
+            app.colorscheme.explorer_folder
         } else {
-            app.colorscheme.text
+            app.colorscheme.explorer_file
         };
 
         let style = if is_selected {
