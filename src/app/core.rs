@@ -1,3 +1,4 @@
+use super::{ColorScheme, RcConfig};
 use super::super::navigation::Navigator;
 use super::super::rendering::{RelfEntry, RelfLineStyle, RelfRenderResult, Renderer};
 use std::{
@@ -114,6 +115,8 @@ pub struct App {
     pub visual_end_index: usize,   // End of visual selection (inclusive)
     // View Edit mode (Overlay mode only) - render \n as newlines
     pub view_edit_mode: bool,
+    // Color scheme
+    pub colorscheme: ColorScheme,
 }
 
 #[derive(Clone)]
@@ -148,6 +151,9 @@ pub struct UndoState {
 
 impl App {
     pub fn new(format_mode: FormatMode) -> Self {
+        // Load RC configuration
+        let rc_config = RcConfig::load();
+
         let app = Self {
             input_mode: InputMode::Normal,
             json_input: String::new(),
@@ -198,7 +204,7 @@ impl App {
             substitute_confirmations: Vec::new(),
             current_substitute_index: 0,
             last_click_time: None,
-            show_line_numbers: false,
+            show_line_numbers: rc_config.show_line_numbers,
             max_visible_cards: 5,
             command_history: Vec::new(),
             search_history: Vec::new(),
@@ -217,6 +223,7 @@ impl App {
             visual_start_index: 0,
             visual_end_index: 0,
             view_edit_mode: false,
+            colorscheme: rc_config.colorscheme,
         };
 
         app

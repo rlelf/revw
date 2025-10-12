@@ -263,6 +263,16 @@ impl App {
                     self.set_status("Invalid card value");
                 }
             }
+        } else if cmd.starts_with("colorscheme ") {
+            // Change color scheme
+            use super::ColorScheme;
+            let scheme_name = cmd.strip_prefix("colorscheme ").unwrap().trim();
+            if let Some(scheme) = ColorScheme::by_name(scheme_name) {
+                self.colorscheme = scheme;
+                self.set_status(&format!("Color scheme changed to {}", scheme_name));
+            } else {
+                self.set_status(&format!("Unknown color scheme: {}", scheme_name));
+            }
         } else {
             self.set_status(&format!("Unknown command: {}", cmd));
         }
