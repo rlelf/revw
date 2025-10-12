@@ -314,6 +314,11 @@ set number        # Enable line numbers (Edit mode)
 set nonumber      # Disable line numbers (default)
 ```
 
+**Max Visible Cards:**
+```vim
+set card=4        # Set max visible cards (1-10, default: 5)
+```
+
 **Color Schemes:**
 ```vim
 colorscheme Default      # Default color scheme
@@ -327,11 +332,9 @@ You can also change the color scheme at runtime using `:colorscheme <name>`.
 ### Example `.revwrc`
 
 ```vim
-# Enable line numbers by default
+# Test configuration for revw
 set number
-
-# Use Nord color scheme
-colorscheme Nord
+set card=5
 ```
 
 ### Available Color Schemes

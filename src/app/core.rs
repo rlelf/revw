@@ -205,7 +205,7 @@ impl App {
             current_substitute_index: 0,
             last_click_time: None,
             show_line_numbers: rc_config.show_line_numbers,
-            max_visible_cards: 5,
+            max_visible_cards: rc_config.max_visible_cards,
             command_history: Vec::new(),
             search_history: Vec::new(),
             command_history_index: None,
