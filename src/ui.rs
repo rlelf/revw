@@ -1060,14 +1060,19 @@ fn render_edit_overlay(f: &mut Frame, app: &App) {
 
         // Split field by \n for rendering (context field typically)
         // For context fields (index 1 in both INSIDE and OUTSIDE), render \n as newlines
-        // EXCEPT when in Field editing mode (Normal/Insert mode)
         let is_context_field = (app.edit_buffer.len() == 3 && i == 1) || // INSIDE context
                                (app.edit_buffer.len() == 5 && i == 1);   // OUTSIDE context
 
-        // Render newlines when:
-        // - In Field selection mode (not editing any field yet)
-        // - OR in View Edit mode (even when editing)
-        let should_render_newlines = !app.edit_field_editing_mode || app.view_edit_mode;
+        // Render newlines for context field:
+        // - Always show \n as newlines (for display)
+        // - EXCEPT when editing THIS specific field in normal/insert mode (not View Edit mode)
+        let should_render_newlines = if is_context_field {
+            // If we're currently editing this context field AND not in View Edit mode, show raw \n
+            !(i == app.edit_field_index && app.edit_field_editing_mode && !app.view_edit_mode)
+        } else {
+            // Non-context fields never render \n as newlines
+            false
+        };
 
         if is_context_field && !is_placeholder && should_render_newlines {
             // Render \n as actual newlines (Field selection mode or View Edit mode)
