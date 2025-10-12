@@ -7,10 +7,11 @@ use ratatui::{
 };
 
 use crate::app::{App, FormatMode, InputMode};
+use crate::config::ColorScheme;
 use crate::rendering::{RelfEntry, RelfLineStyle};
 
 // JSON syntax highlighting
-fn highlight_json_line(line: &str) -> Vec<Span<'static>> {
+fn highlight_json_line(line: &str, colorscheme: &ColorScheme) -> Vec<Span<'static>> {
     let mut spans = Vec::new();
     let mut chars = line.chars().peekable();
     let mut current = String::new();
