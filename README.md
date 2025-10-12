@@ -326,13 +326,13 @@ colorscheme Default      # Default color scheme
 
 You can also change the color scheme at runtime using `:colorscheme <name>`.
 
-**Available themes:** Default, Monokai, Solarized, Nord
+**Available themes:** Default, Morning, Evening, Pablo, Ron, Blue
 
 ### Example `.revwrc`
 
 ```vim
 # Example configuration
-colorscheme default
+colorscheme Default
 set number
 set card=5
 ```

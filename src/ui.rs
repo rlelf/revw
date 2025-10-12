@@ -333,7 +333,7 @@ fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
             if !line_number_prefix.is_empty() {
                 line_number_span = Some(Span::styled(
                     line_number_prefix,
-                    Style::default().fg(Color::DarkGray),
+                    Style::default().fg(app.colorscheme.line_number),
                 ));
             }
             let line_style = if app.format_mode == FormatMode::View {

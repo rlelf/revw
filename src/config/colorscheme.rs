@@ -11,7 +11,8 @@ pub struct ColorScheme {
     pub explorer_title: Color,               // Explorer window title (folder name) color
     pub card_border: Color,                  // Card border color (non-selected)
     pub text: Color,                         // Main text color
-    pub text_dim: Color,                     // Dimmed text color (e.g., line numbers)
+    pub text_dim: Color,                     // Dimmed text color
+    pub line_number: Color,                  // Line number color (Edit mode with set number)
     pub highlight: Color,                    // Highlight color for search results
     pub selected: Color,                     // General selection color
     pub card_selected: Color,                // Border color for selected card
@@ -40,142 +41,218 @@ impl ColorScheme {
             background: Color::Rgb(26, 28, 34),
             border: Color::DarkGray,
             window_border: Color::DarkGray,
-            window_title: Color::Rgb(156, 220, 254),       // Light blue
+            window_title: Color::Rgb(156, 220, 254),
             explorer_border: Color::DarkGray,
             explorer_title: Color::Cyan,
             card_border: Color::DarkGray,
             text: Color::Gray,
             text_dim: Color::DarkGray,
+            line_number: Color::DarkGray,
             highlight: Color::Yellow,
             selected: Color::Cyan,
             card_selected: Color::Yellow,
             card_visual: Color::Cyan,
-            card_title: Color::Rgb(156, 220, 254),       // Light blue
+            card_title: Color::Rgb(156, 220, 254),
             card_content: Color::Gray,
-            overlay_field_active: Color::Yellow,         // Insert/Edit mode
-            overlay_field_selected: Color::Cyan,         // Normal mode selection
+            overlay_field_active: Color::Yellow,
+            overlay_field_selected: Color::Cyan,
             overlay_field_placeholder: Color::DarkGray,
             overlay_field_normal: Color::Gray,
             explorer_folder: Color::Cyan,
-            explorer_file: Color::Rgb(180, 180, 180),  // Lighter gray
-            explorer_file_selected: Color::White,       // White for selection
+            explorer_file: Color::Rgb(180, 180, 180),
+            explorer_file_selected: Color::White,
             status_bar: Color::Cyan,
-            key: Color::Rgb(156, 220, 254),              // Light blue
-            string: Color::Rgb(206, 145, 120),           // Orange/peach
-            number: Color::Rgb(181, 206, 168),           // Light green
-            boolean: Color::Rgb(86, 156, 214),           // Purple/blue
-            bracket: Color::Rgb(255, 217, 102),          // Yellow/gold
+            key: Color::Rgb(156, 220, 254),
+            string: Color::Rgb(206, 145, 120),
+            number: Color::Rgb(181, 206, 168),
+            boolean: Color::Rgb(86, 156, 214),
+            bracket: Color::Rgb(255, 217, 102),
         }
     }
 
-    pub fn monokai() -> Self {
+    pub fn morning() -> Self {
         Self {
-            name: "Monokai",
-            background: Color::Rgb(39, 40, 34),
-            border: Color::Rgb(73, 72, 62),
-            window_border: Color::Rgb(73, 72, 62),
-            window_title: Color::Rgb(102, 217, 239),       // Cyan
-            explorer_border: Color::Rgb(73, 72, 62),
-            explorer_title: Color::Rgb(166, 226, 46),      // Green
-            card_border: Color::Rgb(73, 72, 62),
-            text: Color::Rgb(248, 248, 242),
-            text_dim: Color::Rgb(117, 113, 94),
-            highlight: Color::Rgb(255, 255, 0),
-            selected: Color::Rgb(102, 217, 239),
-            card_selected: Color::Rgb(230, 219, 116),    // Yellow
-            card_visual: Color::Rgb(102, 217, 239),      // Cyan
-            card_title: Color::Rgb(102, 217, 239),       // Cyan
-            card_content: Color::Rgb(248, 248, 242),
-            overlay_field_active: Color::Rgb(230, 219, 116),     // Yellow - Insert/Edit mode
-            overlay_field_selected: Color::Rgb(102, 217, 239),   // Cyan - Normal mode
-            overlay_field_placeholder: Color::Rgb(117, 113, 94), // Dim
-            overlay_field_normal: Color::Rgb(248, 248, 242),
-            explorer_folder: Color::Rgb(102, 217, 239),          // Cyan
-            explorer_file: Color::Rgb(200, 200, 194),            // Dimmer white
-            explorer_file_selected: Color::Rgb(248, 248, 242),   // Bright white for selection
-            status_bar: Color::Rgb(166, 226, 46),                // Green
-            key: Color::Rgb(102, 217, 239),              // Cyan
-            string: Color::Rgb(230, 219, 116),           // Yellow
-            number: Color::Rgb(174, 129, 255),           // Purple
-            boolean: Color::Rgb(174, 129, 255),          // Purple
-            bracket: Color::Rgb(249, 38, 114),           // Pink
+            name: "Morning",
+            background: Color::White,
+            border: Color::Black,
+            window_border: Color::Black,
+            window_title: Color::Blue,
+            explorer_border: Color::Black,
+            explorer_title: Color::DarkGray,
+            card_border: Color::DarkGray,
+            text: Color::Black,
+            text_dim: Color::DarkGray,
+            line_number: Color::DarkGray,
+            highlight: Color::Yellow,
+            selected: Color::Cyan,
+            card_selected: Color::Blue,
+            card_visual: Color::Magenta,
+            card_title: Color::Blue,
+            card_content: Color::Black,
+            overlay_field_active: Color::Red,
+            overlay_field_selected: Color::Blue,
+            overlay_field_placeholder: Color::Gray,
+            overlay_field_normal: Color::Black,
+            explorer_folder: Color::Blue,
+            explorer_file: Color::Black,
+            explorer_file_selected: Color::Red,
+            status_bar: Color::Blue,
+            key: Color::Blue,
+            string: Color::Red,
+            number: Color::Magenta,
+            boolean: Color::DarkGray,
+            bracket: Color::Black,
         }
     }
 
-    pub fn solarized_dark() -> Self {
+    pub fn evening() -> Self {
         Self {
-            name: "Solarized",
-            background: Color::Rgb(0, 43, 54),
-            border: Color::Rgb(7, 54, 66),
-            window_border: Color::Rgb(7, 54, 66),
-            window_title: Color::Rgb(38, 139, 210),        // Blue
-            explorer_border: Color::Rgb(7, 54, 66),
-            explorer_title: Color::Rgb(42, 161, 152),      // Cyan
-            card_border: Color::Rgb(7, 54, 66),
-            text: Color::Rgb(131, 148, 150),
-            text_dim: Color::Rgb(88, 110, 117),
-            highlight: Color::Rgb(181, 137, 0),
-            selected: Color::Rgb(42, 161, 152),
-            card_selected: Color::Rgb(181, 137, 0),      // Yellow
-            card_visual: Color::Rgb(42, 161, 152),       // Cyan
-            card_title: Color::Rgb(38, 139, 210),        // Blue
-            card_content: Color::Rgb(131, 148, 150),
-            overlay_field_active: Color::Rgb(181, 137, 0),       // Yellow - Insert/Edit mode
-            overlay_field_selected: Color::Rgb(42, 161, 152),    // Cyan - Normal mode
-            overlay_field_placeholder: Color::Rgb(88, 110, 117), // Dim
-            overlay_field_normal: Color::Rgb(131, 148, 150),
-            explorer_folder: Color::Rgb(38, 139, 210),           // Blue
-            explorer_file: Color::Rgb(147, 161, 161),            // Base1
-            explorer_file_selected: Color::Rgb(238, 232, 213),   // Base2 for selection
-            status_bar: Color::Rgb(42, 161, 152),                // Cyan
-            key: Color::Rgb(38, 139, 210),               // Blue
-            string: Color::Rgb(42, 161, 152),            // Cyan
-            number: Color::Rgb(211, 54, 130),            // Magenta
-            boolean: Color::Rgb(108, 113, 196),          // Violet
-            bracket: Color::Rgb(203, 75, 22),            // Orange
+            name: "Evening",
+            background: Color::Rgb(50, 50, 70),
+            border: Color::Rgb(120, 120, 140),
+            window_border: Color::Rgb(120, 120, 140),
+            window_title: Color::Rgb(200, 200, 255),
+            explorer_border: Color::Rgb(120, 120, 140),
+            explorer_title: Color::Rgb(150, 200, 255),
+            card_border: Color::Rgb(100, 100, 120),
+            text: Color::Rgb(220, 220, 255),
+            text_dim: Color::Rgb(140, 140, 160),
+            line_number: Color::Rgb(140, 140, 160),
+            highlight: Color::Yellow,
+            selected: Color::Cyan,
+            card_selected: Color::Rgb(255, 200, 100),
+            card_visual: Color::Rgb(150, 200, 255),
+            card_title: Color::Rgb(150, 200, 255),
+            card_content: Color::Rgb(220, 220, 255),
+            overlay_field_active: Color::Rgb(255, 200, 100),
+            overlay_field_selected: Color::Rgb(150, 200, 255),
+            overlay_field_placeholder: Color::Rgb(140, 140, 160),
+            overlay_field_normal: Color::Rgb(220, 220, 255),
+            explorer_folder: Color::Rgb(150, 200, 255),
+            explorer_file: Color::Rgb(200, 200, 220),
+            explorer_file_selected: Color::Rgb(255, 255, 255),
+            status_bar: Color::Rgb(150, 200, 255),
+            key: Color::Rgb(150, 200, 255),
+            string: Color::Rgb(255, 150, 150),
+            number: Color::Rgb(200, 150, 255),
+            boolean: Color::Rgb(200, 200, 150),
+            bracket: Color::Rgb(180, 180, 200),
         }
     }
 
-    pub fn nord() -> Self {
+    pub fn pablo() -> Self {
         Self {
-            name: "Nord",
-            background: Color::Rgb(46, 52, 64),
-            border: Color::Rgb(59, 66, 82),
-            window_border: Color::Rgb(59, 66, 82),
-            window_title: Color::Rgb(136, 192, 208),       // Frost cyan
-            explorer_border: Color::Rgb(59, 66, 82),
-            explorer_title: Color::Rgb(163, 190, 140),     // Green
-            card_border: Color::Rgb(59, 66, 82),
-            text: Color::Rgb(216, 222, 233),
-            text_dim: Color::Rgb(76, 86, 106),
-            highlight: Color::Rgb(235, 203, 139),
-            selected: Color::Rgb(136, 192, 208),
-            card_selected: Color::Rgb(235, 203, 139),    // Yellow
-            card_visual: Color::Rgb(136, 192, 208),      // Frost cyan
-            card_title: Color::Rgb(136, 192, 208),       // Frost cyan
-            card_content: Color::Rgb(216, 222, 233),
-            overlay_field_active: Color::Rgb(235, 203, 139),     // Yellow - Insert/Edit mode
-            overlay_field_selected: Color::Rgb(136, 192, 208),   // Frost cyan - Normal mode
-            overlay_field_placeholder: Color::Rgb(76, 86, 106),  // Dim
-            overlay_field_normal: Color::Rgb(216, 222, 233),
-            explorer_folder: Color::Rgb(136, 192, 208),          // Frost cyan
-            explorer_file: Color::Rgb(229, 233, 240),            // Snow Storm 2
-            explorer_file_selected: Color::Rgb(236, 239, 244),   // Snow Storm 3 for selection
-            status_bar: Color::Rgb(163, 190, 140),               // Green
-            key: Color::Rgb(136, 192, 208),              // Frost cyan
-            string: Color::Rgb(163, 190, 140),           // Green
-            number: Color::Rgb(180, 142, 173),           // Purple
-            boolean: Color::Rgb(129, 161, 193),          // Blue
-            bracket: Color::Rgb(208, 135, 112),          // Orange
+            name: "Pablo",
+            background: Color::Black,
+            border: Color::Rgb(100, 100, 100),
+            window_border: Color::Rgb(100, 100, 100),
+            window_title: Color::Cyan,
+            explorer_border: Color::Rgb(100, 100, 100),
+            explorer_title: Color::Yellow,
+            card_border: Color::Rgb(80, 80, 80),
+            text: Color::White,
+            text_dim: Color::DarkGray,
+            line_number: Color::DarkGray,
+            highlight: Color::Yellow,
+            selected: Color::Cyan,
+            card_selected: Color::Yellow,
+            card_visual: Color::Magenta,
+            card_title: Color::Cyan,
+            card_content: Color::White,
+            overlay_field_active: Color::Yellow,
+            overlay_field_selected: Color::Cyan,
+            overlay_field_placeholder: Color::DarkGray,
+            overlay_field_normal: Color::White,
+            explorer_folder: Color::Cyan,
+            explorer_file: Color::Gray,
+            explorer_file_selected: Color::Yellow,
+            status_bar: Color::Green,
+            key: Color::Cyan,
+            string: Color::Red,
+            number: Color::Magenta,
+            boolean: Color::Yellow,
+            bracket: Color::White,
+        }
+    }
+
+    pub fn ron() -> Self {
+        Self {
+            name: "Ron",
+            background: Color::Rgb(0, 0, 0),
+            border: Color::Rgb(135, 135, 135),
+            window_border: Color::Rgb(135, 135, 135),
+            window_title: Color::Rgb(175, 215, 255),
+            explorer_border: Color::Rgb(135, 135, 135),
+            explorer_title: Color::Rgb(255, 215, 0),
+            card_border: Color::Rgb(95, 95, 95),
+            text: Color::Rgb(215, 215, 215),
+            text_dim: Color::Rgb(135, 135, 135),
+            line_number: Color::Rgb(135, 135, 135),
+            highlight: Color::Rgb(255, 215, 0),
+            selected: Color::Rgb(0, 175, 215),
+            card_selected: Color::Rgb(255, 215, 0),
+            card_visual: Color::Rgb(215, 95, 255),
+            card_title: Color::Rgb(175, 215, 255),
+            card_content: Color::Rgb(215, 215, 215),
+            overlay_field_active: Color::Rgb(255, 215, 0),
+            overlay_field_selected: Color::Rgb(0, 175, 215),
+            overlay_field_placeholder: Color::Rgb(135, 135, 135),
+            overlay_field_normal: Color::Rgb(215, 215, 215),
+            explorer_folder: Color::Rgb(175, 215, 255),
+            explorer_file: Color::Rgb(175, 175, 175),
+            explorer_file_selected: Color::Rgb(255, 255, 255),
+            status_bar: Color::Rgb(95, 215, 135),
+            key: Color::Rgb(175, 215, 255),
+            string: Color::Rgb(255, 135, 135),
+            number: Color::Rgb(215, 135, 255),
+            boolean: Color::Rgb(255, 215, 0),
+            bracket: Color::Rgb(175, 175, 175),
+        }
+    }
+
+    pub fn blue() -> Self {
+        Self {
+            name: "Blue",
+            background: Color::Rgb(0, 0, 95),
+            border: Color::Rgb(95, 135, 175),
+            window_border: Color::Rgb(95, 135, 175),
+            window_title: Color::Rgb(175, 215, 255),
+            explorer_border: Color::Rgb(95, 135, 175),
+            explorer_title: Color::Rgb(255, 255, 135),
+            card_border: Color::Rgb(60, 95, 135),
+            text: Color::Rgb(215, 215, 255),
+            text_dim: Color::Rgb(135, 135, 175),
+            line_number: Color::Rgb(135, 135, 175),
+            highlight: Color::Yellow,
+            selected: Color::Cyan,
+            card_selected: Color::Rgb(255, 255, 135),
+            card_visual: Color::Rgb(255, 95, 215),
+            card_title: Color::Rgb(175, 215, 255),
+            card_content: Color::Rgb(215, 215, 255),
+            overlay_field_active: Color::Rgb(255, 255, 135),
+            overlay_field_selected: Color::Rgb(135, 215, 255),
+            overlay_field_placeholder: Color::Rgb(135, 135, 175),
+            overlay_field_normal: Color::Rgb(215, 215, 255),
+            explorer_folder: Color::Rgb(175, 215, 255),
+            explorer_file: Color::Rgb(175, 175, 215),
+            explorer_file_selected: Color::Rgb(255, 255, 255),
+            status_bar: Color::Rgb(135, 215, 255),
+            key: Color::Rgb(175, 215, 255),
+            string: Color::Rgb(255, 175, 175),
+            number: Color::Rgb(215, 175, 255),
+            boolean: Color::Rgb(135, 255, 175),
+            bracket: Color::Rgb(175, 215, 255),
         }
     }
 
     pub fn by_name(name: &str) -> Option<Self> {
         match name.to_lowercase().as_str() {
             "default" => Some(Self::default()),
-            "monokai" => Some(Self::monokai()),
-            "solarized" | "solarized-dark" => Some(Self::solarized_dark()),
-            "nord" => Some(Self::nord()),
+            "morning" => Some(Self::morning()),
+            "evening" => Some(Self::evening()),
+            "pablo" => Some(Self::pablo()),
+            "ron" => Some(Self::ron()),
+            "blue" => Some(Self::blue()),
             _ => None,
         }
     }
@@ -184,9 +261,11 @@ impl ColorScheme {
     pub fn all_schemes() -> Vec<Self> {
         vec![
             Self::default(),
-            Self::monokai(),
-            Self::solarized_dark(),
-            Self::nord(),
+            Self::morning(),
+            Self::evening(),
+            Self::pablo(),
+            Self::ron(),
+            Self::blue(),
         ]
     }
 }
