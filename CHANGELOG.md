@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.2.3
+
+- Added Visual mode and View Edit mode for enhanced text selection and editing
+- Added RC file (`~/.revwrc`) configuration support
+- Added comprehensive colorscheme customization for all UI elements
+- Added `:set card=N` support in RC configuration
+- Improved overlay context field scrolling and rendering
+- Implemented vertical scrolling for card context with full-height display
+- Fixed context field newline rendering across all edit modes
+- Fixed View Edit mode to be restricted to context field only
+- Fixed remaining hardcoded colors to use configurable colorscheme
+- Updated documentation with colorscheme and configuration details
+
 ## 0.2.2
 
 - Added file explorer with tree view and directory operations
