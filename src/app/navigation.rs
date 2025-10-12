@@ -82,18 +82,43 @@ impl App {
     }
 
     pub fn relf_max_hscroll(&self) -> u16 {
-        let w = self.get_content_width() as usize;
-        let mut max_cols = 0usize;
-        for l in &self.rendered_content {
-            let cols = self.display_width_str(l);
-            if cols > max_cols {
-                max_cols = cols;
+        // In View mode: calculate max vertical scroll for card context
+        // In Edit mode: calculate max horizontal scroll
+        if self.format_mode == FormatMode::View {
+            // View mode: vertical scroll for card context
+            if !self.relf_entries.is_empty() {
+                // Check the selected card's context field
+                if self.selected_entry_index < self.relf_entries.len() {
+                    let entry = &self.relf_entries[self.selected_entry_index];
+                    // Check context field which can be vertically scrolled
+                    if let Some(context) = &entry.context {
+                        let context_with_newlines = context.replace("\\n", "\n");
+                        let total_lines = context_with_newlines.lines().count();
+                        // Estimate visible lines: total height divided by number of visible cards
+                        // Subtract 2 for card borders (top and bottom)
+                        let visible_lines = (self.visible_height as usize / self.max_visible_cards).saturating_sub(2);
+                        return total_lines.saturating_sub(visible_lines) as u16;
+                    }
+                }
             }
-        }
-        if max_cols > w {
-            (max_cols - w) as u16
-        } else {
             0
+        } else {
+            // Edit mode: horizontal scroll
+            let w = self.get_content_width() as usize;
+            let mut max_cols = 0usize;
+
+            for l in &self.rendered_content {
+                let cols = self.display_width_str(l);
+                if cols > max_cols {
+                    max_cols = cols;
+                }
+            }
+
+            if max_cols > w {
+                (max_cols - w) as u16
+            } else {
+                0
+            }
         }
     }
 

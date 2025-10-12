@@ -1051,6 +1051,8 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                     // Move selection up in card view
                                     if app.selected_entry_index > 0 {
                                         app.selected_entry_index -= 1;
+                                        // Reset horizontal scroll when changing cards
+                                        app.hscroll = 0;
                                         // In Visual mode, extend selection
                                         if app.visual_mode {
                                             app.visual_end_index = app.selected_entry_index;
@@ -1070,6 +1072,8 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                     // Move selection down in card view
                                     if app.selected_entry_index + 1 < app.relf_entries.len() {
                                         app.selected_entry_index += 1;
+                                        // Reset horizontal scroll when changing cards
+                                        app.hscroll = 0;
                                         // In Visual mode, extend selection
                                         if app.visual_mode {
                                             app.visual_end_index = app.selected_entry_index;
@@ -1084,8 +1088,8 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                     if app.format_mode == FormatMode::Edit {
                                         app.move_cursor_left();
                                     } else {
-                                        // Faster horizontal pan in Relf
-                                        app.relf_hscroll_by(-8);
+                                        // Vertical scroll up in View mode (card context)
+                                        app.hscroll = app.hscroll.saturating_sub(1);
                                     }
                                 }
                             }
@@ -1094,43 +1098,38 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                     if app.format_mode == FormatMode::Edit {
                                         app.move_cursor_right();
                                     } else {
-                                        app.relf_hscroll_by(8);
+                                        // Vertical scroll down in View mode (card context)
+                                        // Calculate max scroll based on context field length
+                                        if !app.relf_entries.is_empty() && app.selected_entry_index < app.relf_entries.len() {
+                                            let entry = &app.relf_entries[app.selected_entry_index];
+                                            if let Some(context) = &entry.context {
+                                                let context_with_newlines = context.replace("\\n", "\n");
+                                                let lines: Vec<&str> = context_with_newlines.lines().collect();
+                                                // Estimate visible lines: total height divided by number of visible cards
+                                                // Subtract 2 for card borders (top and bottom)
+                                                let visible_lines = (app.visible_height as usize / app.max_visible_cards).saturating_sub(2);
+                                                let max_scroll = lines.len().saturating_sub(visible_lines);
+                                                if (app.hscroll as usize) < max_scroll {
+                                                    app.hscroll += 1;
+                                                }
+                                            }
+                                        }
                                     }
-                                }
-                            }
-                            KeyCode::Char('H') => {
-                                if !app.showing_help && app.format_mode == FormatMode::View {
-                                    let step = (app.get_content_width() / 2) as i16;
-                                    app.relf_hscroll_by(-step);
-                                }
-                            }
-                            KeyCode::Char('L') => {
-                                if !app.showing_help && app.format_mode == FormatMode::View {
-                                    let step = (app.get_content_width() / 2) as i16;
-                                    app.relf_hscroll_by(step);
                                 }
                             }
                             KeyCode::Char('0') => {
-                                if !app.showing_help {
-                                    if app.format_mode == FormatMode::View {
-                                        app.hscroll = 0;
-                                    } else if app.format_mode == FormatMode::Edit {
-                                        app.content_cursor_col = 0;
-                                        app.ensure_cursor_visible();
-                                    }
+                                if !app.showing_help && app.format_mode == FormatMode::Edit {
+                                    app.content_cursor_col = 0;
+                                    app.ensure_cursor_visible();
                                 }
                             }
                             KeyCode::Char('$') => {
-                                if !app.showing_help {
-                                    if app.format_mode == FormatMode::View {
-                                        app.hscroll = app.relf_max_hscroll();
-                                    } else if app.format_mode == FormatMode::Edit {
-                                        let lines = app.get_json_lines();
-                                        if app.content_cursor_line < lines.len() {
-                                            app.content_cursor_col =
-                                                lines[app.content_cursor_line].chars().count();
-                                            app.ensure_cursor_visible();
-                                        }
+                                if !app.showing_help && app.format_mode == FormatMode::Edit {
+                                    let lines = app.get_json_lines();
+                                    if app.content_cursor_line < lines.len() {
+                                        app.content_cursor_col =
+                                            lines[app.content_cursor_line].chars().count();
+                                        app.ensure_cursor_visible();
                                     }
                                 }
                             }
@@ -1506,14 +1505,10 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                 && click_y > 0
                                 && click_y < terminal_height - 1;
 
-                            if on_hscrollbar {
-                                // Horizontal scrollbar clicked
+                            if on_hscrollbar && app.format_mode == FormatMode::Edit {
+                                // Horizontal scrollbar clicked (Edit mode only)
                                 app.dragging_scrollbar = Some(ScrollbarType::Horizontal);
-                                let max_hscroll = if app.format_mode == FormatMode::View {
-                                    app.relf_max_hscroll()
-                                } else {
-                                    app.relf_max_hscroll()
-                                };
+                                let max_hscroll = app.relf_max_hscroll();
 
                                 if max_hscroll > 0 {
                                     let scrollbar_width = (terminal_width - 2) as f32;
@@ -1584,25 +1579,23 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                     }
                                 }
                                 Some(ScrollbarType::Horizontal) => {
-                                    // Continue horizontal scrollbar drag
-                                    let click_x = mouse.column;
-                                    let terminal_width =
-                                        terminal.size().map(|s| s.width).unwrap_or(80);
+                                    // Continue horizontal scrollbar drag (Edit mode only)
+                                    if app.format_mode == FormatMode::Edit {
+                                        let click_x = mouse.column;
+                                        let terminal_width =
+                                            terminal.size().map(|s| s.width).unwrap_or(80);
 
-                                    if click_x > 0 && click_x < terminal_width - 1 {
-                                        let max_hscroll = if app.format_mode == FormatMode::View {
-                                            app.relf_max_hscroll()
-                                        } else {
-                                            app.relf_max_hscroll()
-                                        };
+                                        if click_x > 0 && click_x < terminal_width - 1 {
+                                            let max_hscroll = app.relf_max_hscroll();
 
-                                        if max_hscroll > 0 {
-                                            let scrollbar_width = (terminal_width - 2) as f32;
-                                            let click_ratio =
-                                                (click_x - 1) as f32 / scrollbar_width;
-                                            let new_hscroll =
-                                                (max_hscroll as f32 * click_ratio) as u16;
-                                            app.hscroll = new_hscroll.min(max_hscroll);
+                                            if max_hscroll > 0 {
+                                                let scrollbar_width = (terminal_width - 2) as f32;
+                                                let click_ratio =
+                                                    (click_x - 1) as f32 / scrollbar_width;
+                                                let new_hscroll =
+                                                    (max_hscroll as f32 * click_ratio) as u16;
+                                                app.hscroll = new_hscroll.min(max_hscroll);
+                                            }
                                         }
                                     }
                                 }

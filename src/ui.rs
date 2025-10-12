@@ -664,7 +664,7 @@ fn render_relf_cards(f: &mut Frame, app: &mut App, area: Rect) {
 
     app.content_width = inner_area.width;
     app.visible_height = inner_area.height;
-    app.hscroll = 0;
+    // Don't reset hscroll here - allow scrolling within cards
 
     let num_entries = app.relf_entries.len();
     if num_entries == 0 {
@@ -742,15 +742,15 @@ fn render_relf_cards(f: &mut Frame, app: &mut App, area: Rect) {
         // Check if this is an outside entry (has name field)
         if entry.name.is_some() {
             // Outside entry: corner layout
-            render_outside_card(f, app, entry, chunks[i], inner);
+            render_outside_card(f, app, entry, chunks[i], inner, is_selected);
         } else {
             // Inside entry: simple layout
-            render_inside_card(f, app, entry, chunks[i], inner);
+            render_inside_card(f, app, entry, chunks[i], inner, is_selected);
         }
     }
 }
 
-fn render_outside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: Rect, inner_area: Rect) {
+fn render_outside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: Rect, inner_area: Rect, is_selected: bool) {
     // Render labels on the border (outside the inner area)
     let name = entry.name.as_deref().unwrap_or("");
     let url = entry.url.as_deref().unwrap_or("");
@@ -811,8 +811,14 @@ fn render_outside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: R
     if !context.is_empty() {
         // Split context by \n for rendering - handle both literal \n and actual newlines
         let context_with_newlines = context.replace("\\n", "\n");
+        let vscroll = if is_selected { app.hscroll as usize } else { 0 };
+        // Use full height of inner area
+        let visible_lines = inner_area.height as usize;
+
         let context_lines: Vec<Line> = context_with_newlines
             .lines()
+            .skip(vscroll)
+            .take(visible_lines)
             .map(|line| {
                 if !app.search_query.is_empty() {
                     highlight_search_in_line(
@@ -833,7 +839,7 @@ fn render_outside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: R
     }
 }
 
-fn render_inside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: Rect, inner_area: Rect) {
+fn render_inside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: Rect, inner_area: Rect, is_selected: bool) {
     // Date on the border (top-left)
     if let Some(date) = &entry.date {
         let date_text = format!(" {} ", date);
@@ -858,8 +864,14 @@ fn render_inside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: Re
     if let Some(context) = &entry.context {
         // Split context by \n for rendering - handle both literal \n and actual newlines
         let context_with_newlines = context.replace("\\n", "\n");
+        let vscroll = if is_selected { app.hscroll as usize } else { 0 };
+        // Use full height of inner area
+        let visible_lines = inner_area.height as usize;
+
         let context_lines: Vec<Line> = context_with_newlines
             .lines()
+            .skip(vscroll)
+            .take(visible_lines)
             .map(|line| {
                 if !app.search_query.is_empty() {
                     highlight_search_in_line(
@@ -878,7 +890,7 @@ fn render_inside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: Re
     }
 }
 
-fn highlight_search_in_line<'a>(line: &'a str, query: &str, base_style: Style) -> Line<'a> {
+fn highlight_search_in_line(line: &str, query: &str, base_style: Style) -> Line<'static> {
     let query_lower = query.to_lowercase();
     let line_lower = line.to_lowercase();
     let mut spans = Vec::new();
@@ -1069,11 +1081,16 @@ fn render_edit_overlay(f: &mut Frame, app: &App) {
                 min_window_height
             };
 
-            // Use actual content lines or max window height, whichever is smaller
+            // Determine window height based on mode
             let actual_lines = field_lines.len();
-            let window_height = if actual_lines < min_window_height {
+            let window_height = if !app.edit_field_editing_mode {
+                // Field selection mode: use max window height (like View mode)
+                max_window_height
+            } else if actual_lines < min_window_height {
+                // View Edit mode: use actual lines if fewer than minimum
                 actual_lines.max(1) // At least 1 line for empty content
             } else {
+                // View Edit mode: use smaller of actual lines or max window height
                 actual_lines.min(max_window_height)
             };
 
