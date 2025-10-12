@@ -23,7 +23,7 @@ fn highlight_json_line(line: &str, colorscheme: &ColorScheme) -> Vec<Span<'stati
                 if !current.is_empty() {
                     spans.push(Span::styled(
                         current.clone(),
-                        Style::default().fg(Color::Gray),
+                        Style::default().fg(colorscheme.text),
                     ));
                     current.clear();
                 }
@@ -56,9 +56,9 @@ fn highlight_json_line(line: &str, colorscheme: &ColorScheme) -> Vec<Span<'stati
                 }
 
                 let color = if is_key {
-                    Color::Rgb(156, 220, 254) // Keys in light blue (VS Code style)
+                    colorscheme.key // Keys in light blue
                 } else {
-                    Color::Rgb(206, 145, 120) // String values in orange/peach (VS Code style)
+                    colorscheme.string // String values in orange/peach
                 };
 
                 spans.push(Span::styled(
@@ -70,20 +70,20 @@ fn highlight_json_line(line: &str, colorscheme: &ColorScheme) -> Vec<Span<'stati
                 if !current.is_empty() {
                     spans.push(Span::styled(
                         current.clone(),
-                        Style::default().fg(Color::Gray),
+                        Style::default().fg(colorscheme.text),
                     ));
                     current.clear();
                 }
                 spans.push(Span::styled(
                     ch.to_string(),
-                    Style::default().fg(Color::Rgb(255, 217, 102)), // Yellow/gold (VS Code style)
+                    Style::default().fg(colorscheme.bracket), // Yellow/gold
                 ));
             }
             ':' | ',' => {
                 if !current.is_empty() {
                     spans.push(Span::styled(
                         current.clone(),
-                        Style::default().fg(Color::Gray),
+                        Style::default().fg(colorscheme.text),
                     ));
                     current.clear();
                 }
@@ -102,7 +102,7 @@ fn highlight_json_line(line: &str, colorscheme: &ColorScheme) -> Vec<Span<'stati
                     if !current.is_empty() {
                         spans.push(Span::styled(
                             current.clone(),
-                            Style::default().fg(Color::Gray),
+                            Style::default().fg(colorscheme.text),
                         ));
                         current.clear();
                     }
@@ -120,7 +120,7 @@ fn highlight_json_line(line: &str, colorscheme: &ColorScheme) -> Vec<Span<'stati
 
                     spans.push(Span::styled(
                         keyword.to_string(),
-                        Style::default().fg(Color::Rgb(86, 156, 214)), // Purple/blue (VS Code style)
+                        Style::default().fg(colorscheme.boolean), // Purple/blue
                     ));
                 } else {
                     current.push(ch);
@@ -140,14 +140,14 @@ fn highlight_json_line(line: &str, colorscheme: &ColorScheme) -> Vec<Span<'stati
                 if !current.is_empty() {
                     spans.push(Span::styled(
                         current.clone(),
-                        Style::default().fg(Color::Gray),
+                        Style::default().fg(colorscheme.text),
                     ));
                     current.clear();
                 }
 
                 spans.push(Span::styled(
                     num,
-                    Style::default().fg(Color::Rgb(181, 206, 168)), // Light green (VS Code style)
+                    Style::default().fg(colorscheme.number), // Light green
                 ));
             }
             _ => {
@@ -159,14 +159,14 @@ fn highlight_json_line(line: &str, colorscheme: &ColorScheme) -> Vec<Span<'stati
     if !current.is_empty() {
         spans.push(Span::styled(
             current,
-            Style::default().fg(Color::Gray),
+            Style::default().fg(colorscheme.text),
         ));
     }
 
     if spans.is_empty() {
         spans.push(Span::styled(
             String::new(),
-            Style::default().fg(Color::Gray),
+            Style::default().fg(colorscheme.text),
         ));
     }
 
@@ -346,7 +346,7 @@ fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
 
             if !app.search_query.is_empty() && app.format_mode == FormatMode::Edit {
                 // In Edit mode with search: apply JSON highlighting to full line first
-                let json_spans = highlight_json_line(s);
+                let json_spans = highlight_json_line(s, &app.colorscheme);
 
                 // Merge JSON highlighting with search match backgrounds on full line
                 let query_lower = app.search_query.to_lowercase();
@@ -467,7 +467,7 @@ fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
                 // No search highlighting
                 if app.format_mode == FormatMode::Edit {
                     // Apply JSON syntax highlighting to full line, then slice
-                    let full_line_spans = highlight_json_line(s);
+                    let full_line_spans = highlight_json_line(s, &app.colorscheme);
                     content_spans = slice_spans_by_width(app, full_line_spans, off_cols, adjusted_w_cols);
                 } else {
                     // In View mode, use plain text with line style
@@ -591,7 +591,7 @@ fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
             .title(title)
             .borders(Borders::ALL)
             .border_type(BorderType::Rounded)
-            .style(Style::default().fg(Color::DarkGray).bg(Color::Rgb(26, 28, 34))),
+            .style(Style::default().fg(app.colorscheme.border).bg(app.colorscheme.background)),
     );
 
     f.render_widget(content, area);
@@ -602,7 +602,7 @@ fn render_help_content(f: &mut Frame, app: &mut App, area: Rect) {
     let block = Block::default()
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
-        .style(Style::default().fg(Color::DarkGray).bg(Color::Rgb(26, 28, 34)));
+        .style(Style::default().fg(app.colorscheme.border).bg(app.colorscheme.background));
 
     let inner_area = block.inner(area);
 
@@ -637,7 +637,7 @@ fn render_help_content(f: &mut Frame, app: &mut App, area: Rect) {
     let content = Paragraph::new(visible_lines)
         .block(block)
         .wrap(Wrap { trim: false })
-        .style(Style::default().fg(Color::White).bg(Color::Rgb(26, 28, 34)));
+        .style(Style::default().fg(Color::White).bg(app.colorscheme.background));
 
     f.render_widget(content, area);
 }
@@ -658,7 +658,7 @@ fn render_relf_cards(f: &mut Frame, app: &mut App, area: Rect) {
         .title(title)
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
-        .style(Style::default().fg(Color::DarkGray).bg(Color::Rgb(26, 28, 34)));
+        .style(Style::default().fg(app.colorscheme.border).bg(app.colorscheme.background));
 
     let inner_area = outer_block.inner(area);
     f.render_widget(outer_block, area);
@@ -763,10 +763,10 @@ fn render_outside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: R
             highlight_search_in_line(
                 &name_text,
                 &app.search_query,
-                Style::default().fg(Color::Rgb(156, 220, 254)),
+                Style::default().fg(app.colorscheme.key),
             )
         } else {
-            Line::styled(name_text, Style::default().fg(Color::Rgb(156, 220, 254)))
+            Line::styled(name_text, Style::default().fg(app.colorscheme.key))
         };
         let name_area = Rect { x: card_area.x + 2, y: card_area.y, width: card_area.width.saturating_sub(4), height: 1 };
         let name_para = Paragraph::new(name_span).alignment(Alignment::Left);
@@ -780,10 +780,10 @@ fn render_outside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: R
             highlight_search_in_line(
                 &url_text,
                 &app.search_query,
-                Style::default().fg(Color::Rgb(156, 220, 254)),
+                Style::default().fg(app.colorscheme.key),
             )
         } else {
-            Line::styled(url_text, Style::default().fg(Color::Rgb(156, 220, 254)))
+            Line::styled(url_text, Style::default().fg(app.colorscheme.key))
         };
         let url_area = Rect { x: card_area.x + 2, y: card_area.y, width: card_area.width.saturating_sub(4), height: 1 };
         let url_para = Paragraph::new(url_span).alignment(Alignment::Right);
@@ -795,7 +795,7 @@ fn render_outside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: R
         let percentage_text = format!(" {}% ", percentage);
         let percentage_span = Line::styled(
             percentage_text,
-            Style::default().fg(Color::Rgb(156, 220, 254)),
+            Style::default().fg(app.colorscheme.key),
         );
         let percentage_area = Rect {
             x: card_area.x + 2,
@@ -825,10 +825,10 @@ fn render_outside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: R
                     highlight_search_in_line(
                         line,
                         &app.search_query,
-                        Style::default().fg(Color::Gray),
+                        Style::default().fg(app.colorscheme.text),
                     )
                 } else {
-                    Line::styled(line.to_string(), Style::default().fg(Color::Gray))
+                    Line::styled(line.to_string(), Style::default().fg(app.colorscheme.text))
                 }
             })
             .collect();
@@ -848,12 +848,12 @@ fn render_inside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: Re
             highlight_search_in_line(
                 &date_text,
                 &app.search_query,
-                Style::default().fg(Color::Rgb(156, 220, 254)),
+                Style::default().fg(app.colorscheme.key),
             )
         } else {
             Line::styled(
                 date_text,
-                Style::default().fg(Color::Rgb(156, 220, 254)),
+                Style::default().fg(app.colorscheme.key),
             )
         };
         let date_area = Rect { x: card_area.x + 2, y: card_area.y, width: card_area.width.saturating_sub(4), height: 1 };
@@ -878,10 +878,10 @@ fn render_inside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: Re
                     highlight_search_in_line(
                         line,
                         &app.search_query,
-                        Style::default().fg(Color::Gray),
+                        Style::default().fg(app.colorscheme.text),
                     )
                 } else {
-                    Line::styled(line.to_string(), Style::default().fg(Color::Gray))
+                    Line::styled(line.to_string(), Style::default().fg(app.colorscheme.text))
                 }
             })
             .collect();
@@ -1004,7 +1004,7 @@ fn render_edit_overlay(f: &mut Frame, app: &App) {
         .map(|_| Line::from(" ".repeat(clear_area.width as usize)))
         .collect();
     let blank_paragraph = Paragraph::new(blank_lines)
-        .style(Style::default().bg(Color::Rgb(30, 30, 35)));
+        .style(Style::default().bg(app.colorscheme.background));
     f.render_widget(blank_paragraph, clear_area);
 
     // Determine if editing INSIDE or OUTSIDE entry
@@ -1021,7 +1021,7 @@ fn render_edit_overlay(f: &mut Frame, app: &App) {
         .title(title)
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
-        .style(Style::default().bg(Color::Rgb(30, 30, 35)).fg(Color::White));
+        .style(Style::default().bg(app.colorscheme.background).fg(Color::White));
 
     f.render_widget(block.clone(), popup_area);
 
@@ -1320,7 +1320,7 @@ fn render_explorer(f: &mut Frame, app: &App, area: Rect) {
         .title(title)
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
-        .style(Style::default().fg(Color::DarkGray).bg(Color::Rgb(26, 28, 34)));
+        .style(Style::default().fg(app.colorscheme.border).bg(app.colorscheme.background));
 
     let inner_area = block.inner(area);
     f.render_widget(block, area);

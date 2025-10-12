@@ -95,6 +95,7 @@ impl ColorScheme {
         }
     }
 
+    #[allow(dead_code)]
     pub fn all_schemes() -> Vec<Self> {
         vec![
             Self::default(),
