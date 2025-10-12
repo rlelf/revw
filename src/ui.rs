@@ -429,7 +429,7 @@ fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
                     if actual_pos > last_pos {
                         content_spans.push(Span::styled(
                             slice[last_pos..actual_pos].to_string(),
-                            apply_relf_style(Style::default().fg(Color::Gray), line_style),
+                            apply_relf_style(Style::default().fg(app.colorscheme.text), line_style),
                         ));
                     }
 
@@ -460,7 +460,7 @@ fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
                 if last_pos < slice.len() {
                     content_spans.push(Span::styled(
                         slice[last_pos..].to_string(),
-                        apply_relf_style(Style::default().fg(Color::Gray), line_style),
+                        apply_relf_style(Style::default().fg(app.colorscheme.text), line_style),
                     ));
                 }
             } else {
@@ -473,7 +473,7 @@ fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
                     // In View mode, use plain text with line style
                     content_spans.push(Span::styled(
                         slice.clone(),
-                        apply_relf_style(Style::default().fg(Color::Gray), line_style),
+                        apply_relf_style(Style::default().fg(app.colorscheme.text), line_style),
                     ));
                 }
             }
@@ -1050,7 +1050,7 @@ fn render_edit_overlay(f: &mut Frame, app: &App) {
             // Show placeholders in dim gray
             Style::default().fg(Color::DarkGray)
         } else {
-            Style::default().fg(Color::Gray)
+            Style::default().fg(app.colorscheme.text)
         };
 
         // Check if this is context field (index 1 in both INSIDE and OUTSIDE)
@@ -1363,11 +1363,11 @@ fn render_explorer(f: &mut Frame, app: &App, area: Rect) {
         // Combine indent, indicator, and name
         let display_text = format!("{}{}{}", indent, indicator, name);
 
-        // Show directories in cyan, files in gray
+        // Show directories in cyan, files in colorscheme text color
         let color = if entry.path.is_dir() {
             Color::Cyan
         } else {
-            Color::Gray
+            app.colorscheme.text
         };
 
         let style = if is_selected {
