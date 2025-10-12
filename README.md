@@ -329,6 +329,8 @@ colorscheme Nord         # Nord theme
 
 You can also change the color scheme at runtime using `:colorscheme <name>`.
 
+**Available themes:** Default, Monokai, Solarized, Nord
+
 ### Example `.revwrc`
 
 ```vim
@@ -336,17 +338,6 @@ You can also change the color scheme at runtime using `:colorscheme <name>`.
 set number
 set card=5
 ```
-
-### Available Color Schemes
-
-| Scheme | Background | Border | Text | Highlight | Key | String | Number | Boolean | Bracket |
-|--------|------------|--------|------|-----------|-----|--------|--------|---------|---------|
-| **Default** | rgb(26,28,34) | DarkGray | Gray | Yellow | rgb(156,220,254) | rgb(206,145,120) | rgb(181,206,168) | rgb(86,156,214) | rgb(255,217,102) |
-| **Monokai** | rgb(39,40,34) | rgb(73,72,62) | rgb(248,248,242) | rgb(255,255,0) | rgb(102,217,239) | rgb(230,219,116) | rgb(174,129,255) | rgb(174,129,255) | rgb(249,38,114) |
-| **Solarized** | rgb(0,43,54) | rgb(7,54,66) | rgb(131,148,150) | rgb(181,137,0) | rgb(38,139,210) | rgb(42,161,152) | rgb(211,54,130) | rgb(108,113,196) | rgb(203,75,22) |
-| **Nord** | rgb(46,52,64) | rgb(59,66,82) | rgb(216,222,233) | rgb(235,203,139) | rgb(136,192,208) | rgb(163,190,140) | rgb(180,142,173) | rgb(129,161,193) | rgb(208,135,112) |
-
-**Note:** Color schemes are currently defined but not yet applied to the UI. This feature is work in progress.
 
 ## Changelog
 
