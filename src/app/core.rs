@@ -522,6 +522,18 @@ impl App {
     pub fn show_help(&mut self) {
         // Create help text based on README.md
         self.rendered_content = vec![
+            "".to_string(),
+            "  ██████╗ ███████╗██╗   ██╗██╗    ██╗".to_string(),
+            "  ██╔══██╗██╔════╝██║   ██║██║    ██║".to_string(),
+            "  ██████╔╝█████╗  ██║   ██║██║ █╗ ██║".to_string(),
+            "  ██╔══██╗██╔══╝  ╚██╗ ██╔╝██║███╗██║".to_string(),
+            "  ██║  ██║███████╗ ╚████╔╝ ╚███╔███╔╝".to_string(),
+            "  ╚═╝  ╚═╝╚══════╝  ╚═══╝   ╚══╝╚══╝ ".to_string(),
+            "".to_string(),
+            "  A vim-like TUI for managing notes and resources".to_string(),
+            "".to_string(),
+            "═══════════════════════════════════════════════════════════════".to_string(),
+            "".to_string(),
             "VIEW MODE CONTROLS".to_string(),
             "".to_string(),
             "Navigation:".to_string(),
