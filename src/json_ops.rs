@@ -355,4 +355,120 @@ impl JsonOperations {
 
         Ok((formatted, message.to_string()))
     }
+
+    pub fn order_by_percentage(json_input: &str) -> Result<(String, String), String> {
+        let mut json_value: Value =
+            serde_json::from_str(json_input).map_err(|e| format!("Invalid JSON: {}", e))?;
+
+        let mut messages = Vec::new();
+
+        if let Some(obj) = json_value.as_object_mut() {
+            // Order outside entries by percentage only (highest first)
+            if let Some(outside_array) = obj.get_mut("outside").and_then(|v| v.as_array_mut()) {
+                outside_array.sort_by(|a, b| {
+                    let a_percent = a
+                        .as_object()
+                        .and_then(|o| o.get("percentage"))
+                        .and_then(|v| v.as_i64())
+                        .unwrap_or(0);
+                    let b_percent = b
+                        .as_object()
+                        .and_then(|o| o.get("percentage"))
+                        .and_then(|v| v.as_i64())
+                        .unwrap_or(0);
+
+                    // Order by percentage descending (highest first)
+                    b_percent.cmp(&a_percent)
+                });
+                messages.push("Ordered outside entries by percentage");
+            }
+
+            // Order inside entries by date (newest first)
+            if let Some(inside_array) = obj.get_mut("inside").and_then(|v| v.as_array_mut()) {
+                inside_array.sort_by(|a, b| {
+                    let a_date = a
+                        .as_object()
+                        .and_then(|o| o.get("date"))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("");
+                    let b_date = b
+                        .as_object()
+                        .and_then(|o| o.get("date"))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("");
+                    b_date.cmp(&a_date) // Descending order (newest first)
+                });
+                messages.push("Ordered inside entries by date");
+            }
+        }
+
+        let formatted = serde_json::to_string_pretty(&json_value)
+            .map_err(|e| format!("Failed to format JSON: {}", e))?;
+
+        let message = if messages.is_empty() {
+            "No entries"
+        } else {
+            "Ordered by percentage"
+        };
+
+        Ok((formatted, message.to_string()))
+    }
+
+    pub fn order_by_name(json_input: &str) -> Result<(String, String), String> {
+        let mut json_value: Value =
+            serde_json::from_str(json_input).map_err(|e| format!("Invalid JSON: {}", e))?;
+
+        let mut messages = Vec::new();
+
+        if let Some(obj) = json_value.as_object_mut() {
+            // Order outside entries by name only (ascending)
+            if let Some(outside_array) = obj.get_mut("outside").and_then(|v| v.as_array_mut()) {
+                outside_array.sort_by(|a, b| {
+                    let a_name = a
+                        .as_object()
+                        .and_then(|o| o.get("name"))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("");
+                    let b_name = b
+                        .as_object()
+                        .and_then(|o| o.get("name"))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("");
+
+                    // Order by name ascending
+                    a_name.cmp(&b_name)
+                });
+                messages.push("Ordered outside entries by name");
+            }
+
+            // Order inside entries by date (newest first)
+            if let Some(inside_array) = obj.get_mut("inside").and_then(|v| v.as_array_mut()) {
+                inside_array.sort_by(|a, b| {
+                    let a_date = a
+                        .as_object()
+                        .and_then(|o| o.get("date"))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("");
+                    let b_date = b
+                        .as_object()
+                        .and_then(|o| o.get("date"))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("");
+                    b_date.cmp(&a_date) // Descending order (newest first)
+                });
+                messages.push("Ordered inside entries by date");
+            }
+        }
+
+        let formatted = serde_json::to_string_pretty(&json_value)
+            .map_err(|e| format!("Failed to format JSON: {}", e))?;
+
+        let message = if messages.is_empty() {
+            "No entries"
+        } else {
+            "Ordered by name"
+        };
+
+        Ok((formatted, message.to_string()))
+    }
 }

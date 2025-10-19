@@ -148,6 +148,12 @@ impl App {
         } else if cmd == "o" {
             // Order entries
             self.order_entries();
+        } else if cmd == "op" {
+            // Order by percentage only
+            self.order_by_percentage();
+        } else if cmd == "on" {
+            // Order by name only
+            self.order_by_name();
         } else if cmd == "gi" {
             // Jump to first INSIDE entry
             self.jump_to_first_inside();

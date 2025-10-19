@@ -134,7 +134,9 @@ revw --stdout --outside file.json
 - `:ao` add new OUTSIDE entry (jumps to it)
 - `:dd` delete selected entry (entire object)
 - `:yy` duplicate selected entry (entire object)
-- `:o` order entries and auto-save
+- `:o` order entries (by percentage then name) and auto-save
+- `:op` order by percentage only and auto-save
+- `:on` order by name only and auto-save
 - `:f pattern` filter entries by pattern
 
 **Visual Mode (multi-card selection):**
@@ -264,7 +266,9 @@ revw --stdout --outside file.json
 **Commands:**
 - `:ai` add INSIDE entry
 - `:ao` add OUTSIDE entry
-- `:o` order entries
+- `:o` order entries (by percentage then name)
+- `:op` order by percentage only
+- `:on` order by name only
 - `:dd` delete current entry (entire object)
 - `:yy` duplicate current entry (entire object)
 - `:c` copy all content

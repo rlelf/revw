@@ -596,6 +596,42 @@ impl App {
         }
     }
 
+    pub fn order_by_percentage(&mut self) {
+        match JsonOperations::order_by_percentage(&self.json_input) {
+            Ok((formatted, message)) => {
+                self.json_input = formatted;
+                self.is_modified = true;
+                self.convert_json();
+
+                // Auto-save in view mode
+                if self.format_mode == FormatMode::View {
+                    self.save_file();
+                }
+
+                self.set_status(&message);
+            }
+            Err(e) => self.set_status(&format!("Error: {}", e)),
+        }
+    }
+
+    pub fn order_by_name(&mut self) {
+        match JsonOperations::order_by_name(&self.json_input) {
+            Ok((formatted, message)) => {
+                self.json_input = formatted;
+                self.is_modified = true;
+                self.convert_json();
+
+                // Auto-save in view mode
+                if self.format_mode == FormatMode::View {
+                    self.save_file();
+                }
+
+                self.set_status(&message);
+            }
+            Err(e) => self.set_status(&format!("Error: {}", e)),
+        }
+    }
+
     pub fn ensure_overlay_cursor_visible(&mut self) {
         // Ensure horizontal and vertical scroll follows cursor in overlay field editing
         if !self.edit_field_editing_mode {
