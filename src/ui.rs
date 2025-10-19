@@ -6,6 +6,8 @@ use ratatui::{
     Frame,
 };
 
+use unicode_width::UnicodeWidthStr;
+
 use crate::app::{App, FormatMode, InputMode};
 use crate::config::ColorScheme;
 use crate::rendering::{RelfEntry, RelfLineStyle};
@@ -1075,28 +1077,25 @@ fn render_edit_overlay(f: &mut Frame, app: &App) {
             let text_with_newlines = field.replace("\\n", "\n");
             let field_lines: Vec<&str> = text_with_newlines.lines().collect();
 
-            // Dynamic window size for context field
-            // Calculate available space: inner_area height minus other fields
-            // Each non-context field takes 1 line + 1 blank line = 2 lines each
-            let num_other_fields = app.edit_buffer.len() - 1; // All fields except context
-            let other_fields_height = num_other_fields * 2; // Each field + blank line
-            let available_height = inner_area.height as usize;
+            // Context field window size: flexible up to maximum
             let min_window_height = 1;
-            let max_window_height = if available_height > other_fields_height {
-                (available_height - other_fields_height).max(min_window_height)
-            } else {
-                min_window_height
-            };
+            let max_window_height = 7; // Fixed maximum to prevent exit/percentage from moving
 
-            // Determine window height based on mode and actual content
-            let actual_lines = field_lines.len();
-            let window_height = if !app.edit_field_editing_mode {
-                // Field selection mode: use actual lines clamped between min and max (now flexible)
-                actual_lines.max(min_window_height).min(max_window_height)
-            } else {
-                // View Edit mode: use actual lines clamped between min and max
-                actual_lines.max(min_window_height).min(max_window_height)
-            };
+            // Calculate actual display lines considering text wrapping with proper Unicode width
+            let actual_display_lines: usize = field_lines.iter()
+                .map(|line| {
+                    let display_width = line.width(); // Accurate Unicode display width
+                    if display_width == 0 {
+                        1 // Empty lines still take 1 line
+                    } else {
+                        // Calculate how many lines this will take when wrapped
+                        ((display_width + window_width - 1) / window_width).max(1)
+                    }
+                })
+                .sum();
+
+            // Determine window height based on actual display lines (with wrapping)
+            let window_height = actual_display_lines.max(min_window_height).min(max_window_height);
 
             let vscroll = app.edit_vscroll as usize;
 
