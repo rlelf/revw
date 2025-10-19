@@ -807,8 +807,15 @@ impl App {
         self.completion_candidates.clear();
 
         // Handle colorscheme completion
-        if cmd.starts_with("colorscheme ") {
-            let partial = cmd.strip_prefix("colorscheme ").unwrap_or("");
+        if cmd.starts_with("colorscheme") {
+            let partial = if cmd == "colorscheme" {
+                ""
+            } else if cmd.starts_with("colorscheme ") {
+                cmd.strip_prefix("colorscheme ").unwrap_or("")
+            } else {
+                ""
+            };
+
             let schemes = ColorScheme::all_scheme_names();
             let mut matches: Vec<String> = schemes.iter()
                 .filter(|s| {
