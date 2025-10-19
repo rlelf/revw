@@ -268,4 +268,15 @@ impl ColorScheme {
             Self::blue(),
         ]
     }
+
+    pub fn all_scheme_names() -> Vec<&'static str> {
+        vec![
+            "Default",
+            "Morning",
+            "Evening",
+            "Pablo",
+            "Ron",
+            "Blue",
+        ]
+    }
 }

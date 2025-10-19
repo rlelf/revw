@@ -1279,6 +1279,10 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                 app.command_history_index = None;
                                 app.set_status("");
                             }
+                            KeyCode::Tab => {
+                                // Tab completion for commands
+                                app.complete_command();
+                            }
                             KeyCode::Enter => {
                                 // Add to history before executing
                                 app.add_to_command_history(app.command_buffer.clone());

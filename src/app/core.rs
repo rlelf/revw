@@ -782,4 +782,107 @@ impl App {
             self.set_status("Filter cleared");
         }
     }
+
+    // Command completion with Tab key
+    pub fn complete_command(&mut self) {
+        let cmd = self.command_buffer.trim().to_string();
+
+        // Handle colorscheme completion
+        if cmd.starts_with("colorscheme ") {
+            let partial = cmd.strip_prefix("colorscheme ").unwrap_or("").to_string();
+            let schemes = ColorScheme::all_scheme_names();
+            let matches: Vec<&&str> = schemes.iter()
+                .filter(|s| s.to_lowercase().starts_with(&partial.to_lowercase()))
+                .collect();
+
+            if matches.len() == 1 {
+                self.command_buffer = format!("colorscheme {}", matches[0]);
+                self.set_status(&format!(":{}", self.command_buffer));
+            } else if !matches.is_empty() {
+                let suggestion = matches.iter().map(|s| s.to_string()).collect::<Vec<_>>().join(", ");
+                self.set_status(&format!(":{} ({})", self.command_buffer, suggestion));
+            }
+        }
+        // Handle :e file completion
+        else if cmd.starts_with("e ") {
+            let partial = cmd.strip_prefix("e ").unwrap_or("").to_string();
+            self.complete_file_path(&partial);
+        }
+        // Handle command name completion
+        else {
+            let commands = vec![
+                "w", "wq", "q", "e", "ai", "ao", "o", "op", "on", "dd", "yy",
+                "c", "ci", "co", "cu", "v", "vu", "vi", "vo", "va", "vai", "vao",
+                "xi", "xo", "gi", "go", "noh", "nof", "f", "cc", "ccj", "dc",
+                "set", "colorscheme", "ar", "h", "a", "d", "m",
+                "Lexplore", "Lex", "lx",
+            ];
+
+            let matches: Vec<&&str> = commands.iter()
+                .filter(|c| c.starts_with(cmd.as_str()))
+                .collect();
+
+            if matches.len() == 1 {
+                self.command_buffer = matches[0].to_string();
+                self.set_status(&format!(":{}", self.command_buffer));
+            } else if !matches.is_empty() {
+                let suggestion = matches.iter().map(|s| s.to_string()).collect::<Vec<_>>().join(", ");
+                self.set_status(&format!(":{} ({})", self.command_buffer, suggestion));
+            }
+        }
+    }
+
+    fn complete_file_path(&mut self, partial: &str) {
+        use std::fs;
+
+        // Determine the directory and filename part
+        let path_buf = if partial.is_empty() {
+            std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+        } else {
+            PathBuf::from(partial)
+        };
+
+        let (dir, file_prefix) = if partial.ends_with('/') || partial.ends_with('\\') || partial.is_empty() {
+            (path_buf.clone(), String::new())
+        } else if path_buf.is_dir() {
+            (path_buf.clone(), String::new())
+        } else {
+            let dir = path_buf.parent().unwrap_or(std::path::Path::new(".")).to_path_buf();
+            let file_prefix = path_buf.file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("")
+                .to_string();
+            (dir, file_prefix)
+        };
+
+        // Read directory and find matching files
+        if let Ok(entries) = fs::read_dir(&dir) {
+            let mut matches: Vec<String> = entries
+                .filter_map(|e| e.ok())
+                .filter_map(|e| {
+                    let name = e.file_name().to_string_lossy().to_string();
+                    if name.to_lowercase().starts_with(&file_prefix.to_lowercase()) {
+                        Some(name)
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+
+            matches.sort();
+
+            if matches.len() == 1 {
+                let completed = if dir == PathBuf::from(".") {
+                    matches[0].clone()
+                } else {
+                    dir.join(&matches[0]).to_string_lossy().to_string()
+                };
+                self.command_buffer = format!("e {}", completed);
+                self.set_status(&format!(":{}", self.command_buffer));
+            } else if !matches.is_empty() {
+                let suggestion = matches.join(", ");
+                self.set_status(&format!(":e {} ({})", partial, suggestion));
+            }
+        }
+    }
 }
