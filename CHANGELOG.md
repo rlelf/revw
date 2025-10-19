@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.4
+
+- Added Tab completion for commands
+- Fixed `:e <tab>` to complete file paths
+- Changed Tab completion to cycle through candidates
+- Added `:op` and `:on` ordering commands with tests and documentation
+
 ## 0.2.3
 
 - Added Visual mode and View Edit mode for enhanced text selection and editing
