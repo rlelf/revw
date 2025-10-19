@@ -3,8 +3,8 @@ Output revw.gif
 Set Width 1200
 Set Height 600
 Set Theme "Aardvark Blue"
-Set FontSize 14
-Set Padding 20
+Set FontSize 16
+Set Padding 0
 
 Hide
 Type "revw revw.json" Sleep 500ms Enter
