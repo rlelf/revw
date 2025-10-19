@@ -57,6 +57,9 @@ pub struct App {
     pub format_mode: FormatMode,
     pub previous_format_mode: FormatMode, // Store mode before entering Help
     pub command_buffer: String,     // For vim commands like :w, :wq
+    pub completion_candidates: Vec<String>, // Tab completion candidates
+    pub completion_index: usize,    // Current completion index
+    pub completion_original: String, // Original command before completion
     pub is_modified: bool,          // Track if content has been modified
     pub content_cursor_line: usize, // Current line in content
     pub content_cursor_col: usize,  // Current column in content line
@@ -182,6 +185,9 @@ impl App {
             format_mode,
             previous_format_mode: format_mode, // Initialize with same mode
             command_buffer: String::new(),
+            completion_candidates: Vec::new(),
+            completion_index: 0,
+            completion_original: String::new(),
             is_modified: false,
             content_cursor_line: 0,
             content_cursor_col: 0,
@@ -783,30 +789,41 @@ impl App {
         }
     }
 
-    // Command completion with Tab key
+    // Command completion with Tab key - cycles through candidates
     pub fn complete_command(&mut self) {
+        // If we have active candidates, cycle to next one
+        if !self.completion_candidates.is_empty() {
+            self.completion_index = (self.completion_index + 1) % self.completion_candidates.len();
+            self.command_buffer = self.completion_candidates[self.completion_index].clone();
+            self.set_status(&format!(":{}", self.command_buffer));
+            return;
+        }
+
+        // Otherwise, find new candidates
         let cmd = self.command_buffer.trim().to_string();
+        self.completion_original = cmd.clone();
 
         // Handle colorscheme completion
         if cmd.starts_with("colorscheme ") {
-            let partial = cmd.strip_prefix("colorscheme ").unwrap_or("").to_string();
+            let partial = cmd.strip_prefix("colorscheme ").unwrap_or("");
             let schemes = ColorScheme::all_scheme_names();
-            let matches: Vec<&&str> = schemes.iter()
+            let mut matches: Vec<String> = schemes.iter()
                 .filter(|s| s.to_lowercase().starts_with(&partial.to_lowercase()))
+                .map(|s| format!("colorscheme {}", s))
                 .collect();
 
-            if matches.len() == 1 {
-                self.command_buffer = format!("colorscheme {}", matches[0]);
+            if !matches.is_empty() {
+                matches.sort();
+                self.completion_candidates = matches;
+                self.completion_index = 0;
+                self.command_buffer = self.completion_candidates[0].clone();
                 self.set_status(&format!(":{}", self.command_buffer));
-            } else if !matches.is_empty() {
-                let suggestion = matches.iter().map(|s| s.to_string()).collect::<Vec<_>>().join(", ");
-                self.set_status(&format!(":{} ({})", self.command_buffer, suggestion));
             }
         }
         // Handle :e file completion
         else if cmd.starts_with("e ") {
-            let partial = cmd.strip_prefix("e ").unwrap_or("").to_string();
-            self.complete_file_path(&partial);
+            let partial = cmd.strip_prefix("e ").unwrap_or("");
+            self.complete_file_path(partial);
         }
         // Handle command name completion
         else {
@@ -818,18 +835,26 @@ impl App {
                 "Lexplore", "Lex", "lx",
             ];
 
-            let matches: Vec<&&str> = commands.iter()
+            let mut matches: Vec<String> = commands.iter()
                 .filter(|c| c.starts_with(cmd.as_str()))
+                .map(|s| s.to_string())
                 .collect();
 
-            if matches.len() == 1 {
-                self.command_buffer = matches[0].to_string();
+            if !matches.is_empty() {
+                matches.sort();
+                self.completion_candidates = matches;
+                self.completion_index = 0;
+                self.command_buffer = self.completion_candidates[0].clone();
                 self.set_status(&format!(":{}", self.command_buffer));
-            } else if !matches.is_empty() {
-                let suggestion = matches.iter().map(|s| s.to_string()).collect::<Vec<_>>().join(", ");
-                self.set_status(&format!(":{} ({})", self.command_buffer, suggestion));
             }
         }
+    }
+
+    // Reset completion state when command buffer changes
+    pub fn reset_completion(&mut self) {
+        self.completion_candidates.clear();
+        self.completion_index = 0;
+        self.completion_original.clear();
     }
 
     fn complete_file_path(&mut self, partial: &str) {
@@ -862,7 +887,12 @@ impl App {
                 .filter_map(|e| {
                     let name = e.file_name().to_string_lossy().to_string();
                     if name.to_lowercase().starts_with(&file_prefix.to_lowercase()) {
-                        Some(name)
+                        let full_path = if dir == PathBuf::from(".") {
+                            name.clone()
+                        } else {
+                            dir.join(&name).to_string_lossy().to_string()
+                        };
+                        Some(format!("e {}", full_path))
                     } else {
                         None
                     }
@@ -871,17 +901,11 @@ impl App {
 
             matches.sort();
 
-            if matches.len() == 1 {
-                let completed = if dir == PathBuf::from(".") {
-                    matches[0].clone()
-                } else {
-                    dir.join(&matches[0]).to_string_lossy().to_string()
-                };
-                self.command_buffer = format!("e {}", completed);
+            if !matches.is_empty() {
+                self.completion_candidates = matches;
+                self.completion_index = 0;
+                self.command_buffer = self.completion_candidates[0].clone();
                 self.set_status(&format!(":{}", self.command_buffer));
-            } else if !matches.is_empty() {
-                let suggestion = matches.join(", ");
-                self.set_status(&format!(":e {} ({})", partial, suggestion));
             }
         }
     }

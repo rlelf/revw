@@ -1308,12 +1308,14 @@ pub fn run_app<B: ratatui::backend::Backend>(
                             KeyCode::Char(c) => {
                                 app.command_buffer.push(c);
                                 app.command_history_index = None;
+                                app.reset_completion(); // Reset completion on manual input
                                 app.set_status(&format!(":{}", app.command_buffer));
                             }
                             KeyCode::Backspace => {
                                 if !app.command_buffer.is_empty() {
                                     app.command_buffer.pop();
                                     app.command_history_index = None;
+                                    app.reset_completion(); // Reset completion on backspace
                                     app.set_status(&format!(":{}", app.command_buffer));
                                 } else {
                                     // Exit command mode when backspace on empty buffer
