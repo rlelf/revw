@@ -804,16 +804,50 @@ pub fn run_app<B: ratatui::backend::Backend>(
                             if let Some(ref op) = app.file_op_pending.clone() {
                                 match op {
                                     FileOperation::Delete(_) => {
-                                        // Waiting for y/n confirmation
+                                        // Waiting for yes/no confirmation
                                         match key.code {
-                                            KeyCode::Char('y') | KeyCode::Char('Y') | KeyCode::Char('n') | KeyCode::Char('N') => {
-                                                if let KeyCode::Char(c) = key.code {
-                                                    app.handle_file_op_confirmation(c);
+                                            KeyCode::Esc => {
+                                                app.cancel_file_operation();
+                                                continue;
+                                            }
+                                            KeyCode::Enter => {
+                                                let input = app.file_op_prompt_buffer.trim().to_lowercase();
+                                                if input == "yes" {
+                                                    app.handle_file_op_confirmation('y');
+                                                } else if input == "no" {
+                                                    app.handle_file_op_confirmation('n');
+                                                } else {
+                                                    app.set_status("Invalid input. Type 'yes' or 'no'");
+                                                    app.file_op_prompt_buffer.clear();
                                                 }
                                                 continue;
                                             }
-                                            KeyCode::Esc => {
-                                                app.cancel_file_operation();
+                                            KeyCode::Char(c) => {
+                                                app.file_op_prompt_buffer.push(c);
+                                                let path_display = if let FileOperation::Delete(path) = op {
+                                                    let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("unknown");
+                                                    let item_type = if path.is_dir() { "directory" } else { "file" };
+                                                    format!("Delete {} '{}'? (yes/no) {}", item_type, name, app.file_op_prompt_buffer)
+                                                } else {
+                                                    String::new()
+                                                };
+                                                app.set_status(&path_display);
+                                                continue;
+                                            }
+                                            KeyCode::Backspace => {
+                                                if !app.file_op_prompt_buffer.is_empty() {
+                                                    app.file_op_prompt_buffer.pop();
+                                                    let path_display = if let FileOperation::Delete(path) = op {
+                                                        let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("unknown");
+                                                        let item_type = if path.is_dir() { "directory" } else { "file" };
+                                                        format!("Delete {} '{}'? (yes/no) {}", item_type, name, app.file_op_prompt_buffer)
+                                                    } else {
+                                                        String::new()
+                                                    };
+                                                    app.set_status(&path_display);
+                                                } else {
+                                                    app.cancel_file_operation();
+                                                }
                                                 continue;
                                             }
                                             _ => continue,

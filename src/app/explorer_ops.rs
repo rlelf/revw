@@ -36,7 +36,8 @@ impl App {
 
             let item_type = if selected.path.is_dir() { "directory" } else { "file" };
             self.file_op_pending = Some(FileOperation::Delete(selected.path.clone()));
-            self.set_status(&format!("Delete {} '{}'? (y/n)", item_type, name));
+            self.file_op_prompt_buffer = String::new(); // Initialize buffer for yes/no input
+            self.set_status(&format!("Delete {} '{}'? (yes/no) ", item_type, name));
         }
     }
 

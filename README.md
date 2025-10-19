@@ -64,7 +64,7 @@ cargo install --git https://github.com/rlelf/revw.git --locked
 
 Or download from [Releases](https://github.com/rlelf/revw/releases)
 
-## Use Cases
+## Usage
 
 ### Notes and resources Management
 Track learning resources, books, articles, and tools you're exploring.
@@ -189,7 +189,7 @@ revw --stdout --outside file.json
 - `:a` create new JSON file in current directory
 - `:d` create new directory
 - `:m` rename/move selected file/directory (supports relative paths like `./folder/file.json`, or just `newname.json`)
-- `:dd` delete selected file (confirms with y/n)
+- `:dd` delete selected file (confirms with yes/no)
 - `:yy` copy selected file (prompts for new filename)
 
 #### Edit Overlay
@@ -297,10 +297,10 @@ revw --stdout --outside file.json
 - `:set card=N` set max visible cards (1-10, default: 5)
 
 **Substitute:**
-- `:s/pattern/replacement/` substitute first occurrence in current line
-- `:s/pattern/replacement/g` substitute all occurrences in current line
-- `:%s/pattern/replacement/` substitute first occurrence in all lines
-- `:%s/pattern/replacement/g` substitute all occurrences in all lines
+- `:s/foo/bar/` substitute first occurrence in current line
+- `:s/foo/bar/g` substitute all occurrences in current line
+- `:%s/foo/bar/` substitute first occurrence in all lines
+- `:%s/foo/bar/g` substitute all occurrences in all lines
 
 ## Configuration
 
