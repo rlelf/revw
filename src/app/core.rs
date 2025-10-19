@@ -791,8 +791,11 @@ impl App {
 
     // Command completion with Tab key - cycles through candidates
     pub fn complete_command(&mut self) {
-        // If we have active candidates, cycle to next one
-        if !self.completion_candidates.is_empty() {
+        let cmd = self.command_buffer.trim().to_string();
+
+        // If we have active candidates and command hasn't changed, cycle to next one
+        if !self.completion_candidates.is_empty() &&
+           self.completion_candidates.iter().any(|c| c == &cmd) {
             self.completion_index = (self.completion_index + 1) % self.completion_candidates.len();
             self.command_buffer = self.completion_candidates[self.completion_index].clone();
             self.set_status(&format!(":{}", self.command_buffer));
@@ -800,15 +803,21 @@ impl App {
         }
 
         // Otherwise, find new candidates
-        let cmd = self.command_buffer.trim().to_string();
         self.completion_original = cmd.clone();
+        self.completion_candidates.clear();
 
         // Handle colorscheme completion
         if cmd.starts_with("colorscheme ") {
             let partial = cmd.strip_prefix("colorscheme ").unwrap_or("");
             let schemes = ColorScheme::all_scheme_names();
             let mut matches: Vec<String> = schemes.iter()
-                .filter(|s| s.to_lowercase().starts_with(&partial.to_lowercase()))
+                .filter(|s| {
+                    if partial.is_empty() {
+                        true  // Show all schemes if no partial input
+                    } else {
+                        s.to_lowercase().starts_with(&partial.to_lowercase())
+                    }
+                })
                 .map(|s| format!("colorscheme {}", s))
                 .collect();
 
