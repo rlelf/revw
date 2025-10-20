@@ -764,24 +764,7 @@ fn render_outside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: R
     let name = entry.name.as_deref().unwrap_or("");
     let url = entry.url.as_deref().unwrap_or("");
 
-    // Top-left: name (on the border) - only if not empty
-    if !name.is_empty() {
-        let name_text = format!(" {} ", name);
-        let name_span = if !app.search_query.is_empty() {
-            highlight_search_in_line(
-                &name_text,
-                &app.search_query,
-                Style::default().fg(app.colorscheme.card_title),
-            )
-        } else {
-            Line::styled(name_text, Style::default().fg(app.colorscheme.card_title))
-        };
-        let name_area = Rect { x: card_area.x + 2, y: card_area.y, width: card_area.width.saturating_sub(4), height: 1 };
-        let name_para = Paragraph::new(name_span).alignment(Alignment::Left);
-        f.render_widget(name_para, name_area);
-    }
-
-    // Top-right: url (on the border)
+    // Top-right: url (on the border) - render first so name can overwrite it if needed
     if !url.is_empty() {
         let url_text = format!(" {} ", url);
         let url_span = if !app.search_query.is_empty() {
@@ -796,6 +779,23 @@ fn render_outside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: R
         let url_area = Rect { x: card_area.x + 2, y: card_area.y, width: card_area.width.saturating_sub(4), height: 1 };
         let url_para = Paragraph::new(url_span).alignment(Alignment::Right);
         f.render_widget(url_para, url_area);
+    }
+
+    // Top-left: name (on the border) - render after URL so it takes priority
+    if !name.is_empty() {
+        let name_text = format!(" {} ", name);
+        let name_span = if !app.search_query.is_empty() {
+            highlight_search_in_line(
+                &name_text,
+                &app.search_query,
+                Style::default().fg(app.colorscheme.card_title),
+            )
+        } else {
+            Line::styled(name_text, Style::default().fg(app.colorscheme.card_title))
+        };
+        let name_area = Rect { x: card_area.x + 2, y: card_area.y, width: card_area.width.saturating_sub(4), height: 1 };
+        let name_para = Paragraph::new(name_span).alignment(Alignment::Left);
+        f.render_widget(name_para, name_area);
     }
 
     // Bottom-right: percentage (on the border) - only if not null
