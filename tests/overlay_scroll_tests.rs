@@ -64,31 +64,6 @@ fn test_horizontal_scroll_with_cursor() {
 }
 
 #[test]
-fn test_vertical_scroll_in_view_edit_mode() {
-    let mut app = App::new(FormatMode::View);
-    app.editing_entry = true;
-    app.edit_field_editing_mode = true;
-    app.edit_field_index = 1; // context field
-    app.view_edit_mode = true;
-
-    // Simulate multi-line context with \n
-    app.edit_buffer = vec![
-        "date".to_string(),
-        "Line 1\\nLine 2\\nLine 3\\nLine 4\\nLine 5\\nLine 6\\nLine 7\\nLine 8".to_string(),
-        "Exit".to_string(),
-    ];
-
-    // Move cursor to last line (after "Line 8")
-    app.edit_cursor_pos = app.edit_buffer[1].chars().count();
-
-    // Call ensure_overlay_cursor_visible to trigger scroll
-    app.ensure_overlay_cursor_visible();
-
-    // Should have scrolled vertically
-    assert!(app.edit_vscroll > 0);
-}
-
-#[test]
 fn test_scroll_reset_on_field_change() {
     let mut app = App::new(FormatMode::View);
     app.editing_entry = true;

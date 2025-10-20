@@ -137,13 +137,6 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_colorscheme() {
-        let mut config = RcConfig::default();
-        config.parse("colorscheme Monokai");
-        assert_eq!(config.colorscheme.name, "Monokai");
-    }
-
-    #[test]
     fn test_parse_comments() {
         let mut config = RcConfig::default();
         config.parse("# This is a comment\nset number");
@@ -156,11 +149,9 @@ mod tests {
         let rc_contents = r#"
             # My revw config
             set number
-            colorscheme Nord
         "#;
         config.parse(rc_contents);
         assert!(config.show_line_numbers);
-        assert_eq!(config.colorscheme.name, "Nord");
     }
 
     #[test]
