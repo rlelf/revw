@@ -13,19 +13,7 @@ impl App {
             .trim_matches('`')
             .trim();
 
-        // Fix common truncation issue: if path starts with "me/" instead of "/home/"
-        let final_path_str = if cleaned_path_str.starts_with("me/") {
-            let home_path = format!("/ho{}", cleaned_path_str);
-            self.set_status(&format!(
-                "Fixed truncated path: {} -> {}",
-                cleaned_path_str, home_path
-            ));
-            home_path
-        } else {
-            cleaned_path_str.to_string()
-        };
-
-        let fixed_path = PathBuf::from(final_path_str);
+        let fixed_path = PathBuf::from(cleaned_path_str);
         let final_path_display = fixed_path.display().to_string();
 
         match fs::read_to_string(&fixed_path) {

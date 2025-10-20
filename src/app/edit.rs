@@ -651,7 +651,7 @@ impl App {
 
         if is_context_field && self.view_edit_mode {
             // Context field in View Edit mode: calculate line and column from cursor position
-            let lines: Vec<&str> = field.split("\\n").collect();
+            let lines: Vec<&str> = field.split('\n').collect();
 
             // Find which line the cursor is on
             let mut char_count = 0;
@@ -659,7 +659,7 @@ impl App {
 
             for (line_idx, line) in lines.iter().enumerate() {
                 let line_len = line.chars().count();
-                let separator_len = if line_idx < lines.len() - 1 { 2 } else { 0 }; // "\\n" = 2 chars
+                let separator_len = if line_idx < lines.len() - 1 { 1 } else { 0 }; // newline = 1 char
 
                 if cursor_pos <= char_count + line_len {
                     current_line = line_idx;

@@ -211,35 +211,12 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                     if app.edit_field_index < app.edit_buffer.len() && app.edit_cursor_pos > 0 {
                                         let field = &mut app.edit_buffer[app.edit_field_index];
 
-                                        // In View Edit mode, check if we're deleting \n (2 characters)
-                                        if app.view_edit_mode && app.edit_cursor_pos >= 2 {
-                                            let char_indices: Vec<_> = field.char_indices().collect();
-                                            if app.edit_cursor_pos >= 2 && app.edit_cursor_pos <= char_indices.len() {
-                                                // Check if the two characters before cursor are '\' and 'n'
-                                                let chars: Vec<char> = field.chars().collect();
-                                                if app.edit_cursor_pos >= 2
-                                                    && chars[app.edit_cursor_pos - 2] == '\\'
-                                                    && chars[app.edit_cursor_pos - 1] == 'n' {
-                                                    // Delete both characters of \n
-                                                    let byte_pos_1 = char_indices[app.edit_cursor_pos - 2].0;
-                                                    field.remove(byte_pos_1);
-                                                    field.remove(byte_pos_1); // Remove again at same position (since indices shift)
-                                                    app.edit_cursor_pos -= 2;
-                                                } else {
-                                                    // Normal single character deletion
-                                                    let byte_pos = char_indices[app.edit_cursor_pos - 1].0;
-                                                    field.remove(byte_pos);
-                                                    app.edit_cursor_pos -= 1;
-                                                }
-                                            }
-                                        } else {
-                                            // Normal mode or cursor position < 2: normal single character deletion
-                                            let char_indices: Vec<_> = field.char_indices().collect();
-                                            if app.edit_cursor_pos > 0 && app.edit_cursor_pos <= char_indices.len() {
-                                                let byte_pos = char_indices[app.edit_cursor_pos - 1].0;
-                                                field.remove(byte_pos);
-                                                app.edit_cursor_pos -= 1;
-                                            }
+                                        // Delete single character (including newline character)
+                                        let char_indices: Vec<_> = field.char_indices().collect();
+                                        if app.edit_cursor_pos > 0 && app.edit_cursor_pos <= char_indices.len() {
+                                            let byte_pos = char_indices[app.edit_cursor_pos - 1].0;
+                                            field.remove(byte_pos);
+                                            app.edit_cursor_pos -= 1;
                                         }
                                     }
                                     app.ensure_overlay_cursor_visible();
@@ -249,7 +226,7 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                         // In View Edit mode, move cursor like a normal text editor
                                         if app.edit_cursor_pos > 0 && app.edit_field_index < app.edit_buffer.len() {
                                             let field = &app.edit_buffer[app.edit_field_index];
-                                            let lines: Vec<&str> = field.split("\\n").collect();
+                                            let lines: Vec<&str> = field.split('\n').collect();
 
                                             // Find current line and column
                                             let mut char_count = 0;
@@ -258,7 +235,7 @@ pub fn run_app<B: ratatui::backend::Backend>(
 
                                             for (line_idx, line) in lines.iter().enumerate() {
                                                 let line_len = line.chars().count();
-                                                let separator_len = if line_idx < lines.len() - 1 { 2 } else { 0 };
+                                                let separator_len = if line_idx < lines.len() - 1 { 1 } else { 0 }; // newline = 1 char
 
                                                 if app.edit_cursor_pos <= char_count + line_len {
                                                     current_line = line_idx;
@@ -277,7 +254,7 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                                 let mut new_pos = 0;
                                                 for (i, _line) in lines.iter().enumerate().take(current_line - 1) {
                                                     let line_len = lines[i].chars().count();
-                                                    let separator_len = if i < lines.len() - 1 { 2 } else { 0 };
+                                                    let separator_len = if i < lines.len() - 1 { 1 } else { 0 }; // newline = 1 char
                                                     new_pos += line_len + separator_len;
                                                 }
                                                 new_pos += lines[current_line - 1].chars().count();
@@ -297,7 +274,7 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                         if app.edit_cursor_pos < field_len {
                                             if app.view_edit_mode {
                                                 // In View Edit mode, move cursor like a normal text editor
-                                                let lines: Vec<&str> = field.split("\\n").collect();
+                                                let lines: Vec<&str> = field.split('\n').collect();
 
                                                 // Find current line and column
                                                 let mut char_count = 0;
@@ -306,7 +283,7 @@ pub fn run_app<B: ratatui::backend::Backend>(
 
                                                 for (line_idx, line) in lines.iter().enumerate() {
                                                     let line_len = line.chars().count();
-                                                    let separator_len = if line_idx < lines.len() - 1 { 2 } else { 0 };
+                                                    let separator_len = if line_idx < lines.len() - 1 { 1 } else { 0 }; // newline = 1 char
 
                                                     if app.edit_cursor_pos <= char_count + line_len {
                                                         current_line = line_idx;
@@ -323,8 +300,8 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                                     // Move right within current line
                                                     app.edit_cursor_pos += 1;
                                                 } else if current_line + 1 < lines.len() {
-                                                    // Move to start of next line (skip over \n)
-                                                    app.edit_cursor_pos += 2; // Skip \n
+                                                    // Move to start of next line (skip over newline)
+                                                    app.edit_cursor_pos += 1; // Skip newline (1 character)
                                                 }
                                             } else {
                                                 app.edit_cursor_pos += 1;
@@ -334,7 +311,7 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                     app.ensure_overlay_cursor_visible();
                                 }
                                 KeyCode::Enter => {
-                                    // In View Edit mode, insert literal \n string
+                                    // In View Edit mode, insert newline character
                                     if app.view_edit_mode && app.edit_field_index < app.edit_buffer.len() {
                                         let field = &mut app.edit_buffer[app.edit_field_index];
                                         // Find byte index for character position
@@ -345,16 +322,16 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                         } else {
                                             field.char_indices().nth(app.edit_cursor_pos).map(|(i, _)| i).unwrap_or(field.len())
                                         };
-                                        // Insert \n as a string (backslash followed by n)
-                                        field.insert_str(byte_pos, "\\n");
-                                        app.edit_cursor_pos += 2; // Move cursor past \n
+                                        // Insert actual newline character
+                                        field.insert(byte_pos, '\n');
+                                        app.edit_cursor_pos += 1; // Move cursor past newline (1 character)
                                     }
                                 }
                                 KeyCode::Up => {
                                     // In View Edit mode, move up one line
                                     if app.view_edit_mode && app.edit_field_index < app.edit_buffer.len() {
                                         let field = &app.edit_buffer[app.edit_field_index];
-                                        let lines: Vec<&str> = field.split("\\n").collect();
+                                        let lines: Vec<&str> = field.split('\n').collect();
 
                                         // Find current line and column
                                         let mut current_pos = 0;
@@ -363,7 +340,7 @@ pub fn run_app<B: ratatui::backend::Backend>(
 
                                         for (line_idx, line) in lines.iter().enumerate() {
                                             let line_len = line.chars().count();
-                                            let separator_len = if line_idx < lines.len() - 1 { 2 } else { 0 };
+                                            let separator_len = if line_idx < lines.len() - 1 { 1 } else { 0 }; // newline = 1 char
 
                                             if app.edit_cursor_pos <= current_pos + line_len {
                                                 current_line = line_idx;
@@ -383,7 +360,7 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                             let mut new_pos = 0;
                                             for (i, _line) in lines.iter().enumerate().take(current_line - 1) {
                                                 let line_len = lines[i].chars().count();
-                                                let separator_len = if i < lines.len() - 1 { 2 } else { 0 };
+                                                let separator_len = if i < lines.len() - 1 { 1 } else { 0 }; // newline = 1 char
                                                 new_pos += line_len + separator_len;
                                             }
 
@@ -398,7 +375,7 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                     // In View Edit mode, move down one line
                                     if app.view_edit_mode && app.edit_field_index < app.edit_buffer.len() {
                                         let field = &app.edit_buffer[app.edit_field_index];
-                                        let lines: Vec<&str> = field.split("\\n").collect();
+                                        let lines: Vec<&str> = field.split('\n').collect();
 
                                         // Find current line and column
                                         let mut current_pos = 0;
@@ -407,7 +384,7 @@ pub fn run_app<B: ratatui::backend::Backend>(
 
                                         for (line_idx, line) in lines.iter().enumerate() {
                                             let line_len = line.chars().count();
-                                            let separator_len = if line_idx < lines.len() - 1 { 2 } else { 0 };
+                                            let separator_len = if line_idx < lines.len() - 1 { 1 } else { 0 }; // newline = 1 char
 
                                             if app.edit_cursor_pos <= current_pos + line_len {
                                                 current_line = line_idx;
@@ -427,7 +404,7 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                             let mut new_pos = 0;
                                             for (i, _line) in lines.iter().enumerate().take(current_line + 1) {
                                                 let line_len = lines[i].chars().count();
-                                                let separator_len = if i < lines.len() - 1 { 2 } else { 0 };
+                                                let separator_len = if i < lines.len() - 1 { 1 } else { 0 }; // newline = 1 char
                                                 new_pos += line_len + separator_len;
                                             }
 
@@ -695,7 +672,7 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                         // Vertical scroll down for context field
                                         if app.edit_field_index < app.edit_buffer.len() {
                                             let field = &app.edit_buffer[app.edit_field_index];
-                                            let lines: Vec<&str> = field.split("\\n").collect();
+                                            let lines: Vec<&str> = field.split('\n').collect();
                                             // Fixed window size for field selection mode (minimum 5 lines)
                                             let window_height = 5;
                                             let total_lines = lines.len();
@@ -1137,8 +1114,7 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                         if !app.relf_entries.is_empty() && app.selected_entry_index < app.relf_entries.len() {
                                             let entry = &app.relf_entries[app.selected_entry_index];
                                             if let Some(context) = &entry.context {
-                                                let context_with_newlines = context.replace("\\n", "\n");
-                                                let lines: Vec<&str> = context_with_newlines.lines().collect();
+                                                let lines: Vec<&str> = context.lines().collect();
                                                 // Estimate visible lines: total height divided by number of visible cards
                                                 // Subtract 2 for card borders (top and bottom)
                                                 let visible_lines = (app.visible_height as usize / app.max_visible_cards).saturating_sub(2);

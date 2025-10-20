@@ -818,13 +818,12 @@ fn render_outside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: R
     // Middle: context (inside the card)
     let context = entry.context.as_deref().unwrap_or("");
     if !context.is_empty() {
-        // Split context by \n for rendering - handle both literal \n and actual newlines
-        let context_with_newlines = context.replace("\\n", "\n");
+        // Context already contains actual newline characters
         let vscroll = if is_selected { app.hscroll as usize } else { 0 };
         // Use full height of inner area
         let visible_lines = inner_area.height as usize;
 
-        let context_lines: Vec<Line> = context_with_newlines
+        let context_lines: Vec<Line> = context
             .lines()
             .skip(vscroll)
             .take(visible_lines)
@@ -871,13 +870,12 @@ fn render_inside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: Re
 
     // Context inside the card
     if let Some(context) = &entry.context {
-        // Split context by \n for rendering - handle both literal \n and actual newlines
-        let context_with_newlines = context.replace("\\n", "\n");
+        // Context already contains actual newline characters
         let vscroll = if is_selected { app.hscroll as usize } else { 0 };
         // Use full height of inner area
         let visible_lines = inner_area.height as usize;
 
-        let context_lines: Vec<Line> = context_with_newlines
+        let context_lines: Vec<Line> = context
             .lines()
             .skip(vscroll)
             .take(visible_lines)
@@ -1074,8 +1072,8 @@ fn render_edit_overlay(f: &mut Frame, app: &App) {
 
         if is_context_field && should_render_newlines {
             // Context field with newlines: dynamic window with scrolling
-            let text_with_newlines = field.replace("\\n", "\n");
-            let field_lines: Vec<&str> = text_with_newlines.lines().collect();
+            // Context already contains actual newline characters
+            let field_lines: Vec<&str> = field.lines().collect();
 
             // Context field window size: flexible up to maximum
             let min_window_height = 1;
@@ -1116,7 +1114,7 @@ fn render_edit_overlay(f: &mut Frame, app: &App) {
 
                 for (line_idx, line) in field_lines.iter().enumerate() {
                     let line_len = line.chars().count();
-                    let separator_len = if line_idx < field_lines.len() - 1 { 2 } else { 0 }; // "\\n" = 2 chars
+                    let separator_len = if line_idx < field_lines.len() - 1 { 1 } else { 0 }; // newline = 1 char
 
                     if app.edit_cursor_pos <= char_count + line_len {
                         cursor_line_idx = line_idx;
