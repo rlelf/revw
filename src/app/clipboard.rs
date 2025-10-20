@@ -1,5 +1,5 @@
 use super::{App, FormatMode};
-use super::super::json_ops::JsonOperations;
+use crate::json_ops::JsonOperations;
 use arboard::Clipboard;
 use serde_json::Value;
 use std::path::PathBuf;

@@ -1,6 +1,6 @@
 use super::{App, FormatMode};
-use super::super::json_ops::JsonOperations;
-use super::super::navigation::Navigator;
+use crate::json_ops::JsonOperations;
+use crate::navigation::Navigator;
 use serde_json::Value;
 
 impl App {
