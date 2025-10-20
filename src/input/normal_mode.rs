@@ -404,6 +404,14 @@ fn handle_file_operation(app: &mut App, key: KeyEvent, op: &FileOperation) -> Re
 
 fn handle_explorer_navigation(app: &mut App, key: KeyEvent) -> Result<bool> {
     match key.code {
+        KeyCode::Char(':') => {
+            // Allow command mode from explorer
+            app.input_mode = crate::app::InputMode::Command;
+            app.command_buffer = String::new();
+            app.command_history_index = None;
+            app.set_status(":");
+            return Ok(false);
+        }
         KeyCode::Char('j') | KeyCode::Down => {
             app.explorer_move_down();
             return Ok(false);
