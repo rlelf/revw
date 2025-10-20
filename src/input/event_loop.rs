@@ -80,8 +80,8 @@ pub fn run_app<B: ratatui::backend::Backend>(
                     }
                     // Check for create/delete/modify events in explorer directory
                     if app.explorer_open && (matches!(event.kind, notify::EventKind::Create(_)) || matches!(event.kind, notify::EventKind::Remove(_)) || matches!(event.kind, notify::EventKind::Modify(_))) {
-                        // Reload explorer entries
-                        app.load_explorer_entries();
+                        // Reload explorer entries (without resetting cursor position)
+                        app.reload_explorer_entries();
                     }
                 }
                 Err(TryRecvError::Empty) => {}

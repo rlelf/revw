@@ -123,8 +123,8 @@ impl App {
                             .unwrap_or("unknown");
                         let item_type = if path.is_dir() { "directory" } else { "file" };
                         self.set_status(&format!("Deleted {} '{}'", item_type, name));
-                        // Reload explorer
-                        self.load_explorer_entries();
+                        // Reload explorer (preserve cursor position)
+                        self.reload_explorer_entries();
                     }
                     Err(e) => {
                         self.set_status(&format!("Error deleting: {}", e));

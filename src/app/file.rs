@@ -90,9 +90,9 @@ impl App {
                     self.is_modified = false;
                     self.last_save_time = Some(Instant::now());
                     self.set_status(&format!("Saved: {}", path.display()));
-                    // Reload explorer if open
+                    // Reload explorer if open (without resetting cursor position)
                     if self.explorer_open {
-                        self.load_explorer_entries();
+                        self.reload_explorer_entries();
                     }
                 }
                 Err(e) => {

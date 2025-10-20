@@ -13,10 +13,37 @@ impl App {
     }
 
     pub fn load_explorer_entries(&mut self) {
+        self.load_explorer_entries_with_selection_reset(true);
+    }
+
+    pub fn reload_explorer_entries(&mut self) {
+        // Reload without resetting cursor position
+        self.load_explorer_entries_with_selection_reset(false);
+    }
+
+    fn load_explorer_entries_with_selection_reset(&mut self, reset_selection: bool) {
+        // Save currently selected path before rebuilding
+        let selected_path = if !reset_selection && self.explorer_selected_index < self.explorer_entries.len() {
+            Some(self.explorer_entries[self.explorer_selected_index].path.clone())
+        } else {
+            None
+        };
+
         // Build tree from current directory (depth 0)
         self.explorer_entries = self.build_tree_from_dir(&self.explorer_current_dir.clone(), 0);
-        self.explorer_selected_index = 0;
-        self.explorer_scroll = 0;
+
+        if reset_selection {
+            self.explorer_selected_index = 0;
+            self.explorer_scroll = 0;
+        } else if let Some(path) = selected_path {
+            // Try to restore selection to the same path
+            if let Some(new_index) = self.explorer_entries.iter().position(|e| e.path == path) {
+                self.explorer_selected_index = new_index;
+            } else {
+                // If the path no longer exists, keep current index bounded
+                self.explorer_selected_index = self.explorer_selected_index.min(self.explorer_entries.len().saturating_sub(1));
+            }
+        }
     }
 
     // Build tree structure recursively, only descending into expanded directories
