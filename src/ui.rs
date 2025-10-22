@@ -511,8 +511,10 @@ fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
                                 let mut accumulated_width = 0;
 
                                 for (i, ch) in span_chars.iter().enumerate() {
+                                    // Check if adding this character would exceed target
                                     let ch_width = app.display_width_str(&ch.to_string());
-                                    if accumulated_width >= target_width_in_span {
+                                    if accumulated_width + ch_width > target_width_in_span {
+                                        // Cursor should be placed before this character
                                         pos_in_span = i;
                                         break;
                                     }

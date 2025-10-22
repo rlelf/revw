@@ -52,7 +52,8 @@ impl Renderer {
         let mut start_idx = 0usize;
         for (i, c) in s.chars().enumerate() {
             let w = UnicodeWidthChar::width(c).unwrap_or(0);
-            if sum >= start_cols {
+            if sum + w > start_cols {
+                // This character extends past start_cols, so start here
                 start_idx = i;
                 break;
             }
