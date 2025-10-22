@@ -1075,9 +1075,18 @@ fn render_edit_overlay(f: &mut Frame, app: &App) {
             // Context already contains actual newline characters
             let field_lines: Vec<&str> = field.lines().collect();
 
-            // Context field window size: flexible up to maximum
+            // Context field window size: calculate based on available space
             let min_window_height = 1;
-            let max_window_height = 7; // Fixed maximum to prevent exit/percentage from moving
+
+            // Calculate available height: total inner area minus other fields
+            let num_other_fields = app.edit_buffer.len() - 1; // All fields except context
+            let other_fields_height = num_other_fields * 2; // Each field + blank line
+            let available_height = inner_area.height as usize;
+            let max_window_height = if available_height > other_fields_height {
+                (available_height - other_fields_height).max(min_window_height)
+            } else {
+                min_window_height
+            };
 
             // Calculate actual display lines considering text wrapping with proper Unicode width
             let actual_display_lines: usize = field_lines.iter()
@@ -1160,18 +1169,34 @@ fn render_edit_overlay(f: &mut Frame, app: &App) {
             }
         } else if is_context_field {
             // Context field in Normal/Insert mode: show raw \n with wrapping
-            let mut display_text = field.clone();
+            // Replace actual newline characters with visible "\\n" text
+            let mut display_text = field.replace('\n', "\\n");
 
             // Add cursor in insert mode or field editing mode
             if is_selected && (app.edit_insert_mode || app.edit_field_editing_mode) {
-                let char_count = field.chars().count();
-                let cursor_char_pos = app.edit_cursor_pos.min(char_count);
-                let byte_pos = if cursor_char_pos == 0 {
+                // Calculate cursor position in display_text
+                // Each actual '\n' becomes "\\n" (2 chars), so we need to adjust the position
+                let mut actual_pos = 0;
+                let mut display_pos = 0;
+                for ch in field.chars() {
+                    if actual_pos == app.edit_cursor_pos {
+                        break;
+                    }
+                    if ch == '\n' {
+                        display_pos += 2; // '\n' becomes "\\n" (2 characters)
+                    } else {
+                        display_pos += 1;
+                    }
+                    actual_pos += 1;
+                }
+
+                // Insert cursor at the correct display position
+                let byte_pos = if display_pos == 0 {
                     0
-                } else if cursor_char_pos >= char_count {
-                    field.len()
+                } else if display_pos >= display_text.chars().count() {
+                    display_text.len()
                 } else {
-                    field.char_indices().nth(cursor_char_pos).map(|(i, _)| i).unwrap_or(field.len())
+                    display_text.char_indices().nth(display_pos).map(|(i, _)| i).unwrap_or(display_text.len())
                 };
                 display_text.insert(byte_pos, '|');
             }

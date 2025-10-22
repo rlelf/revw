@@ -51,6 +51,8 @@ pub fn handle_mouse_event<B: ratatui::backend::Backend>(
                     // Card view: move selection up
                     if app.selected_entry_index > 0 {
                         app.selected_entry_index -= 1;
+                        // Reset vertical scroll when changing cards (hscroll is misused as vscroll for cards)
+                        app.hscroll = 0;
                     }
                 } else {
                     // Relf: clamp to content bounds
@@ -74,6 +76,8 @@ pub fn handle_mouse_event<B: ratatui::backend::Backend>(
                     // Card view: move selection down
                     if app.selected_entry_index + 1 < app.relf_entries.len() {
                         app.selected_entry_index += 1;
+                        // Reset vertical scroll when changing cards (hscroll is misused as vscroll for cards)
+                        app.hscroll = 0;
                     }
                 } else {
                     // Relf: clamp to last content page
