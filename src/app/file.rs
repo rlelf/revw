@@ -29,6 +29,11 @@ impl App {
                 self.set_status(&format!("Loaded: {}", final_path_display));
 
                 self.convert_json();
+
+                // Reset card selection to first entry when opening a new file
+                if path_changed {
+                    self.selected_entry_index = 0;
+                }
             }
             Err(e) => {
                 // If file doesn't exist, create it with default entries
@@ -68,6 +73,10 @@ impl App {
                             }
                             self.set_status(&format!("Created new file: {}", final_path_display));
                             self.convert_json();
+                            // Reset card selection to first entry when creating a new file
+                            if path_changed {
+                                self.selected_entry_index = 0;
+                            }
                             // Reload explorer if open
                             if self.explorer_open {
                                 self.load_explorer_entries();
