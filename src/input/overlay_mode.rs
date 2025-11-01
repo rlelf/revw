@@ -260,7 +260,22 @@ pub fn handle_overlay_keyboard(app: &mut App, key: KeyEvent) {
             KeyCode::Char(c) => {
                 if app.edit_field_index < app.edit_buffer.len() {
                     let field = &mut app.edit_buffer[app.edit_field_index];
-                    // Find byte index for character position
+
+                    // Handle \n escape sequence: if typing 'n' and previous char is '\', replace with newline
+                    if c == 'n' && app.edit_cursor_pos > 0 {
+                        let chars: Vec<char> = field.chars().collect();
+                        if app.edit_cursor_pos <= chars.len() && chars.get(app.edit_cursor_pos - 1) == Some(&'\\') {
+                            // Remove the backslash and insert newline instead
+                            let backslash_byte_pos = field.char_indices().nth(app.edit_cursor_pos - 1).map(|(i, _)| i).unwrap_or(0);
+                            field.remove(backslash_byte_pos);
+                            field.insert(backslash_byte_pos, '\n');
+                            // Cursor position stays the same (we replaced \ with \n)
+                            app.ensure_overlay_cursor_visible();
+                            return;
+                        }
+                    }
+
+                    // Normal character insertion
                     let byte_pos = if app.edit_cursor_pos == 0 {
                         0
                     } else if app.edit_cursor_pos >= field.chars().count() {
