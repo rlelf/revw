@@ -63,6 +63,20 @@ pub fn handle_overlay_keyboard(app: &mut App, key: KeyEvent) {
                 }
                 app.ensure_overlay_cursor_visible();
             }
+            KeyCode::Delete => {
+                if app.edit_field_index < app.edit_buffer.len() {
+                    let field = &mut app.edit_buffer[app.edit_field_index];
+
+                    // Delete character at cursor position
+                    let char_indices: Vec<_> = field.char_indices().collect();
+                    if app.edit_cursor_pos < char_indices.len() {
+                        let byte_pos = char_indices[app.edit_cursor_pos].0;
+                        field.remove(byte_pos);
+                        // Cursor position stays the same
+                    }
+                }
+                app.ensure_overlay_cursor_visible();
+            }
             KeyCode::Left => {
                 if app.view_edit_mode {
                     // In View Edit mode, move cursor like a normal text editor

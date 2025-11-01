@@ -111,12 +111,22 @@ impl App {
     pub fn explorer_move_up(&mut self) {
         if self.explorer_selected_index > 0 {
             self.explorer_selected_index -= 1;
+            // Auto-scroll if selection moves above visible area
+            if self.explorer_selected_index < self.explorer_scroll as usize {
+                self.explorer_scroll = self.explorer_selected_index as u16;
+            }
         }
     }
 
     pub fn explorer_move_down(&mut self) {
         if self.explorer_selected_index + 1 < self.explorer_entries.len() {
             self.explorer_selected_index += 1;
+            // Auto-scroll if selection moves below visible area
+            // Note: visible_height is calculated in UI, use a reasonable default
+            let visible_height = self.visible_height.max(10) as usize; // Use app's visible_height as approximation
+            if self.explorer_selected_index >= (self.explorer_scroll as usize + visible_height) {
+                self.explorer_scroll = (self.explorer_selected_index - visible_height + 1) as u16;
+            }
         }
     }
 
