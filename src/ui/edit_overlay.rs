@@ -1,12 +1,10 @@
 use ratatui::{
-    layout::Rect,
+    layout::{Alignment, Rect},
     style::{Color, Modifier, Style},
     text::Line,
     widgets::{Block, BorderType, Borders, Clear, Paragraph, Wrap},
     Frame,
 };
-
-use unicode_width::UnicodeWidthStr;
 
 use crate::app::App;
 
@@ -15,10 +13,8 @@ pub fn render_edit_overlay(f: &mut Frame, app: &App) {
     let area = f.area();
 
     let popup_width = area.width.min(80);
-    // Increase height to show more of the background: use 70% of screen height or calculated size
-    let calculated_height = app.edit_buffer.len() as u16 + 4;
-    let max_height = (area.height * 7) / 10; // 70% of screen height
-    let popup_height = calculated_height.max(max_height.min(area.height - 4));
+    // Use 70% of screen height
+    let popup_height = ((area.height * 7) / 10).max(10).min(area.height - 4);
 
     // Align x to even column to prevent wide-char (CJK) rendering issues with borders
     let x_centered = (area.width.saturating_sub(popup_width)) / 2;
@@ -43,7 +39,6 @@ pub fn render_edit_overlay(f: &mut Frame, app: &App) {
     f.render_widget(Clear, clear_area);
 
     // Fill the clear area with background color using spaces
-    // This ensures complete coverage, especially for wide characters
     let blank_lines: Vec<Line> = (0..clear_area.height)
         .map(|_| Line::from(" ".repeat(clear_area.width as usize)))
         .collect();
@@ -52,15 +47,16 @@ pub fn render_edit_overlay(f: &mut Frame, app: &App) {
     f.render_widget(blank_paragraph, clear_area);
 
     // Determine if editing INSIDE or OUTSIDE entry
-    // INSIDE: date, context, Exit (3 fields)
-    // OUTSIDE: name, context, url, percentage, Exit (5 fields)
-    let title = if app.edit_buffer.len() == 3 {
+    // INSIDE: date, context (2 fields)
+    // OUTSIDE: name, context, url, percentage (4 fields)
+    let is_inside = app.edit_buffer.len() == 2;
+    let title = if is_inside {
         " INSIDE "
     } else {
         " OUTSIDE "
     };
 
-    // Render the popup as a single card with rounded borders on top
+    // Render the popup border
     let block = Block::default()
         .title(title)
         .borders(Borders::ALL)
@@ -71,260 +67,287 @@ pub fn render_edit_overlay(f: &mut Frame, app: &App) {
 
     let inner_area = block.inner(popup_area);
 
-    // Render each field with proper windowing and scrolling
-    let mut lines = Vec::new();
-    let window_width = inner_area.width as usize;
+    // Render fields on borders and content
+    if is_inside {
+        render_inside_overlay(f, app, popup_area, inner_area);
+    } else {
+        render_outside_overlay(f, app, popup_area, inner_area);
+    }
+}
 
-    for (i, field) in app.edit_buffer.iter().enumerate() {
-        let is_selected = i == app.edit_field_index;
+fn render_inside_overlay(f: &mut Frame, app: &App, card_area: Rect, inner_area: Rect) {
+    // Field indices for INSIDE: 0=date, 1=context
 
-        // Check if this is a placeholder using the placeholder flag
-        let is_placeholder = i < app.edit_buffer_is_placeholder.len()
-                           && app.edit_buffer_is_placeholder[i];
+    // Date on top-left border
+    if !app.edit_buffer.is_empty() {
+        let is_selected = app.edit_field_index == 0;
+        let is_placeholder = app.edit_buffer_is_placeholder.get(0).copied().unwrap_or(false);
 
-        let style = if is_selected {
-            // View Edit mode or Insert mode: active color (both are editing modes)
-            // Normal mode: selected color
-            if app.edit_insert_mode || app.view_edit_mode {
-                Style::default().fg(app.colorscheme.overlay_field_active).add_modifier(Modifier::BOLD)
-            } else {
-                Style::default().fg(app.colorscheme.overlay_field_selected).add_modifier(Modifier::BOLD)
+        let style = get_field_style(app, is_selected, is_placeholder);
+
+        let mut date_text = format!(" {} ", app.edit_buffer[0].clone());
+
+        // Add cursor if editing this field
+        if is_selected && (app.edit_insert_mode || app.edit_field_editing_mode) {
+            date_text = add_cursor_to_text(&date_text, app.edit_cursor_pos, 1); // offset by 1 for leading space
+        }
+
+        let date_line = Line::styled(date_text, style);
+        let date_area = Rect {
+            x: card_area.x + 2,
+            y: card_area.y,
+            width: card_area.width.saturating_sub(4),
+            height: 1
+        };
+        let date_para = Paragraph::new(date_line).alignment(Alignment::Left);
+        f.render_widget(date_para, date_area);
+    }
+
+    // Context in the middle (always render with newlines)
+    if app.edit_buffer.len() >= 2 {
+        render_context_field(f, app, inner_area, 1);
+    }
+}
+
+fn render_outside_overlay(f: &mut Frame, app: &App, card_area: Rect, inner_area: Rect) {
+    // Field indices for OUTSIDE: 0=name, 1=context, 2=url, 3=percentage
+
+    // Name on top-left border
+    if !app.edit_buffer.is_empty() {
+        let is_selected = app.edit_field_index == 0;
+        let is_placeholder = app.edit_buffer_is_placeholder.get(0).copied().unwrap_or(false);
+
+        let style = get_field_style(app, is_selected, is_placeholder);
+
+        let mut name_text = format!(" {} ", app.edit_buffer[0].clone());
+
+        // Add cursor if editing this field
+        if is_selected && (app.edit_insert_mode || app.edit_field_editing_mode) {
+            name_text = add_cursor_to_text(&name_text, app.edit_cursor_pos, 1);
+        }
+
+        let name_line = Line::styled(name_text, style);
+        let name_area = Rect {
+            x: card_area.x + 2,
+            y: card_area.y,
+            width: card_area.width.saturating_sub(4),
+            height: 1
+        };
+        let name_para = Paragraph::new(name_line).alignment(Alignment::Left);
+        f.render_widget(name_para, name_area);
+    }
+
+    // Percentage on bottom-right border (render first to ensure visibility)
+    if app.edit_buffer.len() >= 4 {
+        let is_selected = app.edit_field_index == 3;
+        let is_placeholder = app.edit_buffer_is_placeholder.get(3).copied().unwrap_or(false);
+
+        let style = get_field_style(app, is_selected, is_placeholder);
+
+        let mut pct_text = format!(" {} % ", app.edit_buffer[3].clone());
+
+        // Add cursor if editing this field
+        if is_selected && (app.edit_insert_mode || app.edit_field_editing_mode) {
+            pct_text = add_cursor_to_text(&pct_text, app.edit_cursor_pos, 1);
+        }
+
+        let pct_line = Line::styled(pct_text, style);
+        let pct_area = Rect {
+            x: card_area.x + 2,
+            y: card_area.y + card_area.height.saturating_sub(1),
+            width: card_area.width.saturating_sub(4),
+            height: 1
+        };
+        let pct_para = Paragraph::new(pct_line).alignment(Alignment::Right);
+        f.render_widget(pct_para, pct_area);
+    }
+
+    // URL on bottom-left border (render after percentage so percentage takes priority)
+    if app.edit_buffer.len() >= 3 {
+        let is_selected = app.edit_field_index == 2;
+        let is_placeholder = app.edit_buffer_is_placeholder.get(2).copied().unwrap_or(false);
+
+        let style = get_field_style(app, is_selected, is_placeholder);
+
+        let mut url_text = format!(" {} ", app.edit_buffer[2].clone());
+
+        // Add cursor if editing this field
+        if is_selected && (app.edit_insert_mode || app.edit_field_editing_mode) {
+            url_text = add_cursor_to_text(&url_text, app.edit_cursor_pos, 1);
+        }
+
+        let url_line = Line::styled(url_text, style);
+        let url_area = Rect {
+            x: card_area.x + 2,
+            y: card_area.y + card_area.height.saturating_sub(1),
+            width: card_area.width.saturating_sub(4),
+            height: 1
+        };
+        let url_para = Paragraph::new(url_line).alignment(Alignment::Left);
+        f.render_widget(url_para, url_area);
+    }
+
+    // Context in the middle (always render with newlines)
+    if app.edit_buffer.len() >= 2 {
+        render_context_field(f, app, inner_area, 1);
+    }
+}
+
+fn render_context_field(f: &mut Frame, app: &App, inner_area: Rect, field_index: usize) {
+    let is_selected = app.edit_field_index == field_index;
+    let is_placeholder = app.edit_buffer_is_placeholder.get(field_index).copied().unwrap_or(false);
+
+    let style = get_field_style(app, is_selected, is_placeholder);
+
+    let field = &app.edit_buffer[field_index];
+
+    // Render newlines when:
+    // - NOT selected (user is editing other fields) → always render
+    // - Selected AND in View Edit mode → render
+    // - Selected AND in Field selection mode (not editing within field) → render
+    // Show raw \n only when:
+    // - Selected AND in Normal/Insert mode (editing within field, not View Edit)
+    let should_render_newlines = !is_selected || app.view_edit_mode || !app.edit_field_editing_mode;
+
+    if should_render_newlines {
+        // View Edit mode: render with actual newlines
+        let field_lines: Vec<&str> = field.lines().collect();
+        let visible_height = inner_area.height as usize;
+        let vscroll = app.edit_vscroll as usize;
+
+        // Calculate cursor position if editing THIS field
+        let (cursor_line, cursor_col) = if is_selected && (app.edit_insert_mode || app.edit_field_editing_mode) {
+            let mut char_count = 0;
+            let mut cursor_line_idx = 0;
+            let mut cursor_col_in_line = 0;
+
+            for (line_idx, line) in field_lines.iter().enumerate() {
+                let line_len = line.chars().count();
+                let separator_len = if line_idx < field_lines.len() - 1 { 1 } else { 0 }; // newline = 1 char
+
+                if app.edit_cursor_pos <= char_count + line_len {
+                    cursor_line_idx = line_idx;
+                    cursor_col_in_line = app.edit_cursor_pos - char_count;
+                    break;
+                }
+
+                char_count += line_len + separator_len;
             }
-        } else if is_placeholder {
-            // Show placeholders in dim color
-            Style::default().fg(app.colorscheme.overlay_field_placeholder)
+
+            (cursor_line_idx, cursor_col_in_line)
         } else {
-            Style::default().fg(app.colorscheme.overlay_field_normal)
+            (0, 0)
         };
 
-        // Check if this is context field (index 1 in both INSIDE and OUTSIDE)
-        let is_context_field = (app.edit_buffer.len() == 3 && i == 1) || // INSIDE context
-                               (app.edit_buffer.len() == 5 && i == 1);   // OUTSIDE context
+        // Render visible lines
+        let visible_lines: Vec<&str> = field_lines
+            .iter()
+            .skip(vscroll)
+            .take(visible_height)
+            .copied()
+            .collect();
 
-        // Render newlines for context field:
-        // - Field selection mode (not editing): render \n as newlines (multi-line)
-        // - View Edit mode: render \n as newlines (multi-line)
-        // - Normal/Insert mode: show raw \n (single-line with wrapping)
-        // - Other fields: never render \n as newlines
-        let should_render_newlines = is_context_field && (!app.edit_field_editing_mode || app.view_edit_mode);
+        let mut content_lines: Vec<Line> = Vec::new();
 
-        if is_context_field && should_render_newlines {
-            // Context field with newlines: dynamic window with scrolling
-            // Context already contains actual newline characters
-            let field_lines: Vec<&str> = field.lines().collect();
+        for (visible_idx, line_text) in visible_lines.iter().enumerate() {
+            let actual_line_idx = vscroll + visible_idx;
+            let mut display_line = line_text.to_string();
 
-            // Context field window size: calculate based on available space
-            let min_window_height = 1;
-
-            // Calculate available height: total inner area minus other fields
-            let num_other_fields = app.edit_buffer.len() - 1; // All fields except context
-            let other_fields_height = num_other_fields * 2; // Each field + blank line
-            let available_height = inner_area.height as usize;
-            let max_window_height = if available_height > other_fields_height {
-                (available_height - other_fields_height).max(min_window_height)
-            } else {
-                min_window_height
-            };
-
-            // Calculate actual display lines considering text wrapping with proper Unicode width
-            let actual_display_lines: usize = field_lines.iter()
-                .map(|line| {
-                    let display_width = line.width(); // Accurate Unicode display width
-                    if display_width == 0 {
-                        1 // Empty lines still take 1 line
-                    } else {
-                        // Calculate how many lines this will take when wrapped
-                        ((display_width + window_width - 1) / window_width).max(1)
-                    }
-                })
-                .sum();
-
-            // Determine window height based on actual display lines (with wrapping)
-            let window_height = actual_display_lines.max(min_window_height).min(max_window_height);
-
-            let vscroll = app.edit_vscroll as usize;
-
-            // Apply vertical scroll
-            let visible_lines: Vec<&str> = field_lines
-                .iter()
-                .skip(vscroll)
-                .take(window_height)
-                .copied()
-                .collect();
-
-            // Calculate cursor position if editing
-            let (cursor_line, cursor_col) = if is_selected && (app.edit_insert_mode || app.edit_field_editing_mode) {
-                // Calculate which line and column the cursor is on
-                let mut char_count = 0;
-                let mut cursor_line_idx = 0;
-                let mut cursor_col_in_line = 0;
-
-                for (line_idx, line) in field_lines.iter().enumerate() {
-                    let line_len = line.chars().count();
-                    let separator_len = if line_idx < field_lines.len() - 1 { 1 } else { 0 }; // newline = 1 char
-
-                    if app.edit_cursor_pos <= char_count + line_len {
-                        cursor_line_idx = line_idx;
-                        cursor_col_in_line = app.edit_cursor_pos - char_count;
-                        break;
-                    }
-
-                    char_count += line_len + separator_len;
-                }
-
-                (cursor_line_idx, cursor_col_in_line)
-            } else {
-                (0, 0)
-            };
-
-            // Render each visible line (no horizontal scrolling for context field)
-            for (visible_idx, line_text) in visible_lines.iter().enumerate() {
-                let actual_line_idx = vscroll + visible_idx;
-                let mut display_line = line_text.to_string();
-
-                // Add cursor if this is the line with the cursor
-                if is_selected && (app.edit_insert_mode || app.edit_field_editing_mode) && actual_line_idx == cursor_line {
-                    let char_count = display_line.chars().count();
-                    let cursor_char_pos = cursor_col.min(char_count);
-                    let byte_pos = if cursor_char_pos == 0 {
-                        0
-                    } else if cursor_char_pos >= char_count {
-                        display_line.len()
-                    } else {
-                        display_line.char_indices().nth(cursor_char_pos).map(|(i, _)| i).unwrap_or(display_line.len())
-                    };
-                    display_line.insert(byte_pos, '|');
-                }
-
-                // Context field doesn't use horizontal scrolling, just display as-is
-                // Text will wrap naturally in the Paragraph widget
-                lines.push(Line::styled(display_line, style));
-            }
-
-            // Pad with empty lines to reach window_height (for View Edit mode with few lines)
-            for _ in visible_lines.len()..window_height {
-                lines.push(Line::styled(String::new(), style));
-            }
-        } else if is_context_field {
-            // Context field in Normal/Insert mode: show raw \n with wrapping
-            // Replace actual newline characters with visible "\\n" text
-            let mut display_text = field.replace('\n', "\\n");
-
-            // Add cursor in insert mode or field editing mode
-            if is_selected && (app.edit_insert_mode || app.edit_field_editing_mode) {
-                // Calculate cursor position in display_text
-                // Each actual '\n' becomes "\\n" (2 chars), so we need to adjust the position
-                let mut actual_pos = 0;
-                let mut display_pos = 0;
-                for ch in field.chars() {
-                    if actual_pos == app.edit_cursor_pos {
-                        break;
-                    }
-                    if ch == '\n' {
-                        display_pos += 2; // '\n' becomes "\\n" (2 characters)
-                    } else {
-                        display_pos += 1;
-                    }
-                    actual_pos += 1;
-                }
-
-                // Insert cursor at the correct display position
-                let byte_pos = if display_pos == 0 {
-                    0
-                } else if display_pos >= display_text.chars().count() {
-                    display_text.len()
-                } else {
-                    display_text.char_indices().nth(display_pos).map(|(i, _)| i).unwrap_or(display_text.len())
-                };
-                display_text.insert(byte_pos, '|');
-            }
-
-            // Calculate available height dynamically (similar to View Edit mode)
-            let num_other_fields = app.edit_buffer.len() - 1; // All fields except context
-            let other_fields_height = num_other_fields * 2; // Each field + blank line
-            let available_height = inner_area.height as usize;
-            let min_window_height = 1;
-            let max_wrapped_lines = if available_height > other_fields_height {
-                (available_height - other_fields_height).max(min_window_height)
-            } else {
-                min_window_height
-            };
-
-            // Split text into chunks that fit within window width (wrapping)
-            let chars: Vec<char> = display_text.chars().collect();
-            let mut line_start = 0;
-            let mut wrapped_line_count = 0;
-
-            while line_start < chars.len() && wrapped_line_count < max_wrapped_lines {
-                let mut line_width = 0;
-                let mut line_end = line_start;
-
-                for (idx, ch) in chars[line_start..].iter().enumerate() {
-                    let char_width = app.display_width_str(&ch.to_string());
-                    if line_width + char_width > window_width && line_width > 0 {
-                        break;
-                    }
-                    line_width += char_width;
-                    line_end = line_start + idx + 1;
-                }
-
-                if line_end == line_start {
-                    // Edge case: single character wider than window
-                    line_end = line_start + 1;
-                }
-
-                let line_text: String = chars[line_start..line_end].iter().collect();
-                lines.push(Line::styled(line_text, style));
-
-                line_start = line_end;
-                wrapped_line_count += 1;
-            }
-
-            // If empty, add at least one line
-            if chars.is_empty() {
-                lines.push(Line::styled(String::new(), style));
-            }
-        } else {
-            // Single-line field: apply horizontal scrolling
-            let mut display_text = field.clone();
-
-            // Add cursor in insert mode or field editing mode
-            if is_selected && (app.edit_insert_mode || app.edit_field_editing_mode) {
-                let char_count = field.chars().count();
-                let cursor_char_pos = app.edit_cursor_pos.min(char_count);
+            // Add cursor if this is the line with the cursor AND this field is selected
+            if is_selected && (app.edit_insert_mode || app.edit_field_editing_mode) && actual_line_idx == cursor_line {
+                let char_count = display_line.chars().count();
+                let cursor_char_pos = cursor_col.min(char_count);
                 let byte_pos = if cursor_char_pos == 0 {
                     0
                 } else if cursor_char_pos >= char_count {
-                    field.len()
+                    display_line.len()
                 } else {
-                    field.char_indices().nth(cursor_char_pos).map(|(i, _)| i).unwrap_or(field.len())
+                    display_line.char_indices().nth(cursor_char_pos).map(|(i, _)| i).unwrap_or(display_line.len())
                 };
-                display_text.insert(byte_pos, '|');
+                display_line.insert(byte_pos, '|');
             }
 
-            // Apply horizontal scroll if this is the selected field and in editing mode
-            let scrolled_text = if is_selected && app.edit_field_editing_mode {
-                let hscroll = app.edit_hscroll as usize;
-                // Use display width slicing
-                app.slice_columns(&display_text, hscroll, window_width)
-            } else {
-                // No scrolling for non-editing fields, just truncate if too long
-                if app.display_width_str(&display_text) > window_width {
-                    app.slice_columns(&display_text, 0, window_width)
-                } else {
-                    display_text
+            content_lines.push(Line::styled(display_line, style));
+        }
+
+        // Pad with empty lines if needed
+        for _ in content_lines.len()..visible_height {
+            content_lines.push(Line::styled(String::new(), style));
+        }
+
+        let context_para = Paragraph::new(content_lines).wrap(Wrap { trim: false });
+        f.render_widget(context_para, inner_area);
+    } else {
+        // Normal/Insert mode: show raw \n (replace with \\n for display)
+        let mut display_text = field.replace('\n', "\\n");
+
+        // Add cursor if editing this field
+        if is_selected && (app.edit_insert_mode || app.edit_field_editing_mode) {
+            // Calculate cursor position in display_text
+            // Each actual '\n' becomes "\\n" (2 chars), so we need to adjust the position
+            let mut actual_pos = 0;
+            let mut display_pos = 0;
+            for ch in field.chars() {
+                if actual_pos == app.edit_cursor_pos {
+                    break;
                 }
+                if ch == '\n' {
+                    display_pos += 2; // '\n' becomes "\\n" (2 characters)
+                } else {
+                    display_pos += 1;
+                }
+                actual_pos += 1;
+            }
+
+            // Insert cursor at the correct display position
+            let byte_pos = if display_pos == 0 {
+                0
+            } else if display_pos >= display_text.chars().count() {
+                display_text.len()
+            } else {
+                display_text.char_indices().nth(display_pos).map(|(i, _)| i).unwrap_or(display_text.len())
             };
-
-            lines.push(Line::styled(scrolled_text, style));
+            display_text.insert(byte_pos, '|');
         }
 
-        // Add blank line between fields
-        if i < app.edit_buffer.len() - 1 {
-            lines.push(Line::from(""));
-        }
+        // Render as single wrapped text
+        let content_para = Paragraph::new(display_text)
+            .style(style)
+            .wrap(Wrap { trim: false });
+        f.render_widget(content_para, inner_area);
     }
+}
 
-    let content = Paragraph::new(lines).wrap(Wrap { trim: false });
-    f.render_widget(content, inner_area);
+fn get_field_style(app: &App, is_selected: bool, is_placeholder: bool) -> Style {
+    if is_selected {
+        // Insert mode or View Edit mode: active color (yellow)
+        // Field selection mode and Normal mode: selected color (blue)
+        if app.edit_insert_mode || app.view_edit_mode {
+            Style::default().fg(app.colorscheme.overlay_field_active).add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(app.colorscheme.overlay_field_selected).add_modifier(Modifier::BOLD)
+        }
+    } else if is_placeholder {
+        Style::default().fg(app.colorscheme.overlay_field_placeholder)
+    } else {
+        Style::default().fg(app.colorscheme.overlay_field_normal)
+    }
+}
+
+fn add_cursor_to_text(text: &str, cursor_pos: usize, offset: usize) -> String {
+    let mut result = text.to_string();
+    let adjusted_pos = cursor_pos + offset;
+    let char_count = result.chars().count();
+    let cursor_char_pos = adjusted_pos.min(char_count);
+
+    let byte_pos = if cursor_char_pos == 0 {
+        0
+    } else if cursor_char_pos >= char_count {
+        result.len()
+    } else {
+        result.char_indices().nth(cursor_char_pos).map(|(i, _)| i).unwrap_or(result.len())
+    };
+
+    result.insert(byte_pos, '|');
+    result
 }

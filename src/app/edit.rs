@@ -41,14 +41,12 @@ impl App {
                                     if context_is_empty { "context".to_string() } else { context },
                                     if url_is_empty { "url".to_string() } else { url },
                                     if let Some(pct) = percentage { pct.to_string() } else { "percentage".to_string() },
-                                    "Exit".to_string(),
                                 ];
                                 self.edit_buffer_is_placeholder = vec![
                                     name_is_empty,
                                     context_is_empty,
                                     url_is_empty,
                                     percentage.is_none(),
-                                    false, // Exit is never a placeholder
                                 ];
                                 self.edit_field_index = 0;
                                 self.editing_entry = true;
@@ -78,12 +76,10 @@ impl App {
                                 self.edit_buffer = vec![
                                     if date_is_empty { "date".to_string() } else { date },
                                     if context_is_empty { "context".to_string() } else { context },
-                                    "Exit".to_string(),
                                 ];
                                 self.edit_buffer_is_placeholder = vec![
                                     date_is_empty,
                                     context_is_empty,
-                                    false, // Exit is never a placeholder
                                 ];
                                 self.edit_field_index = 0;
                                 self.editing_entry = true;
@@ -646,8 +642,8 @@ impl App {
         let cursor_pos = self.edit_cursor_pos;
 
         // Check if this is context field (index 1 in both INSIDE and OUTSIDE)
-        let is_context_field = (self.edit_buffer.len() == 3 && self.edit_field_index == 1) ||
-                               (self.edit_buffer.len() == 5 && self.edit_field_index == 1);
+        let is_context_field = (self.edit_buffer.len() == 2 && self.edit_field_index == 1) ||
+                               (self.edit_buffer.len() == 4 && self.edit_field_index == 1);
 
         if is_context_field && self.view_edit_mode {
             // Context field in View Edit mode: calculate line and column from cursor position

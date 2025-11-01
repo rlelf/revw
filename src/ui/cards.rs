@@ -128,24 +128,7 @@ fn render_outside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: R
     let name = entry.name.as_deref().unwrap_or("");
     let url = entry.url.as_deref().unwrap_or("");
 
-    // Top-right: url (on the border) - render first so name can overwrite it if needed
-    if !url.is_empty() {
-        let url_text = format!(" {} ", url);
-        let url_span = if !app.search_query.is_empty() {
-            highlight_search_in_line(
-                &url_text,
-                &app.search_query,
-                Style::default().fg(app.colorscheme.card_title),
-            )
-        } else {
-            Line::styled(url_text, Style::default().fg(app.colorscheme.card_title))
-        };
-        let url_area = Rect { x: card_area.x + 2, y: card_area.y, width: card_area.width.saturating_sub(4), height: 1 };
-        let url_para = Paragraph::new(url_span).alignment(Alignment::Right);
-        f.render_widget(url_para, url_area);
-    }
-
-    // Top-left: name (on the border) - render after URL so it takes priority
+    // Top-left: name (on the border)
     if !name.is_empty() {
         let name_text = format!(" {} ", name);
         let name_span = if !app.search_query.is_empty() {
@@ -162,7 +145,7 @@ fn render_outside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: R
         f.render_widget(name_para, name_area);
     }
 
-    // Bottom-right: percentage (on the border) - only if not null
+    // Bottom-right: percentage (on the border) - render first to ensure visibility
     if let Some(percentage) = entry.percentage {
         let percentage_text = format!(" {}% ", percentage);
         let percentage_span = Line::styled(
@@ -177,6 +160,28 @@ fn render_outside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: R
         };
         let percentage_para = Paragraph::new(percentage_span).alignment(Alignment::Right);
         f.render_widget(percentage_para, percentage_area);
+    }
+
+    // Bottom-left: url (on the border) - render after percentage so percentage takes priority
+    if !url.is_empty() {
+        let url_text = format!(" {} ", url);
+        let url_span = if !app.search_query.is_empty() {
+            highlight_search_in_line(
+                &url_text,
+                &app.search_query,
+                Style::default().fg(app.colorscheme.card_title),
+            )
+        } else {
+            Line::styled(url_text, Style::default().fg(app.colorscheme.card_title))
+        };
+        let url_area = Rect {
+            x: card_area.x + 2,
+            y: card_area.y + card_area.height.saturating_sub(1),
+            width: card_area.width.saturating_sub(4),
+            height: 1
+        };
+        let url_para = Paragraph::new(url_span).alignment(Alignment::Left);
+        f.render_widget(url_para, url_area);
     }
 
     // Middle: context (inside the card)

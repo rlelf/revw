@@ -22,7 +22,7 @@ pub fn handle_overlay_keyboard(app: &mut App, key: KeyEvent) {
                     if app.edit_field_index < app.edit_buffer.len() {
                         let field = &app.edit_buffer[app.edit_field_index];
                         if field.is_empty() {
-                            let placeholder = if app.edit_buffer.len() == 3 {
+                            let placeholder = if app.edit_buffer.len() == 2 {
                                 match app.edit_field_index {
                                     0 => "date",
                                     1 => "context",
@@ -503,8 +503,8 @@ fn handle_field_selection_mode(app: &mut App, key: KeyEvent) {
         }
         KeyCode::Left | KeyCode::Char('h') => {
             // Check if this is context field (index 1)
-            let is_context_field = (app.edit_buffer.len() == 3 && app.edit_field_index == 1) ||
-                                   (app.edit_buffer.len() == 5 && app.edit_field_index == 1);
+            let is_context_field = (app.edit_buffer.len() == 2 && app.edit_field_index == 1) ||
+                                   (app.edit_buffer.len() == 4 && app.edit_field_index == 1);
 
             if is_context_field {
                 // Vertical scroll up for context field
@@ -516,8 +516,8 @@ fn handle_field_selection_mode(app: &mut App, key: KeyEvent) {
         }
         KeyCode::Right | KeyCode::Char('l') => {
             // Check if this is context field (index 1)
-            let is_context_field = (app.edit_buffer.len() == 3 && app.edit_field_index == 1) ||
-                                   (app.edit_buffer.len() == 5 && app.edit_field_index == 1);
+            let is_context_field = (app.edit_buffer.len() == 2 && app.edit_field_index == 1) ||
+                                   (app.edit_buffer.len() == 4 && app.edit_field_index == 1);
 
             if is_context_field {
                 // Vertical scroll down for context field
@@ -546,23 +546,18 @@ fn handle_field_selection_mode(app: &mut App, key: KeyEvent) {
             }
         }
         KeyCode::Enter => {
-            // Check if Exit field is selected
+            // Enter Normal mode (field editing mode without insert)
+            // Clear placeholder text when entering normal mode
             if app.edit_field_index < app.edit_buffer.len() {
-                let field = &app.edit_buffer[app.edit_field_index];
-                if field == "Exit" {
-                    // Close overlay without saving
-                    app.cancel_editing_entry();
-                    return;
-                }
-                // Clear placeholder text when entering field editing mode
                 if app.edit_field_index < app.edit_buffer_is_placeholder.len()
                     && app.edit_buffer_is_placeholder[app.edit_field_index] {
                     app.edit_buffer[app.edit_field_index] = String::new();
                     app.edit_buffer_is_placeholder[app.edit_field_index] = false;
                 }
             }
-            // Enter field editing mode
+            // Enter field editing mode (Normal mode for navigation)
             app.edit_field_editing_mode = true;
+            app.edit_insert_mode = false;
             app.edit_cursor_pos = 0;
             app.edit_hscroll = 0;
         }
@@ -594,14 +589,8 @@ fn handle_field_selection_mode(app: &mut App, key: KeyEvent) {
                 return;
             }
 
-            // Check if Exit field is selected
+            // Clear placeholder text when entering View Edit mode
             if app.edit_field_index < app.edit_buffer.len() {
-                let field = &app.edit_buffer[app.edit_field_index];
-                if field == "Exit" {
-                    // Don't enter View Edit mode on Exit field
-                    return;
-                }
-                // Clear placeholder text when entering View Edit mode
                 if app.edit_field_index < app.edit_buffer_is_placeholder.len()
                     && app.edit_buffer_is_placeholder[app.edit_field_index] {
                     app.edit_buffer[app.edit_field_index] = String::new();
