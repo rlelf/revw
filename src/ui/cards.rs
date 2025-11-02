@@ -145,24 +145,7 @@ fn render_outside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: R
         f.render_widget(name_para, name_area);
     }
 
-    // Bottom-right: percentage (on the border) - render first to ensure visibility
-    if let Some(percentage) = entry.percentage {
-        let percentage_text = format!(" {}% ", percentage);
-        let percentage_span = Line::styled(
-            percentage_text,
-            Style::default().fg(app.colorscheme.card_title),
-        );
-        let percentage_area = Rect {
-            x: card_area.x + 2,
-            y: card_area.y + card_area.height.saturating_sub(1),
-            width: card_area.width.saturating_sub(4),
-            height: 1
-        };
-        let percentage_para = Paragraph::new(percentage_span).alignment(Alignment::Right);
-        f.render_widget(percentage_para, percentage_area);
-    }
-
-    // Bottom-left: url (on the border) - render after percentage so percentage takes priority
+    // Bottom-left: url (on the border) - render first
     if !url.is_empty() {
         let url_text = format!(" {} ", url);
         let url_span = if !app.search_query.is_empty() {
@@ -182,6 +165,23 @@ fn render_outside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: R
         };
         let url_para = Paragraph::new(url_span).alignment(Alignment::Left);
         f.render_widget(url_para, url_area);
+    }
+
+    // Bottom-right: percentage (on the border) - render after url to ensure visibility
+    if let Some(percentage) = entry.percentage {
+        let percentage_text = format!(" {}% ", percentage);
+        let percentage_span = Line::styled(
+            percentage_text,
+            Style::default().fg(app.colorscheme.card_title),
+        );
+        let percentage_area = Rect {
+            x: card_area.x + 2,
+            y: card_area.y + card_area.height.saturating_sub(1),
+            width: card_area.width.saturating_sub(4),
+            height: 1
+        };
+        let percentage_para = Paragraph::new(percentage_span).alignment(Alignment::Right);
+        f.render_widget(percentage_para, percentage_area);
     }
 
     // Middle: context (inside the card)
