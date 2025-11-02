@@ -4,7 +4,9 @@ use std::path::PathBuf;
 impl App {
     // Command completion with Tab key - cycles through candidates
     pub fn complete_command(&mut self) {
-        let cmd = self.command_buffer.trim().to_string();
+        // Don't trim for :e file completion (need to preserve trailing space)
+        let cmd_raw = self.command_buffer.clone();
+        let cmd = cmd_raw.trim().to_string();
 
         // If we have active candidates, check if we should cycle or start fresh
         if !self.completion_candidates.is_empty() {
@@ -57,8 +59,9 @@ impl App {
             }
         }
         // Handle :e file completion (only when there's a space after e)
-        else if cmd.starts_with("e ") {
-            let partial = cmd.strip_prefix("e ").unwrap_or("");
+        else if cmd_raw.trim_start().starts_with("e ") {
+            let trimmed = cmd_raw.trim_start();
+            let partial = trimmed.strip_prefix("e ").unwrap_or("");
             self.complete_file_path(partial);
         }
         // Handle command name completion
