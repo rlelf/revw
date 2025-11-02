@@ -6,13 +6,20 @@ impl App {
     pub fn complete_command(&mut self) {
         let cmd = self.command_buffer.trim().to_string();
 
-        // If we have active candidates and command hasn't changed, cycle to next one
-        if !self.completion_candidates.is_empty() &&
-           self.completion_candidates.iter().any(|c| c == &cmd) {
-            self.completion_index = (self.completion_index + 1) % self.completion_candidates.len();
-            self.command_buffer = self.completion_candidates[self.completion_index].clone();
-            self.set_status(&format!(":{}", self.command_buffer));
-            return;
+        // If we have active candidates, check if we should cycle or start fresh
+        if !self.completion_candidates.is_empty() {
+            // Cycle if current command is one of the candidates OR if original hasn't changed
+            let is_candidate = self.completion_candidates.iter().any(|c| c == &cmd);
+            let original_matches = !self.completion_original.is_empty() &&
+                                   self.completion_candidates.iter().all(|c| c.starts_with(&self.completion_original));
+
+            if is_candidate && original_matches {
+                // Cycle to next candidate
+                self.completion_index = (self.completion_index + 1) % self.completion_candidates.len();
+                self.command_buffer = self.completion_candidates[self.completion_index].clone();
+                self.set_status(&format!(":{}", self.command_buffer));
+                return;
+            }
         }
 
         // Otherwise, find new candidates
