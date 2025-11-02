@@ -58,7 +58,11 @@ impl App {
         }
         // Handle :e file completion
         else if cmd == "e" || cmd.starts_with("e ") {
-            let partial = cmd.strip_prefix("e ").unwrap_or("");
+            let partial = if cmd == "e" {
+                ""
+            } else {
+                cmd.strip_prefix("e ").unwrap_or("")
+            };
             self.complete_file_path(partial);
         }
         // Handle command name completion
