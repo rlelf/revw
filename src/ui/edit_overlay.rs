@@ -119,20 +119,21 @@ fn render_outside_overlay(f: &mut Frame, app: &App, card_area: Rect, inner_area:
 
         let style = get_field_style(app, is_selected, is_placeholder);
 
-        let mut name_text = format!(" {} ", app.edit_buffer[0].clone());
-
-        // Add cursor if editing this field
-        if is_selected && (app.edit_insert_mode || app.edit_field_editing_mode) {
-            name_text = add_cursor_to_text(&name_text, app.edit_cursor_pos, 1);
-        }
-
-        let name_line = Line::styled(name_text, style);
         let name_area = Rect {
             x: card_area.x + 2,
             y: card_area.y,
             width: card_area.width.saturating_sub(4),
             height: 1
         };
+
+        // Add cursor and handle horizontal scrolling if editing this field
+        let name_text = if is_selected && (app.edit_insert_mode || app.edit_field_editing_mode) {
+            render_scrollable_field(&app.edit_buffer[0], app.edit_cursor_pos, name_area.width as usize, 1)
+        } else {
+            format!(" {} ", app.edit_buffer[0].clone())
+        };
+
+        let name_line = Line::styled(name_text, style);
         let name_para = Paragraph::new(name_line).alignment(Alignment::Left);
         f.render_widget(name_para, name_area);
     }
@@ -144,20 +145,21 @@ fn render_outside_overlay(f: &mut Frame, app: &App, card_area: Rect, inner_area:
 
         let style = get_field_style(app, is_selected, is_placeholder);
 
-        let mut url_text = format!(" {} ", app.edit_buffer[2].clone());
-
-        // Add cursor if editing this field
-        if is_selected && (app.edit_insert_mode || app.edit_field_editing_mode) {
-            url_text = add_cursor_to_text(&url_text, app.edit_cursor_pos, 1);
-        }
-
-        let url_line = Line::styled(url_text, style);
         let url_area = Rect {
             x: card_area.x + 2,
             y: card_area.y + card_area.height.saturating_sub(1),
             width: card_area.width.saturating_sub(4),
             height: 1
         };
+
+        // Add cursor and handle horizontal scrolling if editing this field
+        let url_text = if is_selected && (app.edit_insert_mode || app.edit_field_editing_mode) {
+            render_scrollable_field(&app.edit_buffer[2], app.edit_cursor_pos, url_area.width as usize, 1)
+        } else {
+            format!(" {} ", app.edit_buffer[2].clone())
+        };
+
+        let url_line = Line::styled(url_text, style);
         let url_para = Paragraph::new(url_line).alignment(Alignment::Left);
         f.render_widget(url_para, url_area);
     }
@@ -350,4 +352,52 @@ fn add_cursor_to_text(text: &str, cursor_pos: usize, offset: usize) -> String {
 
     result.insert(byte_pos, '|');
     result
+}
+
+// Render a field with horizontal scrolling to keep cursor visible
+fn render_scrollable_field(field_content: &str, cursor_pos: usize, width: usize, padding: usize) -> String {
+    // Account for leading/trailing spaces
+    let available_width = width.saturating_sub(padding * 2);
+
+    if available_width == 0 {
+        return format!(" {} ", field_content);
+    }
+
+    let field_chars: Vec<char> = field_content.chars().collect();
+    let field_len = field_chars.len();
+
+    // Calculate scroll offset to keep cursor visible
+    let cursor_pos = cursor_pos.min(field_len);
+
+    // Calculate the scroll offset
+    let scroll_offset = if cursor_pos < available_width.saturating_sub(1) {
+        // Cursor is near the start, no scroll needed
+        0
+    } else {
+        // Scroll to keep cursor visible with some context
+        cursor_pos.saturating_sub(available_width.saturating_sub(1))
+    };
+
+    // Extract visible portion
+    let visible_start = scroll_offset;
+    let visible_end = (scroll_offset + available_width).min(field_len);
+    let visible_text: String = field_chars[visible_start..visible_end].iter().collect();
+
+    // Add cursor
+    let cursor_in_visible = cursor_pos.saturating_sub(scroll_offset);
+    let mut display_text = format!(" {} ", visible_text);
+
+    // Insert cursor at correct position (offset by 1 for leading space)
+    let cursor_byte_pos = if cursor_in_visible == 0 {
+        1 // After leading space
+    } else {
+        let prefix: String = field_chars[visible_start..(visible_start + cursor_in_visible).min(field_len)].iter().collect();
+        1 + prefix.len()
+    };
+
+    if cursor_byte_pos <= display_text.len() {
+        display_text.insert(cursor_byte_pos, '|');
+    }
+
+    display_text
 }
