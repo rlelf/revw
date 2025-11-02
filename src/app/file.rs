@@ -30,10 +30,13 @@ impl App {
 
                 self.convert_json();
 
-                // Reset card selection and scroll position when opening a new file
+                // Reset card selection and cursor position when opening a new file
                 if path_changed {
                     self.selected_entry_index = 0;
                     self.hscroll = 0;
+                    self.content_cursor_line = 0;
+                    self.content_cursor_col = 0;
+                    self.scroll = 0;
                 }
             }
             Err(e) => {
@@ -74,10 +77,13 @@ impl App {
                             }
                             self.set_status(&format!("Created new file: {}", final_path_display));
                             self.convert_json();
-                            // Reset card selection and scroll position when creating a new file
+                            // Reset card selection and cursor position when creating a new file
                             if path_changed {
                                 self.selected_entry_index = 0;
                                 self.hscroll = 0;
+                                self.content_cursor_line = 0;
+                                self.content_cursor_col = 0;
+                                self.scroll = 0;
                             }
                             // Reload explorer if open
                             if self.explorer_open {
