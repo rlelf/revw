@@ -57,11 +57,15 @@ impl App {
             }
         }
         // Handle :e file completion
-        else if cmd == "e" || cmd.starts_with("e ") {
+        else if cmd == "e" || cmd.starts_with("e ") || cmd.starts_with("e") {
             let partial = if cmd == "e" {
                 ""
-            } else {
+            } else if cmd.starts_with("e ") {
                 cmd.strip_prefix("e ").unwrap_or("")
+            } else if cmd.starts_with("e") && cmd.len() > 1 {
+                &cmd[1..]
+            } else {
+                ""
             };
             self.complete_file_path(partial);
         }
