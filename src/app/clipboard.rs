@@ -437,9 +437,9 @@ impl App {
                                                 .or_insert(Value::Array(vec![]));
 
                                             if let Some(arr) = inside_array.as_array_mut() {
-                                                // Append new items
-                                                for item in new_inside_items {
-                                                    arr.push(item);
+                                                // Insert new items at the beginning (like :ai)
+                                                for (idx, item) in new_inside_items.into_iter().enumerate() {
+                                                    arr.insert(idx, item);
                                                 }
 
                                                 // Format and save
@@ -448,7 +448,7 @@ impl App {
                                                         self.json_input = formatted;
                                                         self.is_modified = true;
                                                         self.convert_json();
-                                                        self.set_status("INSIDE entries appended from clipboard");
+                                                        self.set_status("INSIDE entries inserted at top from clipboard");
                                                     }
                                                     Err(e) => self.set_status(&format!("Format error: {}", e)),
                                                 }
