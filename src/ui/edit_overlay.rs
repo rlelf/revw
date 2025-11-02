@@ -356,7 +356,7 @@ fn add_cursor_to_text(text: &str, cursor_pos: usize, offset: usize) -> String {
 
 // Render a field with horizontal scrolling to keep cursor visible
 fn render_scrollable_field(field_content: &str, cursor_pos: usize, width: usize, padding: usize) -> String {
-    // Account for leading/trailing spaces
+    // Account for leading/trailing spaces and cursor character
     let available_width = width.saturating_sub(padding * 2);
 
     if available_width == 0 {
@@ -369,18 +369,22 @@ fn render_scrollable_field(field_content: &str, cursor_pos: usize, width: usize,
     // Calculate scroll offset to keep cursor visible
     let cursor_pos = cursor_pos.min(field_len);
 
-    // Calculate the scroll offset
-    let scroll_offset = if cursor_pos < available_width.saturating_sub(1) {
+    // Reserve space for cursor (1 char)
+    let content_width = available_width.saturating_sub(1);
+
+    // Calculate the scroll offset to keep cursor in view
+    let scroll_offset = if cursor_pos < content_width {
         // Cursor is near the start, no scroll needed
         0
     } else {
-        // Scroll to keep cursor visible with some context
-        cursor_pos.saturating_sub(available_width.saturating_sub(1))
+        // Scroll so cursor is visible near the end of the viewport
+        // This ensures we can see the cursor even at the very end
+        cursor_pos.saturating_sub(content_width)
     };
 
     // Extract visible portion
     let visible_start = scroll_offset;
-    let visible_end = (scroll_offset + available_width).min(field_len);
+    let visible_end = (scroll_offset + content_width).min(field_len);
     let visible_text: String = field_chars[visible_start..visible_end].iter().collect();
 
     // Add cursor
