@@ -137,32 +137,7 @@ fn render_outside_overlay(f: &mut Frame, app: &App, card_area: Rect, inner_area:
         f.render_widget(name_para, name_area);
     }
 
-    // Percentage on bottom-right border (render first to ensure visibility)
-    if app.edit_buffer.len() >= 4 {
-        let is_selected = app.edit_field_index == 3;
-        let is_placeholder = app.edit_buffer_is_placeholder.get(3).copied().unwrap_or(false);
-
-        let style = get_field_style(app, is_selected, is_placeholder);
-
-        let mut pct_text = format!(" {} % ", app.edit_buffer[3].clone());
-
-        // Add cursor if editing this field
-        if is_selected && (app.edit_insert_mode || app.edit_field_editing_mode) {
-            pct_text = add_cursor_to_text(&pct_text, app.edit_cursor_pos, 1);
-        }
-
-        let pct_line = Line::styled(pct_text, style);
-        let pct_area = Rect {
-            x: card_area.x + 2,
-            y: card_area.y + card_area.height.saturating_sub(1),
-            width: card_area.width.saturating_sub(4),
-            height: 1
-        };
-        let pct_para = Paragraph::new(pct_line).alignment(Alignment::Right);
-        f.render_widget(pct_para, pct_area);
-    }
-
-    // URL on bottom-left border (render after percentage so percentage takes priority)
+    // URL on bottom-left border (render first)
     if app.edit_buffer.len() >= 3 {
         let is_selected = app.edit_field_index == 2;
         let is_placeholder = app.edit_buffer_is_placeholder.get(2).copied().unwrap_or(false);
@@ -185,6 +160,31 @@ fn render_outside_overlay(f: &mut Frame, app: &App, card_area: Rect, inner_area:
         };
         let url_para = Paragraph::new(url_line).alignment(Alignment::Left);
         f.render_widget(url_para, url_area);
+    }
+
+    // Percentage on bottom-right border (render after URL to ensure visibility)
+    if app.edit_buffer.len() >= 4 {
+        let is_selected = app.edit_field_index == 3;
+        let is_placeholder = app.edit_buffer_is_placeholder.get(3).copied().unwrap_or(false);
+
+        let style = get_field_style(app, is_selected, is_placeholder);
+
+        let mut pct_text = format!(" {} % ", app.edit_buffer[3].clone());
+
+        // Add cursor if editing this field
+        if is_selected && (app.edit_insert_mode || app.edit_field_editing_mode) {
+            pct_text = add_cursor_to_text(&pct_text, app.edit_cursor_pos, 1);
+        }
+
+        let pct_line = Line::styled(pct_text, style);
+        let pct_area = Rect {
+            x: card_area.x + 2,
+            y: card_area.y + card_area.height.saturating_sub(1),
+            width: card_area.width.saturating_sub(4),
+            height: 1
+        };
+        let pct_para = Paragraph::new(pct_line).alignment(Alignment::Right);
+        f.render_widget(pct_para, pct_area);
     }
 
     // Context in the middle (always render with newlines)
