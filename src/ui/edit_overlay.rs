@@ -50,15 +50,9 @@ pub fn render_edit_overlay(f: &mut Frame, app: &App) {
     // INSIDE: date, context (2 fields)
     // OUTSIDE: name, context, url, percentage (4 fields)
     let is_inside = app.edit_buffer.len() == 2;
-    let title = if is_inside {
-        " INSIDE "
-    } else {
-        " OUTSIDE "
-    };
 
     // Render the popup border
     let block = Block::default()
-        .title(title)
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
         .style(Style::default().bg(app.colorscheme.background).fg(Color::White));

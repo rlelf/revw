@@ -110,7 +110,12 @@ impl App {
         } else if path_buf.is_dir() {
             (path_buf.clone(), String::new())
         } else {
-            let dir = path_buf.parent().unwrap_or(std::path::Path::new(".")).to_path_buf();
+            let parent = path_buf.parent();
+            let dir = if parent.is_none() || parent == Some(std::path::Path::new("")) {
+                PathBuf::from(".")
+            } else {
+                parent.unwrap().to_path_buf()
+            };
             let file_prefix = path_buf.file_name()
                 .and_then(|n| n.to_str())
                 .unwrap_or("")
@@ -119,7 +124,8 @@ impl App {
         };
 
         // Read directory and find matching files
-        if let Ok(entries) = fs::read_dir(&dir) {
+        match fs::read_dir(&dir) {
+            Ok(entries) => {
             // Check if dir is current directory
             let current_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
             let is_current_dir = dir == PathBuf::from(".") || dir == current_dir;
@@ -149,7 +155,11 @@ impl App {
                 self.completion_index = 0;
                 self.command_buffer = self.completion_candidates[0].clone();
                 self.set_status(&format!(":{}", self.command_buffer));
+            } else {
+                self.set_status(&format!(":{}  (no matches)", self.command_buffer));
             }
+            }
+            Err(_) => {}
         }
     }
 }
