@@ -118,17 +118,22 @@ impl App {
 
         // Read directory and find matching files
         if let Ok(entries) = fs::read_dir(&dir) {
+            // Check if dir is current directory
+            let current_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+            let is_current_dir = dir == PathBuf::from(".") || dir == current_dir;
+
             let mut matches: Vec<String> = entries
                 .filter_map(|e| e.ok())
                 .filter_map(|e| {
                     let name = e.file_name().to_string_lossy().to_string();
                     if name.to_lowercase().starts_with(&file_prefix.to_lowercase()) {
-                        let full_path = if dir == PathBuf::from(".") {
+                        // Always show just the filename if in current directory
+                        let display_path = if is_current_dir {
                             name.clone()
                         } else {
                             dir.join(&name).to_string_lossy().to_string()
                         };
-                        Some(format!("e {}", full_path))
+                        Some(format!("e {}", display_path))
                     } else {
                         None
                     }
