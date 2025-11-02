@@ -58,10 +58,9 @@ impl App {
                 self.set_status(&format!(":{}", self.command_buffer));
             }
         }
-        // Handle :e file completion (only when there's a space after e)
-        else if cmd_raw.trim_start().starts_with("e ") {
-            let trimmed = cmd_raw.trim_start();
-            let partial = trimmed.strip_prefix("e ").unwrap_or("");
+        // Handle :e file completion
+        else if cmd.starts_with("e ") || cmd_raw.trim_start() == "e " {
+            let partial = cmd.strip_prefix("e ").unwrap_or("");
             self.complete_file_path(partial);
         }
         // Handle command name completion
