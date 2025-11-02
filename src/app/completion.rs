@@ -155,8 +155,6 @@ impl App {
                 self.completion_index = 0;
                 self.command_buffer = self.completion_candidates[0].clone();
                 self.set_status(&format!(":{}", self.command_buffer));
-            } else {
-                self.set_status(&format!(":{}  (no matches)", self.command_buffer));
             }
             }
             Err(_) => {}
