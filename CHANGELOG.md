@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.5
+
+- Fixed percentage display priority over long URLs
+- Fixed cursor position reset when opening files
+- Fixed `:e` completion for relative paths
+- Fixed overlay window layout
+
 ## 0.2.4
 
 - Added Tab completion for commands
