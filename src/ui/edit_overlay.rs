@@ -370,8 +370,8 @@ fn render_scrollable_field(field_content: &str, cursor_pos: usize, width: usize,
     let cursor_pos = cursor_pos.min(field_len);
 
     // Reserve space for cursor (1 char) with extra margin
-    // Subtract 2 to ensure cursor is always visible even at the end
-    let content_width = available_width.saturating_sub(2);
+    // Subtract 5 to ensure cursor is always visible with good margin
+    let content_width = available_width.saturating_sub(5);
 
     // Calculate the scroll offset to keep cursor in view
     let scroll_offset = if cursor_pos < content_width {
