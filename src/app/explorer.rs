@@ -184,20 +184,9 @@ impl App {
             if selected.path.is_file() {
                 if let Some(extension) = selected.path.extension() {
                     if extension == "json" {
-                        let path_changed = self.file_path.as_ref() != Some(&selected.path);
-                        self.file_path = Some(selected.path.clone());
-                        self.file_path_changed = true;
-                        if let Ok(content) = fs::read_to_string(&selected.path) {
-                            self.json_input = content;
-                            self.convert_json();
-                            // Reset card selection to first entry when opening a new file
-                            if path_changed {
-                                self.selected_entry_index = 0;
-                            }
-                            // Keep focus on explorer
-                        } else {
-                            self.set_status(&format!("Error: Cannot read file '{}'", selected.path.display()));
-                        }
+                        // Use load_file to properly reset all cursor positions
+                        self.load_file(selected.path.clone());
+                        // Keep focus on explorer (unlike Enter which moves focus)
                     } else {
                         self.set_status(&format!("Error: Only JSON files can be opened ({})", selected.path.display()));
                     }
