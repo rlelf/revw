@@ -1,6 +1,5 @@
 # Revw
 
-[![Crates.io](https://img.shields.io/crates/v/revw.svg)](https://crates.io/crates/revw)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Repo](https://img.shields.io/badge/repo-rlelf%2Frevw-blue?logo=github)](https://github.com/rlelf/revw)
 [![Built With Ratatui](https://img.shields.io/badge/Built_With_Ratatui-000?logo=ratatui&logoColor=fff)](https://ratatui.rs/)
@@ -54,12 +53,12 @@ This format is also available in [relf](https://github.com/rlelf/relf)
 ## Install
 
 ```bash
-cargo install revw
+cargo install --git https://github.com/rlelf/revw.git --locked
 ```
 
-Or install from source:
+Or install a specific version:
 ```bash
-cargo install --git https://github.com/rlelf/revw.git --locked
+cargo install --git https://github.com/rlelf/revw.git --tag v0.x.x --locked
 ```
 
 Or download from [Releases](https://github.com/rlelf/revw/releases)
