@@ -301,6 +301,7 @@ revw --output output.md --markdown file.json
 - `:q` quit
 - `:e` reload file
 - `:ar` toggle auto-reload (default: on)
+- `:markdown` export current file to Markdown format (same folder, .md extension)
 - `:Lexplore` or `:Lex` or `:lx` toggle file explorer
 - `Ctrl+w w` cycle between explorer and file window
 - `Ctrl+w h` move to explorer window (left)

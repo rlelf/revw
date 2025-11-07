@@ -287,6 +287,9 @@ impl App {
             } else {
                 self.set_status(&format!("Unknown color scheme: {}", scheme_name));
             }
+        } else if cmd == "markdown" {
+            // Export current file to Markdown format
+            self.export_to_markdown();
         } else {
             self.set_status(&format!("Unknown command: {}", cmd));
         }

@@ -154,6 +154,7 @@ pub fn get_help_content() -> Vec<String> {
         "  :q           - quit".to_string(),
         "  :e           - reload file".to_string(),
         "  :ar          - toggle auto-reload (default: on)".to_string(),
+        "  :markdown    - export to Markdown (same folder, .md extension)".to_string(),
         "  :f pattern   - filter entries".to_string(),
         "  :nof         - clear filter".to_string(),
         "  :Lexplore / :Lex / :lx - toggle file explorer".to_string(),
