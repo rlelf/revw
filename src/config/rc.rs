@@ -7,6 +7,7 @@ pub struct RcConfig {
     pub show_line_numbers: bool,
     pub colorscheme: ColorScheme,
     pub max_visible_cards: usize,
+    pub show_extension: bool,
 }
 
 impl Default for RcConfig {
@@ -15,6 +16,7 @@ impl Default for RcConfig {
             show_line_numbers: false,
             colorscheme: ColorScheme::default(),
             max_visible_cards: 5,
+            show_extension: true,
         }
     }
 }
@@ -94,6 +96,12 @@ impl RcConfig {
             }
             "nonumber" | "nonu" => {
                 self.show_line_numbers = false;
+            }
+            "extension" => {
+                self.show_extension = true;
+            }
+            "noextension" => {
+                self.show_extension = false;
             }
             _ => {
                 // Check for card=N format

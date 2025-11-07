@@ -234,4 +234,90 @@ impl App {
             self.explorer_has_focus = false;
         }
     }
+
+    pub fn explorer_update_scroll(&mut self) {
+        // Update scroll to keep selected item visible
+        let visible_height = self.visible_height.max(10) as usize;
+        if self.explorer_selected_index < self.explorer_scroll as usize {
+            self.explorer_scroll = self.explorer_selected_index as u16;
+        } else if self.explorer_selected_index >= (self.explorer_scroll as usize + visible_height) {
+            self.explorer_scroll = (self.explorer_selected_index - visible_height + 1) as u16;
+        }
+    }
+
+    pub fn explorer_next_match(&mut self) {
+        // Use the last search from search history
+        let search_pattern = if !self.search_history.is_empty() {
+            self.search_history.last().unwrap().clone()
+        } else {
+            return;
+        };
+
+        if search_pattern.is_empty() {
+            return;
+        }
+
+        let start_index = self.explorer_selected_index + 1;
+        for i in start_index..self.explorer_entries.len() {
+            if let Some(filename) = self.explorer_entries[i].path.file_name().and_then(|n| n.to_str()) {
+                if filename.to_lowercase().contains(&search_pattern.to_lowercase()) {
+                    self.explorer_selected_index = i;
+                    self.explorer_update_scroll();
+                    return;
+                }
+            }
+        }
+
+        // Wrap around to beginning
+        for i in 0..start_index {
+            if let Some(filename) = self.explorer_entries[i].path.file_name().and_then(|n| n.to_str()) {
+                if filename.to_lowercase().contains(&search_pattern.to_lowercase()) {
+                    self.explorer_selected_index = i;
+                    self.explorer_update_scroll();
+                    return;
+                }
+            }
+        }
+    }
+
+    pub fn explorer_prev_match(&mut self) {
+        // Use the last search from search history
+        let search_pattern = if !self.search_history.is_empty() {
+            self.search_history.last().unwrap().clone()
+        } else {
+            return;
+        };
+
+        if search_pattern.is_empty() {
+            return;
+        }
+
+        let start_index = if self.explorer_selected_index > 0 {
+            self.explorer_selected_index - 1
+        } else {
+            self.explorer_entries.len().saturating_sub(1)
+        };
+
+        // Search backwards from start_index to 0
+        for i in (0..=start_index).rev() {
+            if let Some(filename) = self.explorer_entries[i].path.file_name().and_then(|n| n.to_str()) {
+                if filename.to_lowercase().contains(&search_pattern.to_lowercase()) {
+                    self.explorer_selected_index = i;
+                    self.explorer_update_scroll();
+                    return;
+                }
+            }
+        }
+
+        // Wrap around to end
+        for i in (start_index + 1..self.explorer_entries.len()).rev() {
+            if let Some(filename) = self.explorer_entries[i].path.file_name().and_then(|n| n.to_str()) {
+                if filename.to_lowercase().contains(&search_pattern.to_lowercase()) {
+                    self.explorer_selected_index = i;
+                    self.explorer_update_scroll();
+                    return;
+                }
+            }
+        }
+    }
 }

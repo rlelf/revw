@@ -261,8 +261,8 @@ pub fn handle_normal_mode(app: &mut App, key: KeyEvent) -> Result<bool> {
             }
         }
         KeyCode::Enter => {
-            // Open edit overlay for selected card
-            if !app.showing_help && !app.relf_entries.is_empty() {
+            // Open edit overlay for selected card (only in View mode)
+            if !app.showing_help && !app.relf_entries.is_empty() && app.format_mode == FormatMode::View {
                 app.start_editing_entry();
             }
         }
@@ -420,6 +420,44 @@ fn handle_explorer_navigation(app: &mut App, key: KeyEvent) -> Result<bool> {
             app.explorer_move_up();
             return Ok(false);
         }
+        KeyCode::Char('h') | KeyCode::Left => {
+            // Scroll left
+            if app.explorer_horizontal_scroll > 0 {
+                app.explorer_horizontal_scroll -= 1;
+            }
+            return Ok(false);
+        }
+        KeyCode::Char('l') | KeyCode::Right => {
+            // Scroll right
+            app.explorer_horizontal_scroll += 1;
+            return Ok(false);
+        }
+        KeyCode::Char('G') => {
+            // Go to bottom
+            if !app.explorer_entries.is_empty() {
+                app.explorer_selected_index = app.explorer_entries.len() - 1;
+                app.explorer_update_scroll();
+            }
+            return Ok(false);
+        }
+        KeyCode::Char('/') => {
+            // Start search mode
+            app.input_mode = crate::app::InputMode::Search;
+            app.search_buffer = String::new();
+            app.search_history_index = None;
+            app.set_status("/");
+            return Ok(false);
+        }
+        KeyCode::Char('n') => {
+            // Next search match
+            app.explorer_next_match();
+            return Ok(false);
+        }
+        KeyCode::Char('N') => {
+            // Previous search match
+            app.explorer_prev_match();
+            return Ok(false);
+        }
         KeyCode::Enter => {
             // Open file and move focus to right
             app.explorer_select_entry();
@@ -441,8 +479,15 @@ fn handle_explorer_navigation(app: &mut App, key: KeyEvent) -> Result<bool> {
             return Ok(true);
         }
         KeyCode::Char('g') => {
-            // Start of potential 'go' or 'gg'
-            app.handle_vim_input('g');
+            // Start of potential 'go' or 'gg' or 'G'
+            if app.vim_buffer == "g" {
+                // Second 'g' - go to top
+                app.explorer_selected_index = 0;
+                app.explorer_update_scroll();
+                app.vim_buffer.clear();
+            } else {
+                app.handle_vim_input('g');
+            }
             return Ok(false);
         }
         _ => {}

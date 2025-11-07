@@ -2,7 +2,7 @@ use ratatui::{
     layout::Rect,
     style::{Color, Modifier, Style},
     text::Line,
-    widgets::{Block, BorderType, Borders, Paragraph, Wrap},
+    widgets::{Block, BorderType, Borders, Paragraph},
     Frame,
 };
 
@@ -46,11 +46,18 @@ pub fn render_explorer(f: &mut Frame, app: &App, area: Rect) {
         let indent = "  ".repeat(entry.depth);
 
         // Get file/directory name
-        let name = entry.path
+        let mut name = entry.path
             .file_name()
             .and_then(|n| n.to_str())
             .unwrap_or("???")
             .to_string();
+
+        // Remove extension if show_extension is false and it's a file
+        if !app.show_extension && entry.path.is_file() {
+            if let Some(stem) = entry.path.file_stem().and_then(|s| s.to_str()) {
+                name = stem.to_string();
+            }
+        }
 
         // Add expand/collapse indicator for directories
         let indicator = if entry.path.is_dir() {
@@ -85,6 +92,8 @@ pub fn render_explorer(f: &mut Frame, app: &App, area: Rect) {
         lines.push(Line::styled(display_text, style));
     }
 
-    let content = Paragraph::new(lines).wrap(Wrap { trim: false });
+    // Render without wrapping and apply horizontal scroll
+    let content = Paragraph::new(lines)
+        .scroll((0, app.explorer_horizontal_scroll));
     f.render_widget(content, inner_area);
 }

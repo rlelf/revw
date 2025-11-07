@@ -110,6 +110,8 @@ pub struct App {
     pub show_line_numbers: bool,
     // Maximum visible cards in View mode (1-10, default 5)
     pub max_visible_cards: usize,
+    // Show file extension in explorer
+    pub show_extension: bool,
     // Command history buffers (max 10 entries each)
     pub command_history: Vec<String>,     // History for : commands
     pub search_history: Vec<String>,      // History for / searches
@@ -120,6 +122,7 @@ pub struct App {
     pub explorer_entries: Vec<ExplorerEntry>,
     pub explorer_selected_index: usize,
     pub explorer_scroll: u16,
+    pub explorer_horizontal_scroll: u16,
     pub explorer_current_dir: PathBuf,
     pub explorer_has_focus: bool, // Track which window has focus
     pub explorer_dir_changed: bool, // Signal that explorer directory changed and watcher needs update
@@ -225,6 +228,7 @@ impl App {
             current_substitute_index: 0,
             last_click_time: None,
             show_line_numbers: rc_config.show_line_numbers,
+            show_extension: rc_config.show_extension,
             max_visible_cards: rc_config.max_visible_cards,
             command_history: Vec::new(),
             search_history: Vec::new(),
@@ -234,6 +238,7 @@ impl App {
             explorer_entries: Vec::new(),
             explorer_selected_index: 0,
             explorer_scroll: 0,
+            explorer_horizontal_scroll: 0,
             explorer_current_dir: std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
             explorer_has_focus: true, // Explorer has focus when opened
             explorer_dir_changed: false,

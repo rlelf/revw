@@ -269,6 +269,14 @@ impl App {
                     self.set_status("Invalid card value");
                 }
             }
+        } else if cmd == "set extension" {
+            // Enable file extension display in explorer
+            self.show_extension = true;
+            self.set_status("File extensions enabled");
+        } else if cmd == "set noextension" {
+            // Disable file extension display in explorer
+            self.show_extension = false;
+            self.set_status("File extensions disabled");
         } else if cmd.starts_with("colorscheme ") {
             // Change color scheme
             use super::ColorScheme;

@@ -165,7 +165,12 @@ fn render_outside_overlay(f: &mut Frame, app: &App, card_area: Rect, inner_area:
 
         let style = get_field_style(app, is_selected, is_placeholder);
 
-        let mut pct_text = format!(" {} % ", app.edit_buffer[3].clone());
+        // Only show % when not a placeholder
+        let mut pct_text = if is_placeholder {
+            format!(" {} ", app.edit_buffer[3].clone())
+        } else {
+            format!(" {} % ", app.edit_buffer[3].clone())
+        };
 
         // Add cursor if editing this field
         if is_selected && (app.edit_insert_mode || app.edit_field_editing_mode) {
