@@ -428,8 +428,10 @@ fn handle_explorer_navigation(app: &mut App, key: KeyEvent) -> Result<bool> {
             return Ok(false);
         }
         KeyCode::Char('l') | KeyCode::Right => {
-            // Scroll right
-            app.explorer_horizontal_scroll += 1;
+            // Scroll right (max 100)
+            if app.explorer_horizontal_scroll < 100 {
+                app.explorer_horizontal_scroll += 1;
+            }
             return Ok(false);
         }
         KeyCode::Char('G') => {

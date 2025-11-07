@@ -3,7 +3,7 @@ use std::process::Command;
 fn main() {
     // Try to get git version
     let git_version = Command::new("git")
-        .args(&["describe", "--tags", "--always", "--dirty"])
+        .args(&["describe", "--tags", "--dirty"])
         .output()
         .ok()
         .and_then(|output| {

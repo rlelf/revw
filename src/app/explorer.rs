@@ -8,6 +8,7 @@ impl App {
         if self.explorer_open {
             self.load_explorer_entries();
             self.explorer_has_focus = true;
+            self.explorer_horizontal_scroll = 0; // Reset horizontal scroll
         }
         self.explorer_dir_changed = true; // Signal watcher to update
     }

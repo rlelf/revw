@@ -112,6 +112,12 @@ revw --stdout --inside file.json
 
 # Output only OUTSIDE section
 revw --stdout --outside file.json
+
+# Output in Markdown format
+revw --stdout --markdown file.json
+
+# Output to file in Markdown format
+revw --output output.md --markdown file.json
 ```
 
 ## Controls
@@ -169,6 +175,8 @@ revw --stdout --outside file.json
 - `:set number` or `:set nu` enable line numbers (Edit mode)
 - `:set nonumber` or `:set nonu` disable line numbers
 - `:set card=N` set max visible cards (1-10, default: 5)
+- `:set extension` show file extensions in explorer (default)
+- `:set noextension` hide file extensions in explorer
 
 **Other:**
 - `r` toggle View/Edit mode
@@ -179,7 +187,12 @@ revw --stdout --outside file.json
 
 **File Explorer:**
 - `j/k` or `↑/↓` navigate files/directories
-- `Enter` open file (JSON only) or enter directory
+- `h/l` or `←/→` scroll left/right (for long filenames)
+- `gg` jump to first entry
+- `G` jump to last entry
+- `/` search files by name
+- `n/N` next/prev search match
+- `Enter` open file (JSON only) or expand/collapse directory
 - `:Lexplore` or `:Lex` or `:lx` close explorer
 - `Ctrl+w w` cycle between explorer and file window
 - `Ctrl+w h` move to explorer window (left)
@@ -298,6 +311,8 @@ revw --stdout --outside file.json
 - `:set number` or `:set nu` enable line numbers
 - `:set nonumber` or `:set nonu` disable line numbers
 - `:set card=N` set max visible cards (1-10, default: 5)
+- `:set extension` show file extensions in explorer (default)
+- `:set noextension` hide file extensions in explorer
 
 **Substitute:**
 - `:s/foo/bar/` substitute first occurrence in current line
@@ -320,6 +335,12 @@ set nonumber      # Disable line numbers (default)
 **Max Visible Cards:**
 ```vim
 set card=5        # Set max visible cards (1-10, default: 5)
+```
+
+**File Extensions:**
+```vim
+set extension     # Show file extensions in explorer (default)
+set noextension   # Hide file extensions in explorer
 ```
 
 **Color Schemes:**
