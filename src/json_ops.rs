@@ -1,5 +1,6 @@
 use chrono::Local;
 use serde_json::Value;
+use crate::content_ops::ContentOperations;
 
 pub struct JsonOperations;
 
@@ -470,5 +471,46 @@ impl JsonOperations {
         };
 
         Ok((formatted, message.to_string()))
+    }
+}
+
+// Implement ContentOperations trait for JsonOperations
+impl ContentOperations for JsonOperations {
+    fn add_inside_entry(&self, content: &str) -> Result<(String, usize, usize, String), String> {
+        JsonOperations::add_inside_entry(content)
+    }
+
+    fn add_outside_entry(&self, content: &str) -> Result<(String, usize, usize, String), String> {
+        JsonOperations::add_outside_entry(content)
+    }
+
+    fn delete_entry_at_cursor(
+        &self,
+        content: &str,
+        cursor_line: usize,
+        lines: &[String],
+    ) -> Result<(String, String), String> {
+        JsonOperations::delete_entry_at_cursor(content, cursor_line, lines)
+    }
+
+    fn duplicate_entry_at_cursor(
+        &self,
+        content: &str,
+        cursor_line: usize,
+        lines: &[String],
+    ) -> Result<(String, String), String> {
+        JsonOperations::duplicate_entry_at_cursor(content, cursor_line, lines)
+    }
+
+    fn order_entries(&self, content: &str) -> Result<(String, String), String> {
+        JsonOperations::order_entries(content)
+    }
+
+    fn order_by_percentage(&self, content: &str) -> Result<(String, String), String> {
+        JsonOperations::order_by_percentage(content)
+    }
+
+    fn order_by_name(&self, content: &str) -> Result<(String, String), String> {
+        JsonOperations::order_by_name(content)
     }
 }

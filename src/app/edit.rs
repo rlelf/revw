@@ -1,5 +1,4 @@
 use super::{App, FormatMode};
-use crate::json_ops::JsonOperations;
 use serde_json::Value;
 
 impl App {
@@ -422,7 +421,8 @@ impl App {
     }
 
     pub fn append_inside(&mut self) {
-        match JsonOperations::add_inside_entry(&self.json_input) {
+        let ops = self.get_operations();
+        match ops.add_inside_entry(&self.json_input) {
             Ok((formatted, line, col, message)) => {
                 self.json_input = formatted;
                 self.is_modified = true;
@@ -457,7 +457,8 @@ impl App {
     }
 
     pub fn append_outside(&mut self) {
-        match JsonOperations::add_outside_entry(&self.json_input) {
+        let ops = self.get_operations();
+        match ops.add_outside_entry(&self.json_input) {
             Ok((formatted, line, col, message)) => {
                 self.json_input = formatted;
                 self.is_modified = true;
@@ -575,7 +576,8 @@ impl App {
     }
 
     pub fn order_entries(&mut self) {
-        match JsonOperations::order_entries(&self.json_input) {
+        let ops = self.get_operations();
+        match ops.order_entries(&self.json_input) {
             Ok((formatted, message)) => {
                 self.json_input = formatted;
                 self.is_modified = true;
@@ -593,7 +595,8 @@ impl App {
     }
 
     pub fn order_by_percentage(&mut self) {
-        match JsonOperations::order_by_percentage(&self.json_input) {
+        let ops = self.get_operations();
+        match ops.order_by_percentage(&self.json_input) {
             Ok((formatted, message)) => {
                 self.json_input = formatted;
                 self.is_modified = true;
@@ -611,7 +614,8 @@ impl App {
     }
 
     pub fn order_by_name(&mut self) {
-        match JsonOperations::order_by_name(&self.json_input) {
+        let ops = self.get_operations();
+        match ops.order_by_name(&self.json_input) {
             Ok((formatted, message)) => {
                 self.json_input = formatted;
                 self.is_modified = true;

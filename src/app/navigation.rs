@@ -1,5 +1,4 @@
 use super::{App, FormatMode};
-use crate::json_ops::JsonOperations;
 use crate::navigation::Navigator;
 use serde_json::Value;
 
@@ -262,7 +261,8 @@ impl App {
         self.save_undo_state();
 
         let lines = self.get_json_lines();
-        match JsonOperations::delete_entry_at_cursor(
+        let ops = self.get_operations();
+        match ops.delete_entry_at_cursor(
             &self.json_input,
             self.content_cursor_line,
             &lines,

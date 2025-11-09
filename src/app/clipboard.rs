@@ -1,5 +1,4 @@
 use super::{App, FormatMode};
-use crate::json_ops::JsonOperations;
 use arboard::Clipboard;
 use serde_json::Value;
 use std::path::PathBuf;
@@ -1112,7 +1111,8 @@ impl App {
             self.save_undo_state();
 
             let lines = self.get_json_lines();
-            match JsonOperations::duplicate_entry_at_cursor(
+            let ops = self.get_operations();
+            match ops.duplicate_entry_at_cursor(
                 &self.json_input,
                 self.content_cursor_line,
                 &lines,

@@ -1,7 +1,9 @@
 mod app;
 mod config;
+mod content_ops;
 mod input;
 mod json_ops;
+mod markdown_ops;
 mod navigation;
 mod rendering;
 mod ui;

@@ -14,6 +14,9 @@ mod substitute;
 mod undo;
 
 use crate::config::{ColorScheme, RcConfig};
+use crate::content_ops::ContentOperations;
+use crate::json_ops::JsonOperations;
+use crate::markdown_ops::MarkdownOperations;
 use crate::navigation::Navigator;
 use crate::rendering::{RelfEntry, RelfLineStyle, RelfRenderResult, Renderer};
 use std::{
@@ -343,6 +346,25 @@ impl App {
         } else {
             self.status_message = message.to_string();
             self.status_time = Some(Instant::now());
+        }
+    }
+
+    /// Check if the current file is a Markdown file
+    pub fn is_markdown_file(&self) -> bool {
+        self.file_path
+            .as_ref()
+            .and_then(|path| path.extension())
+            .and_then(|ext| ext.to_str())
+            .map(|ext| ext.eq_ignore_ascii_case("md"))
+            .unwrap_or(false)
+    }
+
+    /// Get the appropriate content operations handler based on file type
+    fn get_operations(&self) -> Box<dyn ContentOperations> {
+        if self.is_markdown_file() {
+            Box::new(MarkdownOperations)
+        } else {
+            Box::new(JsonOperations)
         }
     }
 
