@@ -407,7 +407,10 @@ impl App {
                 Ok(json_content) => {
                     self.json_input = json_content;
                 }
-                Err(_) => {}
+                Err(e) => {
+                    // Keep the old json_input but set a status message
+                    self.set_status(&format!("Markdown parse error: {}", e));
+                }
             }
         } else {
             self.json_input = lines.join("\n");

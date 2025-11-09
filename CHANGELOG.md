@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.6
+
+- Improved Markdown support: entries without `###` headers are now recognized (separated by blank lines)
+- Fixed `:markdown` command output format to use `**URL:**` and `**Percentage:**` instead of `####`
+- Fixed Edit mode to properly display Markdown files
+- Fixed Markdown file reload to correctly parse content
+- Added better error handling for Markdown parsing
+
 ## 0.2.5
 
 - Fixed percentage display priority over long URLs

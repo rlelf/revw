@@ -190,7 +190,29 @@ impl App {
         if let Some(path) = self.file_path.clone() {
             match fs::read_to_string(&path) {
                 Ok(content) => {
-                    self.json_input = content;
+                    // Check if this is a Markdown file
+                    let is_markdown = path.extension()
+                        .and_then(|ext| ext.to_str())
+                        .map(|ext| ext.eq_ignore_ascii_case("md"))
+                        .unwrap_or(false);
+
+                    if is_markdown {
+                        self.markdown_input = content.clone();
+                        // Parse Markdown and convert to JSON
+                        match self.parse_markdown(&content) {
+                            Ok(json_content) => {
+                                self.json_input = json_content;
+                            }
+                            Err(e) => {
+                                self.set_status(&format!("Error parsing markdown: {}", e));
+                                return;
+                            }
+                        }
+                    } else {
+                        self.markdown_input = String::new();
+                        self.json_input = content;
+                    }
+
                     self.is_modified = false;
                     self.convert_json();
                     self.content_cursor_line = 0;
