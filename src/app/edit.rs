@@ -279,10 +279,12 @@ impl App {
                 }
 
                 let line = lines[self.content_cursor_line].clone();
-                let split_pos = self.content_cursor_col.min(line.len());
-                let (left, right) = line.split_at(split_pos);
-                lines[self.content_cursor_line] = left.to_string();
-                lines.insert(self.content_cursor_line + 1, right.to_string());
+                let chars: Vec<char> = line.chars().collect();
+                let split_pos = self.content_cursor_col.min(chars.len());
+                let left: String = chars.iter().take(split_pos).collect();
+                let right: String = chars.iter().skip(split_pos).collect();
+                lines[self.content_cursor_line] = left;
+                lines.insert(self.content_cursor_line + 1, right);
                 self.content_cursor_line += 1;
                 self.content_cursor_col = 0;
             }
