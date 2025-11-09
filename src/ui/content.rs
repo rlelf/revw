@@ -9,6 +9,7 @@ use ratatui::{
 use crate::app::{App, FormatMode, InputMode};
 
 use super::json_highlight::highlight_json_line;
+use super::markdown_highlight::highlight_markdown_line;
 use super::utils::{apply_relf_style, slice_spans_by_width};
 
 pub fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
@@ -102,8 +103,12 @@ pub fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
             let mut content_spans: Vec<Span> = Vec::new();
 
             if !app.search_query.is_empty() && app.format_mode == FormatMode::Edit {
-                // In Edit mode with search: apply JSON highlighting to full line first
-                let json_spans = highlight_json_line(s, &app.colorscheme);
+                // In Edit mode with search: apply syntax highlighting to full line first
+                let json_spans = if app.is_markdown_file() {
+                    highlight_markdown_line(s, &app.colorscheme)
+                } else {
+                    highlight_json_line(s, &app.colorscheme)
+                };
 
                 // Merge JSON highlighting with search match backgrounds on full line
                 let query_lower = app.search_query.to_lowercase();
@@ -223,8 +228,12 @@ pub fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
             } else {
                 // No search highlighting
                 if app.format_mode == FormatMode::Edit {
-                    // Apply JSON syntax highlighting to full line, then slice
-                    let full_line_spans = highlight_json_line(s, &app.colorscheme);
+                    // Apply syntax highlighting to full line, then slice
+                    let full_line_spans = if app.is_markdown_file() {
+                        highlight_markdown_line(s, &app.colorscheme)
+                    } else {
+                        highlight_json_line(s, &app.colorscheme)
+                    };
                     content_spans = slice_spans_by_width(app, full_line_spans, off_cols, adjusted_w_cols);
                 } else {
                     // In View mode, use plain text with line style

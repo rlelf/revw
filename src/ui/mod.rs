@@ -1,4 +1,5 @@
 mod json_highlight;
+mod markdown_highlight;
 mod utils;
 mod status_bar;
 mod explorer;
