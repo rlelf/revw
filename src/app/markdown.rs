@@ -165,7 +165,9 @@ impl App {
                                 let url = item_obj.get("url").and_then(|v| v.as_str());
                                 let percentage = item_obj.get("percentage").and_then(|v| v.as_i64());
 
-                                output_lines.push(format!("### {}", name));
+                                if !name.is_empty() {
+                                    output_lines.push(format!("### {}", name));
+                                }
 
                                 if !context.is_empty() {
                                     output_lines.push(context.to_string());
@@ -185,7 +187,10 @@ impl App {
                                     output_lines.push(format!("**Percentage:** {}%", pct));
                                 }
 
-                                output_lines.push("".to_string());
+                                // Only add blank line if we had any content
+                                if !name.is_empty() || !context.is_empty() || url.is_some() || percentage.is_some() {
+                                    output_lines.push("".to_string());
+                                }
                             }
                         }
                     }
@@ -210,7 +215,10 @@ impl App {
                                     output_lines.push(context.to_string());
                                 }
 
-                                output_lines.push("".to_string());
+                                // Only add blank line if we had content
+                                if !date.is_empty() || !context.is_empty() {
+                                    output_lines.push("".to_string());
+                                }
                             }
                         }
                     }

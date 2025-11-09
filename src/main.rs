@@ -125,12 +125,14 @@ fn main() -> Result<()> {
 
                                     for item in outside {
                                         if let Some(item_obj) = item.as_object() {
-                                            let name = item_obj.get("name").and_then(|v| v.as_str()).unwrap_or("name");
+                                            let name = item_obj.get("name").and_then(|v| v.as_str()).unwrap_or("");
                                             let context = item_obj.get("context").and_then(|v| v.as_str()).unwrap_or("");
                                             let url = item_obj.get("url").and_then(|v| v.as_str());
                                             let percentage = item_obj.get("percentage").and_then(|v| v.as_i64());
 
-                                            output_lines.push(format!("### {}", name));
+                                            if !name.is_empty() {
+                                                output_lines.push(format!("### {}", name));
+                                            }
 
                                             // Replace literal \n with actual newlines in context
                                             if !context.is_empty() {
@@ -141,16 +143,21 @@ fn main() -> Result<()> {
                                             // Only output URL if it's not null and not empty
                                             if let Some(url_str) = url {
                                                 if !url_str.is_empty() {
-                                                    output_lines.push(format!("#### URL: {}", url_str));
+                                                    output_lines.push("".to_string());
+                                                    output_lines.push(format!("**URL:** {}", url_str));
                                                 }
                                             }
 
                                             // Only output percentage if it's not null
                                             if let Some(pct) = percentage {
-                                                output_lines.push(format!("#### Percentage: {}%", pct));
+                                                output_lines.push("".to_string());
+                                                output_lines.push(format!("**Percentage:** {}%", pct));
                                             }
 
-                                            output_lines.push("".to_string());
+                                            // Only add blank line if we had any content
+                                            if !name.is_empty() || !context.is_empty() || url.is_some() || percentage.is_some() {
+                                                output_lines.push("".to_string());
+                                            }
                                         }
                                     }
                                 }
@@ -179,7 +186,10 @@ fn main() -> Result<()> {
                                                 output_lines.push(formatted_context);
                                             }
 
-                                            output_lines.push("".to_string());
+                                            // Only add blank line if we had content
+                                            if !date.is_empty() || !context.is_empty() {
+                                                output_lines.push("".to_string());
+                                            }
                                         }
                                     }
                                 }
