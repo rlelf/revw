@@ -29,6 +29,8 @@ Internal notes or thoughts with timestamps:
 - **Date**: Timestamp of the entry, sortable for ordering
 - **Context**: notes or thoughts
 
+### JSON Format
+
 ```json
 {
   "outside": [
@@ -60,6 +62,7 @@ The same data can be represented in Markdown:
 A systems programming language focused on safety, speed, and concurrency.
 
 **URL:** https://www.rust-lang.org/
+
 **Percentage:** 100%
 
 ## INSIDE

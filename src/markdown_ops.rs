@@ -414,9 +414,11 @@ impl MarkdownOperations {
                     lines.push(entry.context.clone());
                 }
                 if !entry.url.is_empty() {
+                    lines.push("".to_string());
                     lines.push(format!("**URL:** {}", entry.url));
                 }
                 if let Some(pct) = entry.percentage {
+                    lines.push("".to_string());
                     lines.push(format!("**Percentage:** {}%", pct));
                 }
                 lines.push("".to_string());

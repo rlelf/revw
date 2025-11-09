@@ -307,12 +307,14 @@ impl App {
                                 // Only output URL if it's not null and not empty
                                 if let Some(url_str) = url {
                                     if !url_str.is_empty() {
+                                        output_lines.push("".to_string());
                                         output_lines.push(format!("**URL:** {}", url_str));
                                     }
                                 }
 
                                 // Only output percentage if it's not null
                                 if let Some(pct) = percentage {
+                                    output_lines.push("".to_string());
                                     output_lines.push(format!("**Percentage:** {}%", pct));
                                 }
 
