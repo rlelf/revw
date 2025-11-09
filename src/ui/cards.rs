@@ -15,7 +15,17 @@ pub fn render_relf_cards(f: &mut Frame, app: &mut App, area: Rect) {
     let title = match &app.file_path {
         Some(path) => {
             if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                format!(" {} ", name)
+                // Remove extension if show_extension is false
+                let display_name = if !app.show_extension {
+                    if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+                        stem.to_string()
+                    } else {
+                        name.to_string()
+                    }
+                } else {
+                    name.to_string()
+                };
+                format!(" {} ", display_name)
             } else {
                 String::new()
             }
@@ -188,9 +198,14 @@ fn render_outside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: R
     let context = entry.context.as_deref().unwrap_or("");
     if !context.is_empty() {
         // Context already contains actual newline characters
-        let vscroll = if is_selected { app.hscroll as usize } else { 0 };
-        // Use full height of inner area
         let visible_lines = inner_area.height as usize;
+        let total_lines = context.lines().count();
+        let max_scroll = total_lines.saturating_sub(visible_lines);
+        let vscroll = if is_selected {
+            (app.hscroll as usize).min(max_scroll)
+        } else {
+            0
+        };
 
         let context_lines: Vec<Line> = context
             .lines()
@@ -240,9 +255,14 @@ fn render_inside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: Re
     // Context inside the card
     if let Some(context) = &entry.context {
         // Context already contains actual newline characters
-        let vscroll = if is_selected { app.hscroll as usize } else { 0 };
-        // Use full height of inner area
         let visible_lines = inner_area.height as usize;
+        let total_lines = context.lines().count();
+        let max_scroll = total_lines.saturating_sub(visible_lines);
+        let vscroll = if is_selected {
+            (app.hscroll as usize).min(max_scroll)
+        } else {
+            0
+        };
 
         let context_lines: Vec<Line> = context
             .lines()

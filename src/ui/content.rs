@@ -337,7 +337,17 @@ pub fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
     let title = match &app.file_path {
         Some(path) => {
             if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                format!(" {} ", name)
+                // Remove extension if show_extension is false
+                let display_name = if !app.show_extension {
+                    if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+                        stem.to_string()
+                    } else {
+                        name.to_string()
+                    }
+                } else {
+                    name.to_string()
+                };
+                format!(" {} ", display_name)
             } else {
                 String::new()
             }

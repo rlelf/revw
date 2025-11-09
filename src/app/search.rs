@@ -14,6 +14,28 @@ impl App {
             return;
         }
 
+        // If explorer has focus, search in explorer entries
+        if self.explorer_open && self.explorer_has_focus {
+            self.input_mode = InputMode::Normal;
+            // Jump to first match in explorer
+            let search_pattern = self.search_buffer.clone();
+
+            for i in 0..self.explorer_entries.len() {
+                if let Some(filename) = self.explorer_entries[i].path.file_name().and_then(|n| n.to_str()) {
+                    if filename.to_lowercase().contains(&search_pattern.to_lowercase()) {
+                        let found_name = filename.to_string();
+                        self.explorer_selected_index = i;
+                        self.explorer_update_scroll();
+                        self.set_status(&format!("Found: {}", found_name));
+                        return;
+                    }
+                }
+            }
+
+            self.set_status(&format!("Pattern not found: {}", search_pattern));
+            return;
+        }
+
         self.search_query = self.search_buffer.clone();
         self.find_matches();
         self.input_mode = InputMode::Normal;

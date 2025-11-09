@@ -212,7 +212,8 @@ fn render_context_field(f: &mut Frame, app: &App, inner_area: Rect, field_index:
 
     if should_render_newlines {
         // View Edit mode: render with actual newlines
-        let field_lines: Vec<&str> = field.lines().collect();
+        // Use split('\n') instead of lines() to preserve trailing newlines
+        let field_lines: Vec<&str> = field.split('\n').collect();
         let visible_height = inner_area.height as usize;
         let vscroll = app.edit_vscroll as usize;
 

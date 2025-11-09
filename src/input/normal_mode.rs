@@ -181,8 +181,14 @@ pub fn handle_normal_mode(app: &mut App, key: KeyEvent) -> Result<bool> {
                 if app.format_mode == FormatMode::Edit {
                     app.move_cursor_left();
                 } else {
-                    // Vertical scroll up in View mode (card context)
-                    app.hscroll = app.hscroll.saturating_sub(1);
+                    // Check for Ctrl modifier for page scroll
+                    if key.modifiers.contains(KeyModifiers::CONTROL) {
+                        // Page scroll up (e.g., 5 lines at a time)
+                        app.hscroll = app.hscroll.saturating_sub(5);
+                    } else {
+                        // Vertical scroll up in View mode (card context)
+                        app.hscroll = app.hscroll.saturating_sub(1);
+                    }
                 }
             }
         }
@@ -191,20 +197,13 @@ pub fn handle_normal_mode(app: &mut App, key: KeyEvent) -> Result<bool> {
                 if app.format_mode == FormatMode::Edit {
                     app.move_cursor_right();
                 } else {
-                    // Vertical scroll down in View mode (card context)
-                    // Calculate max scroll based on context field length
-                    if !app.relf_entries.is_empty() && app.selected_entry_index < app.relf_entries.len() {
-                        let entry = &app.relf_entries[app.selected_entry_index];
-                        if let Some(context) = &entry.context {
-                            let lines: Vec<&str> = context.lines().collect();
-                            // Estimate visible lines: total height divided by number of visible cards
-                            // Subtract 2 for card borders (top and bottom)
-                            let visible_lines = (app.visible_height as usize / app.max_visible_cards).saturating_sub(2);
-                            let max_scroll = lines.len().saturating_sub(visible_lines);
-                            if (app.hscroll as usize) < max_scroll {
-                                app.hscroll += 1;
-                            }
-                        }
+                    // Check for Ctrl modifier for page scroll
+                    if key.modifiers.contains(KeyModifiers::CONTROL) {
+                        // Page scroll down (e.g., 5 lines at a time)
+                        app.hscroll += 5;
+                    } else {
+                        // Vertical scroll down in View mode (card context)
+                        app.hscroll += 1;
                     }
                 }
             }
