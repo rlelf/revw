@@ -67,8 +67,8 @@ impl MarkdownOperations {
                     }
 
                     // Stop at blank lines followed by non-empty lines (potential new entry)
-                    // This allows separation of entries without explicit headers
-                    if trimmed.is_empty() && i + 1 < lines.len() {
+                    // This only applies to entries WITHOUT ### headers
+                    if !has_header && trimmed.is_empty() && i + 1 < lines.len() {
                         let next_line = lines[i + 1].trim();
                         if !next_line.is_empty()
                             && !next_line.starts_with("**")
