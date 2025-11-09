@@ -352,17 +352,17 @@ fn handle_file_operation(app: &mut App, key: KeyEvent, op: &FileOperation) -> Re
                 KeyCode::Char(c) => {
                     app.file_op_prompt_buffer.push(c);
                     let prompt_msg = match op {
-                        FileOperation::Create => "New file name (must end with .json):",
+                        FileOperation::Create => "New file name (must end with .json or .md):",
                         FileOperation::CreateDir => "New directory name:",
                         FileOperation::Copy(src) => {
                             let name = src.file_name().and_then(|n| n.to_str()).unwrap_or("unknown");
-                            &format!("Copy '{}' to (must end with .json):", name)
+                            &format!("Copy '{}' to (must end with .json or .md):", name)
                         }
                         FileOperation::Rename(path) => {
                             if path.is_dir() {
                                 "Rename/Move directory to:"
                             } else {
-                                "Rename/Move to (must end with .json):"
+                                "Rename/Move to (must end with .json or .md):"
                             }
                         }
                         _ => "",
@@ -374,17 +374,17 @@ fn handle_file_operation(app: &mut App, key: KeyEvent, op: &FileOperation) -> Re
                     if !app.file_op_prompt_buffer.is_empty() {
                         app.file_op_prompt_buffer.pop();
                         let prompt_msg = match op {
-                            FileOperation::Create => "New file name (must end with .json):",
+                            FileOperation::Create => "New file name (must end with .json or .md):",
                             FileOperation::CreateDir => "New directory name:",
                             FileOperation::Copy(src) => {
                                 let name = src.file_name().and_then(|n| n.to_str()).unwrap_or("unknown");
-                                &format!("Copy '{}' to (must end with .json):", name)
+                                &format!("Copy '{}' to (must end with .json or .md):", name)
                             }
                             FileOperation::Rename(path) => {
                                 if path.is_dir() {
                                     "Rename/Move directory to:"
                                 } else {
-                                    "Rename/Move to (must end with .json):"
+                                    "Rename/Move to (must end with .json or .md):"
                                 }
                             }
                             _ => "",

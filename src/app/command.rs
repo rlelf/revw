@@ -94,15 +94,15 @@ impl App {
             }
         } else if cmd.starts_with("w ") {
             let filename = cmd.strip_prefix("w ").unwrap().trim().to_string();
-            if !filename.ends_with(".json") {
-                self.set_status("Error: Filename must end with .json");
+            if !filename.ends_with(".json") && !filename.ends_with(".md") {
+                self.set_status("Error: Filename must end with .json or .md");
             } else {
                 self.save_file_as(&filename);
             }
         } else if cmd.starts_with("wq ") {
             let filename = cmd.strip_prefix("wq ").unwrap().trim().to_string();
-            if !filename.ends_with(".json") {
-                self.set_status("Error: Filename must end with .json");
+            if !filename.ends_with(".json") && !filename.ends_with(".md") {
+                self.set_status("Error: Filename must end with .json or .md");
                 return false; // Don't quit on error
             } else {
                 self.save_file_as(&filename);
@@ -114,8 +114,8 @@ impl App {
         } else if cmd.starts_with("e ") {
             // Open a different file
             let filename = cmd.strip_prefix("e ").unwrap().trim().to_string();
-            if !filename.ends_with(".json") {
-                self.set_status("Error: Filename must end with .json");
+            if !filename.ends_with(".json") && !filename.ends_with(".md") {
+                self.set_status("Error: Filename must end with .json or .md");
             } else {
                 let path = PathBuf::from(filename);
                 self.load_file(path);

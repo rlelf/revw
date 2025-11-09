@@ -58,7 +58,7 @@ impl App {
             if selected.path.is_dir() {
                 self.set_status(&format!("Copy directory '{}' to:", name));
             } else {
-                self.set_status(&format!("Copy '{}' to (must end with .json):", name));
+                self.set_status(&format!("Copy '{}' to (must end with .json or .md):", name));
             }
         }
     }
@@ -78,7 +78,7 @@ impl App {
             if selected.path.is_dir() {
                 self.set_status("Rename/Move directory to:");
             } else {
-                self.set_status("Rename/Move to (must end with .json):");
+                self.set_status("Rename/Move to (must end with .json or .md):");
             }
         }
     }
@@ -91,7 +91,7 @@ impl App {
 
         self.file_op_pending = Some(FileOperation::Create);
         self.file_op_prompt_buffer = String::new();
-        self.set_status("New file name (must end with .json):");
+        self.set_status("New file name (must end with .json or .md):");
     }
 
     // Start create new directory operation
@@ -169,9 +169,9 @@ impl App {
                 }
             }
             Some(FileOperation::Create) => {
-                // Validate .json extension for files
-                if !filename.ends_with(".json") {
-                    self.set_status("Error: Filename must end with .json");
+                // Validate .json or .md extension for files
+                if !filename.ends_with(".json") && !filename.ends_with(".md") {
+                    self.set_status("Error: Filename must end with .json or .md");
                     self.file_op_pending = None;
                     self.file_op_prompt_buffer.clear();
                     return;
@@ -220,9 +220,9 @@ impl App {
             Some(FileOperation::Copy(source_path)) => {
                 let is_dir = source_path.is_dir();
 
-                // Validate .json extension for files only
-                if !is_dir && !filename.ends_with(".json") {
-                    self.set_status("Error: Filename must end with .json");
+                // Validate .json or .md extension for files only
+                if !is_dir && !filename.ends_with(".json") && !filename.ends_with(".md") {
+                    self.set_status("Error: Filename must end with .json or .md");
                     self.file_op_pending = None;
                     self.file_op_prompt_buffer.clear();
                     return;
@@ -278,11 +278,12 @@ impl App {
                         .unwrap_or_else(|| self.explorer_current_dir.join(&filename))
                 };
 
-                // Validation: only validate .json for files (not directories)
+                // Validation: only validate .json or .md for files (not directories)
                 if !is_dir {
-                    // Source is a file: must end with .json
-                    if !new_path.to_string_lossy().ends_with(".json") {
-                        self.set_status("Error: File must end with .json");
+                    // Source is a file: must end with .json or .md
+                    let path_str = new_path.to_string_lossy();
+                    if !path_str.ends_with(".json") && !path_str.ends_with(".md") {
+                        self.set_status("Error: File must end with .json or .md");
                         self.file_op_pending = None;
                         self.file_op_prompt_buffer.clear();
                         return;
