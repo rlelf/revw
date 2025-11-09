@@ -289,7 +289,11 @@ impl App {
         match self.format_mode {
             FormatMode::Edit => {
                 // In Edit mode, always show raw content without any processing
-                self.rendered_content = self.render_json();
+                self.rendered_content = if self.is_markdown_file() {
+                    self.render_markdown()
+                } else {
+                    self.render_json()
+                };
                 self.relf_line_styles.clear();
                 self.relf_visual_styles.clear();
                 self.scroll = 0;
@@ -339,6 +343,10 @@ impl App {
 
     fn render_json(&self) -> Vec<String> {
         Renderer::render_json(&self.json_input)
+    }
+
+    fn render_markdown(&self) -> Vec<String> {
+        self.markdown_input.lines().map(|line| line.to_string()).collect()
     }
 
     pub fn set_status(&mut self, message: &str) {

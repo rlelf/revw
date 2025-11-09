@@ -31,23 +31,53 @@ impl App {
                 continue;
             }
 
-            // Check for entry headers (### Title)
-            if line.starts_with("### ") {
-                let title = line[4..].trim().to_string();
+            // Check for entry headers (### Title) or any non-empty line as implicit entry
+            let (title, has_header) = if line.starts_with("### ") {
+                (line[4..].trim().to_string(), true)
+            } else if current_section.is_some() {
+                // Treat first line as implicit title for entries without ###
+                (line.to_string(), false)
+            } else {
+                i += 1;
+                continue;
+            };
 
+            if has_header || current_section.is_some() {
                 // Collect content until next header or end
                 let mut content_lines = Vec::new();
                 let mut url: Option<String> = None;
                 let mut percentage: Option<i64> = None;
-                i += 1;
+
+                // For entries without headers, the first line might contain content
+                if !has_header {
+                    // The title line itself is the content for headerless entries
+                    // We'll move to next line
+                    i += 1;
+                } else {
+                    i += 1;
+                }
 
                 while i < lines.len() {
                     let content_line = lines[i];
                     let trimmed = content_line.trim();
 
-                    // Stop at next section or entry
+                    // Stop at next section or entry header
                     if trimmed.starts_with("## ") || trimmed.starts_with("### ") {
                         break;
+                    }
+
+                    // Stop at blank lines followed by non-empty lines (potential new entry)
+                    // This allows separation of entries without explicit headers
+                    if trimmed.is_empty() && i + 1 < lines.len() {
+                        let next_line = lines[i + 1].trim();
+                        if !next_line.is_empty()
+                            && !next_line.starts_with("**")
+                            && !next_line.starts_with("## ")
+                            && !next_line.starts_with("### ") {
+                            // Next entry starts after this blank line
+                            i += 1; // Skip the blank line
+                            break;
+                        }
                     }
 
                     // Check for URL
