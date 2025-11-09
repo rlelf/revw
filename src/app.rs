@@ -7,6 +7,7 @@ mod explorer_ops;
 mod file;
 mod help;
 mod history;
+mod markdown;
 mod navigation;
 mod search;
 mod substitute;

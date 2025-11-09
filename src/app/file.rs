@@ -18,7 +18,27 @@ impl App {
 
         match fs::read_to_string(&fixed_path) {
             Ok(content) => {
-                self.json_input = content;
+                // Check file extension to determine format
+                let is_markdown = fixed_path.extension()
+                    .and_then(|ext| ext.to_str())
+                    .map(|ext| ext.eq_ignore_ascii_case("md"))
+                    .unwrap_or(false);
+
+                if is_markdown {
+                    // Parse Markdown and convert to JSON
+                    match self.parse_markdown(&content) {
+                        Ok(json_content) => {
+                            self.json_input = json_content;
+                        }
+                        Err(e) => {
+                            self.set_status(&format!("Error parsing markdown: {}", e));
+                            return;
+                        }
+                    }
+                } else {
+                    // Load as JSON directly
+                    self.json_input = content;
+                }
 
                 let path_changed = self.file_path.as_ref() != Some(&fixed_path);
                 self.file_path = Some(fixed_path.clone());
@@ -102,7 +122,27 @@ impl App {
     }
     pub fn save_file(&mut self) {
         if let Some(ref path) = self.file_path {
-            match fs::write(path, &self.json_input) {
+            // Check if this is a Markdown file
+            let is_markdown = path.extension()
+                .and_then(|ext| ext.to_str())
+                .map(|ext| ext.eq_ignore_ascii_case("md"))
+                .unwrap_or(false);
+
+            let content_to_save = if is_markdown {
+                // Convert JSON to Markdown before saving
+                match self.convert_to_markdown() {
+                    Ok(md_content) => md_content,
+                    Err(e) => {
+                        self.set_status(&format!("Error converting to markdown: {}", e));
+                        return;
+                    }
+                }
+            } else {
+                // Save as JSON
+                self.json_input.clone()
+            };
+
+            match fs::write(path, &content_to_save) {
                 Ok(()) => {
                     self.is_modified = false;
                     self.last_save_time = Some(Instant::now());
@@ -117,7 +157,7 @@ impl App {
                 }
             }
         } else {
-            self.set_status("No filename. Use :w filename.json");
+            self.set_status("No filename. Use :w filename");
         }
     }
 
@@ -162,6 +202,42 @@ impl App {
             }
         } else {
             self.set_status("No file to reload");
+        }
+    }
+
+    pub fn export_to_json(&mut self) {
+        // Check if a file is currently open
+        if self.file_path.is_none() {
+            self.set_status("Error: No file open");
+            return;
+        }
+
+        let current_path = self.file_path.as_ref().unwrap();
+
+        // Create JSON filename (same name, different extension)
+        let json_path = current_path.with_extension("json");
+
+        // Format JSON with pretty print
+        if let Ok(json_value) = serde_json::from_str::<serde_json::Value>(&self.json_input) {
+            if let Ok(formatted_json) = serde_json::to_string_pretty(&json_value) {
+                // Write to file
+                match fs::write(&json_path, formatted_json) {
+                    Ok(()) => {
+                        self.set_status(&format!("Exported to: {}", json_path.display()));
+                        // Reload explorer if open
+                        if self.explorer_open {
+                            self.reload_explorer_entries();
+                        }
+                    }
+                    Err(e) => {
+                        self.set_status(&format!("Error exporting JSON: {}", e));
+                    }
+                }
+            } else {
+                self.set_status("Error formatting JSON");
+            }
+        } else {
+            self.set_status("Error: Invalid JSON data");
         }
     }
 

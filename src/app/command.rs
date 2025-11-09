@@ -290,6 +290,9 @@ impl App {
         } else if cmd == "markdown" {
             // Export current file to Markdown format
             self.export_to_markdown();
+        } else if cmd == "json" {
+            // Export current file to JSON format
+            self.export_to_json();
         } else {
             self.set_status(&format!("Unknown command: {}", cmd));
         }

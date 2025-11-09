@@ -13,7 +13,7 @@ A vim-like TUI for managing notes and resources.
 - Vim-like terminal user interface
 - Clipboard integration
 - Clean card-based interface
-- Toggle between View mode and raw JSON mode
+- Toggle between View mode and raw Edit mode
 
 ## Relf Format
 
@@ -48,7 +48,24 @@ Internal notes or thoughts with timestamps:
 }
 ```
 
-This format is also available in [relf](https://github.com/rlelf/relf)
+JSON format is also available in [relf](https://github.com/rlelf/relf)
+
+### Markdown Format
+
+The same data can be represented in Markdown:
+
+```markdown
+## OUTSIDE
+### Rust Programming Language
+A systems programming language focused on safety, speed, and concurrency.
+
+**URL:** https://www.rust-lang.org/
+**Percentage:** 100%
+
+## INSIDE
+### 2025-01-01 00:00:00
+Finally learned how to use cargo! Running 'cargo new my_project' creates such a clean project structure.
+```
 
 ## Install
 
