@@ -158,14 +158,8 @@ impl App {
                 .unwrap_or(false);
 
             let content_to_save = if is_markdown {
-                // Convert JSON to Markdown before saving
-                match self.convert_to_markdown() {
-                    Ok(md_content) => md_content,
-                    Err(e) => {
-                        self.set_status(&format!("Error converting to markdown: {}", e));
-                        return;
-                    }
-                }
+                // Save the original Markdown content
+                self.markdown_input.clone()
             } else {
                 // Save as JSON
                 self.json_input.clone()
@@ -200,12 +194,17 @@ impl App {
             .unwrap_or(false);
 
         let content_to_save = if is_markdown {
-            // Convert JSON to Markdown before saving
-            match self.convert_to_markdown() {
-                Ok(md_content) => md_content,
-                Err(e) => {
-                    self.set_status(&format!("Error converting to markdown: {}", e));
-                    return;
+            // If we already have Markdown content, use it directly
+            // Otherwise, convert JSON to Markdown
+            if self.is_markdown_file() && !self.markdown_input.is_empty() {
+                self.markdown_input.clone()
+            } else {
+                match self.convert_to_markdown() {
+                    Ok(md_content) => md_content,
+                    Err(e) => {
+                        self.set_status(&format!("Error converting to markdown: {}", e));
+                        return;
+                    }
                 }
             }
         } else {

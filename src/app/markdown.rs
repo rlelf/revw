@@ -33,7 +33,13 @@ impl App {
 
             // Check for entry headers (### Title) or any non-empty line as implicit entry
             let (title, has_header) = if line.starts_with("### ") {
-                (line[4..].trim().to_string(), true)
+                let trimmed = line[4..].trim();
+                // If only "###" with nothing after it, treat as empty string
+                (trimmed.to_string(), true)
+            } else if line.starts_with("###") {
+                // Handle "###" without space (edge case)
+                let trimmed = line[3..].trim();
+                (trimmed.to_string(), true)
             } else if current_section.is_some() {
                 // Treat first line as implicit title for entries without ###
                 (line.to_string(), false)
@@ -62,7 +68,7 @@ impl App {
                     let trimmed = content_line.trim();
 
                     // Stop at next section or entry header
-                    if trimmed.starts_with("## ") || trimmed.starts_with("### ") {
+                    if trimmed.starts_with("## ") || trimmed.starts_with("###") {
                         break;
                     }
 
@@ -73,7 +79,7 @@ impl App {
                         if !next_line.is_empty()
                             && !next_line.starts_with("**")
                             && !next_line.starts_with("## ")
-                            && !next_line.starts_with("### ") {
+                            && !next_line.starts_with("###") {
                             // Next entry starts after this blank line
                             i += 1; // Skip the blank line
                             break;

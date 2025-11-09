@@ -409,7 +409,9 @@ impl MarkdownOperations {
             lines.push("".to_string());
 
             for entry in outside_entries {
-                lines.push(format!("### {}", entry.title));
+                if !entry.title.is_empty() {
+                    lines.push(format!("### {}", entry.title));
+                }
                 if !entry.context.is_empty() {
                     lines.push(entry.context.clone());
                 }
@@ -430,7 +432,9 @@ impl MarkdownOperations {
             lines.push("".to_string());
 
             for entry in inside_entries {
-                lines.push(format!("### {}", entry.title));
+                if !entry.title.is_empty() {
+                    lines.push(format!("### {}", entry.title));
+                }
                 if !entry.context.is_empty() {
                     lines.push(entry.context.clone());
                 }
