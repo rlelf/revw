@@ -78,9 +78,20 @@ pub fn handle_normal_mode(app: &mut App, key: KeyEvent) -> Result<bool> {
             }
         }
         KeyCode::Char('b') => {
-            // Vim-like: move to start of previous word (Edit mode)
-            if !app.showing_help && app.format_mode == FormatMode::Edit {
-                app.move_to_previous_word_start();
+            // Ctrl+b: page up (vim-like)
+            if key.modifiers.contains(KeyModifiers::CONTROL) {
+                app.page_up();
+            } else {
+                // Vim-like: move to start of previous word (Edit mode)
+                if !app.showing_help && app.format_mode == FormatMode::Edit {
+                    app.move_to_previous_word_start();
+                }
+            }
+        }
+        KeyCode::Char('f') => {
+            // Ctrl+f: page down (vim-like)
+            if key.modifiers.contains(KeyModifiers::CONTROL) {
+                app.page_down();
             }
         }
         KeyCode::Char('r') => {

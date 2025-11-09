@@ -1,5 +1,5 @@
 use ratatui::{
-    style::{Modifier, Style},
+    style::Style,
     text::Span,
 };
 

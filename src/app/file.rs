@@ -64,34 +64,61 @@ impl App {
             Err(e) => {
                 // If file doesn't exist, create it with default entries
                 if e.kind() == std::io::ErrorKind::NotFound {
+                    // Check file extension to determine format
+                    let is_markdown = fixed_path.extension()
+                        .and_then(|ext| ext.to_str())
+                        .map(|ext| ext.eq_ignore_ascii_case("md"))
+                        .unwrap_or(false);
+
                     // Get current timestamp
                     let now = chrono::Local::now();
                     let timestamp = now.format("%Y-%m-%d %H:%M:%S").to_string();
 
-                    // Create formatted JSON with proper indentation
-                    let default_value = json!({
-                        "outside": [
-                            {
-                                "name": "",
-                                "context": "",
-                                "url": "",
-                                "percentage": null
-                            }
-                        ],
-                        "inside": [
-                            {
-                                "date": timestamp,
-                                "context": ""
-                            }
-                        ]
-                    });
+                    let default_content = if is_markdown {
+                        // Create Markdown format
+                        format!(
+                            "## OUTSIDE\n### \n\n**URL:** \n\n**Percentage:** \n\n## INSIDE\n### {}\n",
+                            timestamp
+                        )
+                    } else {
+                        // Create formatted JSON with proper indentation
+                        let default_value = json!({
+                            "outside": [
+                                {
+                                    "name": "",
+                                    "context": "",
+                                    "url": "",
+                                    "percentage": null
+                                }
+                            ],
+                            "inside": [
+                                {
+                                    "date": timestamp,
+                                    "context": ""
+                                }
+                            ]
+                        });
+                        serde_json::to_string_pretty(&default_value)
+                            .unwrap_or_else(|_| String::from(r#"{"outside":[],"inside":[]}"#))
+                    };
 
-                    let default_json = serde_json::to_string_pretty(&default_value)
-                        .unwrap_or_else(|_| String::from(r#"{"outside":[],"inside":[]}"#));
-
-                    match fs::write(&fixed_path, &default_json) {
+                    match fs::write(&fixed_path, &default_content) {
                         Ok(()) => {
-                            self.json_input = default_json;
+                            if is_markdown {
+                                self.markdown_input = default_content.clone();
+                                // Parse Markdown and convert to JSON
+                                match self.parse_markdown(&default_content) {
+                                    Ok(json_content) => {
+                                        self.json_input = json_content;
+                                    }
+                                    Err(e) => {
+                                        self.set_status(&format!("Error parsing markdown: {}", e));
+                                        return;
+                                    }
+                                }
+                            } else {
+                                self.json_input = default_content;
+                            }
                             let path_changed = self.file_path.as_ref() != Some(&fixed_path);
                             self.file_path = Some(fixed_path.clone());
                             if path_changed {
@@ -165,7 +192,28 @@ impl App {
 
     pub fn save_file_as(&mut self, filename: &str) {
         let path = PathBuf::from(filename);
-        match fs::write(&path, &self.json_input) {
+
+        // Check if this is a Markdown file
+        let is_markdown = path.extension()
+            .and_then(|ext| ext.to_str())
+            .map(|ext| ext.eq_ignore_ascii_case("md"))
+            .unwrap_or(false);
+
+        let content_to_save = if is_markdown {
+            // Convert JSON to Markdown before saving
+            match self.convert_to_markdown() {
+                Ok(md_content) => md_content,
+                Err(e) => {
+                    self.set_status(&format!("Error converting to markdown: {}", e));
+                    return;
+                }
+            }
+        } else {
+            // Save as JSON
+            self.json_input.clone()
+        };
+
+        match fs::write(&path, &content_to_save) {
             Ok(()) => {
                 let path_changed = self.file_path.as_ref() != Some(&path);
                 self.file_path = Some(path.clone());
