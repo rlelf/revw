@@ -216,7 +216,7 @@ pub fn handle_normal_mode(app: &mut App, key: KeyEvent) -> Result<bool> {
         }
         KeyCode::Char('$') => {
             if !app.showing_help && app.format_mode == FormatMode::Edit {
-                let lines = app.get_json_lines();
+                let lines = app.get_content_lines();
                 if app.content_cursor_line < lines.len() {
                     app.content_cursor_col =
                         lines[app.content_cursor_line].chars().count();
@@ -232,7 +232,7 @@ pub fn handle_normal_mode(app: &mut App, key: KeyEvent) -> Result<bool> {
                 app.scroll_to_bottom();
             } else if app.format_mode == FormatMode::Edit {
                 app.scroll_to_bottom();
-                let lines = app.get_json_lines();
+                let lines = app.get_content_lines();
                 if !lines.is_empty() {
                     app.content_cursor_line = lines.len() - 1;
                     app.content_cursor_col = 0;

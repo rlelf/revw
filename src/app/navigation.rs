@@ -260,19 +260,35 @@ impl App {
         // Save undo state before modification
         self.save_undo_state();
 
-        let lines = self.get_json_lines();
+        let lines = self.get_content_lines();
         let ops = self.get_operations();
+        let content = if self.is_markdown_file() && !self.markdown_input.is_empty() {
+            &self.markdown_input
+        } else {
+            &self.json_input
+        };
+
         match ops.delete_entry_at_cursor(
-            &self.json_input,
+            content,
             self.content_cursor_line,
             &lines,
         ) {
             Ok((formatted, message)) => {
-                self.json_input = formatted;
+                if self.is_markdown_file() {
+                    self.markdown_input = formatted;
+                    match self.parse_markdown(&self.markdown_input) {
+                        Ok(json_content) => {
+                            self.json_input = json_content;
+                        }
+                        Err(_) => {}
+                    }
+                } else {
+                    self.json_input = formatted;
+                }
                 self.convert_json();
 
                 // Adjust cursor position
-                let new_lines = self.get_json_lines();
+                let new_lines = self.get_content_lines();
                 if self.content_cursor_line >= new_lines.len() && !new_lines.is_empty() {
                     self.content_cursor_line = new_lines.len() - 1;
                 }
@@ -287,7 +303,7 @@ impl App {
     pub fn jump_to_first_outside(&mut self) {
         if self.format_mode == FormatMode::Edit {
             // In Edit mode, find the first outside entry
-            let lines = self.get_json_lines();
+            let lines = self.get_content_lines();
             for (i, line) in lines.iter().enumerate() {
                 if line.trim_start().starts_with("\"outside\"") {
                     // Move to the first entry after "outside": [
@@ -323,7 +339,7 @@ impl App {
     pub fn jump_to_first_inside(&mut self) {
         if self.format_mode == FormatMode::Edit {
             // In Edit mode, find the first inside entry
-            let lines = self.get_json_lines();
+            let lines = self.get_content_lines();
             for (i, line) in lines.iter().enumerate() {
                 if line.trim_start().starts_with("\"inside\"") {
                     // Move to the first entry after "inside": [
@@ -364,7 +380,7 @@ impl App {
 
     pub fn move_to_next_word_end(&mut self) {
         // Vim-like 'e': always make forward progress to the end of the next word
-        let lines = self.get_json_lines();
+        let lines = self.get_content_lines();
         if lines.is_empty() {
             return;
         }
@@ -433,7 +449,7 @@ impl App {
 
     pub fn move_to_next_word_start(&mut self) {
         // Vim-like 'w': move to the start of the next word
-        let lines = self.get_json_lines();
+        let lines = self.get_content_lines();
         if lines.is_empty() {
             return;
         }
@@ -499,7 +515,7 @@ impl App {
 
     pub fn move_to_previous_word_start(&mut self) {
         // Vim-like 'b': always make backward progress to the start of the previous word
-        let lines = self.get_json_lines();
+        let lines = self.get_content_lines();
         if lines.is_empty() {
             return;
         }

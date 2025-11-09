@@ -50,6 +50,7 @@ pub struct SubstituteMatch {
 pub struct App {
     pub input_mode: InputMode,
     pub json_input: String,
+    pub markdown_input: String,
     pub rendered_content: Vec<String>,
     pub relf_line_styles: Vec<RelfLineStyle>,
     pub relf_visual_styles: Vec<RelfLineStyle>,
@@ -181,6 +182,7 @@ impl App {
         let app = Self {
             input_mode: InputMode::Normal,
             json_input: String::new(),
+            markdown_input: String::new(),
             rendered_content: vec![],
             relf_line_styles: Vec::new(),
             relf_visual_styles: Vec::new(),
@@ -379,15 +381,31 @@ impl App {
     }
 
 
-    pub fn get_json_lines(&self) -> Vec<String> {
-        self.json_input.lines().map(|s| s.to_string()).collect()
+    pub fn get_content_lines(&self) -> Vec<String> {
+        if self.is_markdown_file() && !self.markdown_input.is_empty() {
+            self.markdown_input.lines().map(|s| s.to_string()).collect()
+        } else {
+            self.json_input.lines().map(|s| s.to_string()).collect()
+        }
     }
 
-    pub fn set_json_from_lines(&mut self, lines: Vec<String>) {
-        self.json_input = lines.join("\n");
-        // Ensure trailing newline is preserved
-        if !self.json_input.is_empty() && !self.json_input.ends_with('\n') {
-            self.json_input.push('\n');
+    pub fn set_content_from_lines(&mut self, lines: Vec<String>) {
+        if self.is_markdown_file() {
+            self.markdown_input = lines.join("\n");
+            if !self.markdown_input.is_empty() && !self.markdown_input.ends_with('\n') {
+                self.markdown_input.push('\n');
+            }
+            match self.parse_markdown(&self.markdown_input) {
+                Ok(json_content) => {
+                    self.json_input = json_content;
+                }
+                Err(_) => {}
+            }
+        } else {
+            self.json_input = lines.join("\n");
+            if !self.json_input.is_empty() && !self.json_input.ends_with('\n') {
+                self.json_input.push('\n');
+            }
         }
         self.convert_json();
     }
@@ -420,7 +438,7 @@ impl App {
         // This function considers text wrapping when width is limited.
 
         let _width = self.get_content_width() as usize;
-        let lines = self.get_json_lines();
+        let lines = self.get_content_lines();
 
         let mut visual_row = 0u16;
 

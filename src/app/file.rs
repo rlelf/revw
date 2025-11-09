@@ -25,6 +25,7 @@ impl App {
                     .unwrap_or(false);
 
                 if is_markdown {
+                    self.markdown_input = content.clone();
                     // Parse Markdown and convert to JSON
                     match self.parse_markdown(&content) {
                         Ok(json_content) => {
@@ -36,6 +37,7 @@ impl App {
                         }
                     }
                 } else {
+                    self.markdown_input = String::new();
                     // Load as JSON directly
                     self.json_input = content;
                 }

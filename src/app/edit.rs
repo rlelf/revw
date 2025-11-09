@@ -188,7 +188,18 @@ impl App {
                     if found {
                         match serde_json::to_string_pretty(&json_value) {
                             Ok(formatted) => {
-                                self.json_input = formatted;
+                                self.json_input = formatted.clone();
+
+                                // If this is a markdown file, also update markdown_input
+                                if self.is_markdown_file() {
+                                    match self.convert_to_markdown() {
+                                        Ok(md_content) => {
+                                            self.markdown_input = md_content;
+                                        }
+                                        Err(_) => {}
+                                    }
+                                }
+
                                 self.is_modified = true;
                                 self.convert_json();
                                 self.set_status("Entry updated");
@@ -225,7 +236,7 @@ impl App {
             // Save undo state before modification
             self.save_undo_state();
 
-            let mut lines = self.get_json_lines();
+            let mut lines = self.get_content_lines();
             if lines.is_empty() {
                 lines.push(String::new());
                 self.content_cursor_line = 0;
@@ -245,7 +256,7 @@ impl App {
             // Update the line with the new character
             lines[self.content_cursor_line] = chars.into_iter().collect();
             self.content_cursor_col += 1;
-            self.set_json_from_lines(lines);
+            self.set_content_from_lines(lines);
             self.ensure_cursor_visible();
         }
     }
@@ -255,7 +266,7 @@ impl App {
             // Save undo state before modification
             self.save_undo_state();
 
-            let mut lines = self.get_json_lines();
+            let mut lines = self.get_content_lines();
             if lines.is_empty() {
                 lines.push(String::new());
                 lines.push(String::new());
@@ -275,7 +286,7 @@ impl App {
                 self.content_cursor_line += 1;
                 self.content_cursor_col = 0;
             }
-            self.set_json_from_lines(lines);
+            self.set_content_from_lines(lines);
             self.ensure_cursor_visible();
         }
     }
@@ -285,7 +296,7 @@ impl App {
             // Save undo state before modification
             self.save_undo_state();
 
-            let mut lines = self.get_json_lines();
+            let mut lines = self.get_content_lines();
             if lines.is_empty() {
                 return;
             }
@@ -296,7 +307,7 @@ impl App {
                     chars.remove(self.content_cursor_col - 1);
                     lines[self.content_cursor_line] = chars.into_iter().collect();
                     self.content_cursor_col -= 1;
-                    self.set_json_from_lines(lines);
+                    self.set_content_from_lines(lines);
                 }
             } else if self.content_cursor_col == 0 && self.content_cursor_line > 0 {
                 // Join with previous line
@@ -305,7 +316,7 @@ impl App {
                 let prev_line_len = lines[self.content_cursor_line].chars().count();
                 lines[self.content_cursor_line].push_str(&current_line);
                 self.content_cursor_col = prev_line_len;
-                self.set_json_from_lines(lines);
+                self.set_content_from_lines(lines);
             }
         }
     }
@@ -315,7 +326,7 @@ impl App {
             // Save undo state before modification
             self.save_undo_state();
 
-            let mut lines = self.get_json_lines();
+            let mut lines = self.get_content_lines();
             if lines.is_empty() {
                 return;
             }
@@ -324,12 +335,12 @@ impl App {
                 if self.content_cursor_col < chars.len() {
                     chars.remove(self.content_cursor_col);
                     lines[self.content_cursor_line] = chars.into_iter().collect();
-                    self.set_json_from_lines(lines);
+                    self.set_content_from_lines(lines);
                 } else if self.content_cursor_line + 1 < lines.len() {
                     // Join with next line
                     let next_line = lines.remove(self.content_cursor_line + 1);
                     lines[self.content_cursor_line].push_str(&next_line);
-                    self.set_json_from_lines(lines);
+                    self.set_content_from_lines(lines);
                 }
             }
         }
@@ -340,7 +351,7 @@ impl App {
             self.content_cursor_col -= 1;
         } else if self.content_cursor_line > 0 {
             self.content_cursor_line -= 1;
-            let lines = self.get_json_lines();
+            let lines = self.get_content_lines();
             if self.content_cursor_line < lines.len() {
                 self.content_cursor_col = lines[self.content_cursor_line].chars().count();
             }
@@ -349,7 +360,7 @@ impl App {
     }
 
     pub fn move_cursor_right(&mut self) {
-        let lines = self.get_json_lines();
+        let lines = self.get_content_lines();
         if lines.is_empty() {
             return;
         }
@@ -368,7 +379,7 @@ impl App {
     pub fn move_cursor_up(&mut self) {
         if self.content_cursor_line > 0 {
             self.content_cursor_line -= 1;
-            let lines = self.get_json_lines();
+            let lines = self.get_content_lines();
             if self.content_cursor_line < lines.len() {
                 let line_len = lines[self.content_cursor_line].chars().count();
                 self.content_cursor_col = self.content_cursor_col.min(line_len);
@@ -378,7 +389,7 @@ impl App {
     }
 
     pub fn move_cursor_down(&mut self) {
-        let lines = self.get_json_lines();
+        let lines = self.get_content_lines();
         if lines.is_empty() {
             return;
         }
@@ -422,9 +433,26 @@ impl App {
 
     pub fn append_inside(&mut self) {
         let ops = self.get_operations();
-        match ops.add_inside_entry(&self.json_input) {
+        let content = if self.is_markdown_file() && !self.markdown_input.is_empty() {
+            &self.markdown_input
+        } else {
+            &self.json_input
+        };
+
+        match ops.add_inside_entry(content) {
             Ok((formatted, line, col, message)) => {
-                self.json_input = formatted;
+                if self.is_markdown_file() {
+                    self.markdown_input = formatted;
+                    match self.parse_markdown(&self.markdown_input) {
+                        Ok(json_content) => {
+                            self.json_input = json_content;
+                        }
+                        Err(_) => {}
+                    }
+                } else {
+                    self.json_input = formatted;
+                }
+
                 self.is_modified = true;
                 self.convert_json();
 
@@ -458,9 +486,26 @@ impl App {
 
     pub fn append_outside(&mut self) {
         let ops = self.get_operations();
-        match ops.add_outside_entry(&self.json_input) {
+        let content = if self.is_markdown_file() && !self.markdown_input.is_empty() {
+            &self.markdown_input
+        } else {
+            &self.json_input
+        };
+
+        match ops.add_outside_entry(content) {
             Ok((formatted, line, col, message)) => {
-                self.json_input = formatted;
+                if self.is_markdown_file() {
+                    self.markdown_input = formatted;
+                    match self.parse_markdown(&self.markdown_input) {
+                        Ok(json_content) => {
+                            self.json_input = json_content;
+                        }
+                        Err(_) => {}
+                    }
+                } else {
+                    self.json_input = formatted;
+                }
+
                 self.is_modified = true;
                 self.convert_json();
 
@@ -493,7 +538,7 @@ impl App {
     }
 
     pub fn ensure_cursor_visible(&mut self) {
-        let lines = self.get_json_lines();
+        let lines = self.get_content_lines();
         if lines.is_empty() {
             self.content_cursor_line = 0;
             self.content_cursor_col = 0;
@@ -577,9 +622,26 @@ impl App {
 
     pub fn order_entries(&mut self) {
         let ops = self.get_operations();
-        match ops.order_entries(&self.json_input) {
+        let content = if self.is_markdown_file() && !self.markdown_input.is_empty() {
+            &self.markdown_input
+        } else {
+            &self.json_input
+        };
+
+        match ops.order_entries(content) {
             Ok((formatted, message)) => {
-                self.json_input = formatted;
+                if self.is_markdown_file() {
+                    self.markdown_input = formatted;
+                    match self.parse_markdown(&self.markdown_input) {
+                        Ok(json_content) => {
+                            self.json_input = json_content;
+                        }
+                        Err(_) => {}
+                    }
+                } else {
+                    self.json_input = formatted;
+                }
+
                 self.is_modified = true;
                 self.convert_json();
 
@@ -596,9 +658,26 @@ impl App {
 
     pub fn order_by_percentage(&mut self) {
         let ops = self.get_operations();
-        match ops.order_by_percentage(&self.json_input) {
+        let content = if self.is_markdown_file() && !self.markdown_input.is_empty() {
+            &self.markdown_input
+        } else {
+            &self.json_input
+        };
+
+        match ops.order_by_percentage(content) {
             Ok((formatted, message)) => {
-                self.json_input = formatted;
+                if self.is_markdown_file() {
+                    self.markdown_input = formatted;
+                    match self.parse_markdown(&self.markdown_input) {
+                        Ok(json_content) => {
+                            self.json_input = json_content;
+                        }
+                        Err(_) => {}
+                    }
+                } else {
+                    self.json_input = formatted;
+                }
+
                 self.is_modified = true;
                 self.convert_json();
 
@@ -615,9 +694,26 @@ impl App {
 
     pub fn order_by_name(&mut self) {
         let ops = self.get_operations();
-        match ops.order_by_name(&self.json_input) {
+        let content = if self.is_markdown_file() && !self.markdown_input.is_empty() {
+            &self.markdown_input
+        } else {
+            &self.json_input
+        };
+
+        match ops.order_by_name(content) {
             Ok((formatted, message)) => {
-                self.json_input = formatted;
+                if self.is_markdown_file() {
+                    self.markdown_input = formatted;
+                    match self.parse_markdown(&self.markdown_input) {
+                        Ok(json_content) => {
+                            self.json_input = json_content;
+                        }
+                        Err(_) => {}
+                    }
+                } else {
+                    self.json_input = formatted;
+                }
+
                 self.is_modified = true;
                 self.convert_json();
 

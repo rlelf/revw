@@ -95,7 +95,7 @@ impl App {
         }
 
         let search_content = if self.format_mode == FormatMode::Edit {
-            &self.get_json_lines()
+            &self.get_content_lines()
         } else {
             &self.rendered_content
         };

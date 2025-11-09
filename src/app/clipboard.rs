@@ -1110,15 +1110,31 @@ impl App {
             // Edit mode: duplicate current entry
             self.save_undo_state();
 
-            let lines = self.get_json_lines();
+            let lines = self.get_content_lines();
             let ops = self.get_operations();
+            let content = if self.is_markdown_file() && !self.markdown_input.is_empty() {
+                &self.markdown_input
+            } else {
+                &self.json_input
+            };
+
             match ops.duplicate_entry_at_cursor(
-                &self.json_input,
+                content,
                 self.content_cursor_line,
                 &lines,
             ) {
                 Ok((formatted, message)) => {
-                    self.json_input = formatted;
+                    if self.is_markdown_file() {
+                        self.markdown_input = formatted;
+                        match self.parse_markdown(&self.markdown_input) {
+                            Ok(json_content) => {
+                                self.json_input = json_content;
+                            }
+                            Err(_) => {}
+                        }
+                    } else {
+                        self.json_input = formatted;
+                    }
                     self.convert_json();
                     self.is_modified = true;
                     self.set_status(&message);
