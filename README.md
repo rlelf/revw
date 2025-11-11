@@ -140,6 +140,8 @@ revw --stdout --outside file.json           # Output only OUTSIDE section
 revw --stdout --outside file.md
 revw --stdout --markdown file.json          # Output in Markdown format
 revw --stdout --markdown file.md
+revw --stdout --json file.json              # Output in JSON format
+revw --stdout --json file.md
 
 # Input (overwrite)
 revw --input data.json file.json            # Overwrite entire content

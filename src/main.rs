@@ -51,7 +51,10 @@ fn main() -> Result<()> {
             # Output in Markdown format\n  \
             revw --stdout --markdown file.json\n  \
             revw --stdout --markdown file.md\n\n  \
-            # Input from file (all format combinations supported)\n  \
+            # Output in JSON format\n  \
+            revw --stdout --json file.json\n  \
+            revw --stdout --json file.md\n\n  \
+            # Input from file\n  \
             revw --input data.json file.json                      JSON → JSON\n  \
             revw --input data.json file.md                        JSON → Markdown\n  \
             revw --input data.md file.json                        Markdown → JSON\n  \
@@ -136,6 +139,12 @@ fn main() -> Result<()> {
                 .action(clap::ArgAction::SetTrue),
         )
         .arg(
+            Arg::new("json")
+                .long("json")
+                .help("Output in JSON format")
+                .action(clap::ArgAction::SetTrue),
+        )
+        .arg(
             Arg::new("input")
                 .long("input")
                 .help("Input from file")
@@ -160,6 +169,7 @@ fn main() -> Result<()> {
     let inside_only = matches.get_flag("inside");
     let outside_only = matches.get_flag("outside");
     let markdown_mode = matches.get_flag("markdown");
+    let json_mode = matches.get_flag("json");
     let input_file = matches.get_one::<String>("input");
     let append_mode = matches.get_flag("append");
 
@@ -177,8 +187,24 @@ fn main() -> Result<()> {
                 })
                 .unwrap();
 
-            app.json_input = content;
-            app.convert_json();
+            // Check if file is Markdown
+            let is_markdown = path.extension()
+                .and_then(|ext| ext.to_str())
+                .map(|ext| ext.eq_ignore_ascii_case("md"))
+                .unwrap_or(false);
+
+            if is_markdown {
+                app.file_path = Some(path);
+                app.markdown_input = content;
+                // Convert markdown to JSON for processing
+                if let Ok(json) = app.parse_markdown(&app.markdown_input.clone()) {
+                    app.json_input = json;
+                }
+                app.convert_json();
+            } else {
+                app.json_input = content;
+                app.convert_json();
+            }
 
             let output = if format_mode == FormatMode::Edit {
                 // In Edit mode, output the JSON as-is
@@ -273,6 +299,33 @@ fn main() -> Result<()> {
                 }
 
                 output_lines.join("\n")
+            } else if json_mode {
+                // JSON mode: output as JSON (already in JSON format in app.json_input)
+                // Apply section filtering if needed
+                if inside_only || outside_only {
+                    if let Ok(mut json_value) = serde_json::from_str::<serde_json::Value>(&app.json_input) {
+                        if let Some(obj) = json_value.as_object_mut() {
+                            if inside_only {
+                                obj.remove("outside");
+                            }
+                            if outside_only {
+                                obj.remove("inside");
+                            }
+                            serde_json::to_string_pretty(&json_value).unwrap_or_else(|_| app.json_input.clone())
+                        } else {
+                            app.json_input.clone()
+                        }
+                    } else {
+                        app.json_input.clone()
+                    }
+                } else {
+                    // Output full JSON
+                    if let Ok(json_value) = serde_json::from_str::<serde_json::Value>(&app.json_input) {
+                        serde_json::to_string_pretty(&json_value).unwrap_or_else(|_| app.json_input.clone())
+                    } else {
+                        app.json_input.clone()
+                    }
+                }
             } else {
                 // In View mode, format the entries for text output
                 if app.relf_entries.is_empty() {

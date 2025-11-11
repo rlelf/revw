@@ -1505,6 +1505,12 @@ impl App {
                                     Ok(formatted) => {
                                         self.save_undo_state();
                                         self.json_input = formatted;
+                                        // Update markdown_input if this is a markdown file
+                                        if self.is_markdown_file() {
+                                            if let Ok(md) = self.convert_to_markdown() {
+                                                self.markdown_input = md;
+                                            }
+                                        }
                                         self.is_modified = true;
                                         self.convert_json();
                                         self.selected_entry_index += 1; // Move to duplicated entry
@@ -1528,6 +1534,12 @@ impl App {
                                     Ok(formatted) => {
                                         self.save_undo_state();
                                         self.json_input = formatted;
+                                        // Update markdown_input if this is a markdown file
+                                        if self.is_markdown_file() {
+                                            if let Ok(md) = self.convert_to_markdown() {
+                                                self.markdown_input = md;
+                                            }
+                                        }
                                         self.is_modified = true;
                                         self.convert_json();
                                         self.selected_entry_index += 1; // Move to duplicated entry
