@@ -175,6 +175,15 @@ impl App {
         } else if cmd == "ccj" {
             // Copy card(s) as JSON
             self.copy_cards_json();
+        } else if cmd == "cj" {
+            // Copy JSON (current content in JSON format)
+            self.copy_json();
+        } else if cmd == "ccm" {
+            // Copy card(s) as Markdown
+            self.copy_cards_markdown();
+        } else if cmd == "cm" {
+            // Copy Markdown (current content in Markdown format)
+            self.copy_markdown();
         } else if cmd == "dc" {
             // Delete card(s)
             self.delete_cards();
@@ -235,6 +244,9 @@ impl App {
             self.toggle_explorer();
         } else if cmd == "h" {
             self.toggle_help();
+        } else if cmd == "outline" || cmd == "ol" {
+            // Toggle card outline
+            self.toggle_outline();
         } else if cmd == "c" {
             // Copy all content to clipboard
             self.copy_to_clipboard();

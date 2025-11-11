@@ -609,13 +609,16 @@ impl App {
                 let w = self.get_content_width();
 
                 // Add margin to scroll before cursor reaches edge
-                let margin = 8u16;
+                // Larger margin for smoother scrolling (especially for Markdown)
+                let margin = 15u16;
 
-                if cursor_display_col < self.hscroll + margin {
-                    // Cursor near left edge - scroll left
+                // Only scroll if cursor is significantly outside the current view
+                // This prevents jittery camera movement
+                if cursor_display_col < self.hscroll {
+                    // Cursor off left edge - scroll left
                     self.hscroll = cursor_display_col.saturating_sub(margin);
-                } else if cursor_display_col >= self.hscroll + w.saturating_sub(margin) {
-                    // Cursor near right edge - scroll right
+                } else if cursor_display_col >= self.hscroll + w {
+                    // Cursor off right edge - scroll right
                     self.hscroll = cursor_display_col + margin - w + 1;
                 }
             }

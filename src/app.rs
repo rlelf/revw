@@ -9,6 +9,7 @@ mod help;
 mod history;
 mod markdown;
 mod navigation;
+mod outline;
 mod search;
 mod substitute;
 mod undo;
@@ -142,6 +143,10 @@ pub struct App {
     pub view_edit_mode: bool,
     // Color scheme
     pub colorscheme: ColorScheme,
+    // Card outline overlay
+    pub outline_open: bool,
+    pub outline_selected_index: usize,
+    pub outline_scroll: u16,
 }
 
 #[derive(Clone)]
@@ -255,6 +260,9 @@ impl App {
             visual_end_index: 0,
             view_edit_mode: false,
             colorscheme: rc_config.colorscheme,
+            outline_open: false,
+            outline_selected_index: 0,
+            outline_scroll: 0,
         };
 
         app

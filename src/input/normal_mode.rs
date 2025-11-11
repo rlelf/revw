@@ -31,6 +31,11 @@ pub fn handle_normal_mode(app: &mut App, key: KeyEvent) -> Result<bool> {
         return handle_explorer_navigation(app, key);
     }
 
+    // Handle outline navigation if outline is open
+    if app.outline_open {
+        return handle_outline_navigation(app, key);
+    }
+
     // Main normal mode keyboard handling
     match key.code {
         KeyCode::Char('u') => {
@@ -500,6 +505,53 @@ fn handle_explorer_navigation(app: &mut App, key: KeyEvent) -> Result<bool> {
             } else {
                 app.handle_vim_input('g');
             }
+            return Ok(false);
+        }
+        _ => {}
+    }
+    Ok(false)
+}
+
+fn handle_outline_navigation(app: &mut App, key: KeyEvent) -> Result<bool> {
+    match key.code {
+        KeyCode::Char('j') | KeyCode::Down => {
+            app.outline_move_down();
+            return Ok(false);
+        }
+        KeyCode::Char('k') | KeyCode::Up => {
+            app.outline_move_up();
+            return Ok(false);
+        }
+        KeyCode::Char('G') => {
+            // Go to bottom
+            let max_index = if app.format_mode == FormatMode::View {
+                app.relf_entries.len().saturating_sub(1)
+            } else {
+                app.get_entry_count_from_content().saturating_sub(1)
+            };
+            app.outline_selected_index = max_index;
+            return Ok(false);
+        }
+        KeyCode::Char('g') => {
+            if app.vim_buffer == "g" {
+                // gg - go to top
+                app.outline_selected_index = 0;
+                app.vim_buffer.clear();
+            } else {
+                app.handle_vim_input('g');
+            }
+            return Ok(false);
+        }
+        KeyCode::Enter => {
+            // Jump to selected entry
+            app.outline_jump_to_selected();
+            return Ok(false);
+        }
+        KeyCode::Char('q') | KeyCode::Esc => {
+            // Close outline
+            app.outline_open = false;
+            app.outline_selected_index = 0;
+            app.outline_scroll = 0;
             return Ok(false);
         }
         _ => {}

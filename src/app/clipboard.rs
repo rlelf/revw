@@ -30,15 +30,31 @@ impl App {
                         };
                         self.load_file(path);
                     }
+                    // For Markdown files, check if it looks like Markdown content
+                    else if self.is_markdown_file() && (trimmed.contains("## INSIDE") || trimmed.contains("## OUTSIDE") || trimmed.starts_with("### ")) {
+                        self.markdown_input = text;
+                        match self.parse_markdown(&self.markdown_input) {
+                            Ok(json_content) => {
+                                self.json_input = json_content;
+                                self.is_modified = true;
+                                self.convert_json();
+                                self.set_status("Pasted Markdown content");
+                            }
+                            Err(e) => {
+                                self.set_status(&format!("Failed to parse Markdown: {}", e));
+                            }
+                        }
+                    }
                     // Check if it looks like JSON
                     else if trimmed.starts_with('{') || trimmed.starts_with('[') {
                         self.json_input = text;
+                        self.is_modified = true;
                         self.set_status("Pasted JSON content");
                         self.convert_json();
                     }
                     // Ignore status messages and other non-JSON text
                     else {
-                        self.set_status("Clipboard doesn't contain JSON or file path");
+                        self.set_status("Clipboard doesn't contain JSON, Markdown, or file path");
                     }
                 }
                 Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
@@ -312,6 +328,13 @@ impl App {
         match Clipboard::new() {
             Ok(mut clipboard) => match clipboard.get_text() {
                 Ok(clipboard_text) => {
+                    // For Markdown files, parse markdown format from clipboard
+                    if self.is_markdown_file() {
+                        self.paste_markdown_section_overwrite(&clipboard_text, "INSIDE");
+                        return;
+                    }
+
+                    // For JSON files, parse JSON format
                     // Try to parse as JSON
                     match serde_json::from_str::<Value>(&clipboard_text) {
                         Ok(clipboard_json) => {
@@ -364,6 +387,13 @@ impl App {
         match Clipboard::new() {
             Ok(mut clipboard) => match clipboard.get_text() {
                 Ok(clipboard_text) => {
+                    // For Markdown files, parse markdown format from clipboard
+                    if self.is_markdown_file() {
+                        self.paste_markdown_section_overwrite(&clipboard_text, "OUTSIDE");
+                        return;
+                    }
+
+                    // For JSON files, parse JSON format
                     // Try to parse as JSON
                     match serde_json::from_str::<Value>(&clipboard_text) {
                         Ok(clipboard_json) => {
@@ -416,6 +446,13 @@ impl App {
         match Clipboard::new() {
             Ok(mut clipboard) => match clipboard.get_text() {
                 Ok(clipboard_text) => {
+                    // For Markdown files, parse markdown format from clipboard
+                    if self.is_markdown_file() {
+                        self.paste_markdown_section_append(&clipboard_text, "INSIDE");
+                        return;
+                    }
+
+                    // For JSON files, parse JSON format
                     // Try to parse as JSON
                     match serde_json::from_str::<Value>(&clipboard_text) {
                         Ok(clipboard_json) => {
@@ -478,6 +515,13 @@ impl App {
         match Clipboard::new() {
             Ok(mut clipboard) => match clipboard.get_text() {
                 Ok(clipboard_text) => {
+                    // For Markdown files, parse markdown format from clipboard
+                    if self.is_markdown_file() {
+                        self.paste_markdown_section_append(&clipboard_text, "OUTSIDE");
+                        return;
+                    }
+
+                    // For JSON files, parse JSON format
                     // Try to parse as JSON
                     match serde_json::from_str::<Value>(&clipboard_text) {
                         Ok(clipboard_json) => {
@@ -851,6 +895,124 @@ impl App {
         }
     }
 
+    pub fn copy_json(&mut self) {
+        // Copy current content as JSON (works in both Edit and View modes)
+        match Clipboard::new() {
+            Ok(mut clipboard) => match clipboard.set_text(self.json_input.clone()) {
+                Ok(()) => self.set_status("Copied as JSON"),
+                Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
+            },
+            Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
+        }
+    }
+
+    pub fn copy_markdown(&mut self) {
+        // Copy current content as Markdown (works in both Edit and View modes)
+        match self.convert_to_markdown() {
+            Ok(markdown_content) => {
+                match Clipboard::new() {
+                    Ok(mut clipboard) => match clipboard.set_text(markdown_content) {
+                        Ok(()) => self.set_status("Copied as Markdown"),
+                        Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
+                    },
+                    Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
+                }
+            }
+            Err(e) => self.set_status(&format!("Failed to convert to Markdown: {}", e)),
+        }
+    }
+
+    pub fn copy_cards_markdown(&mut self) {
+        // Copy card(s) as Markdown
+        // In Visual mode: copy selected range and exit Visual mode
+        // In View mode (non-Visual): copy current card only
+        if self.format_mode != FormatMode::View || self.relf_entries.is_empty() {
+            self.set_status("Not in card view mode");
+            return;
+        }
+
+        if let Ok(json_value) = serde_json::from_str::<Value>(&self.json_input) {
+            if let Some(obj) = json_value.as_object() {
+                let outside_count = obj
+                    .get("outside")
+                    .and_then(|v| v.as_array())
+                    .map(|arr| arr.len())
+                    .unwrap_or(0);
+
+                let (start_idx, end_idx) = if self.visual_mode {
+                    let start = self.visual_start_index.min(self.visual_end_index);
+                    let end = self.visual_start_index.max(self.visual_end_index);
+                    (start, end)
+                } else {
+                    (self.selected_entry_index, self.selected_entry_index)
+                };
+
+                // Collect selected entries from JSON
+                let mut selected_outside = Vec::new();
+                let mut selected_inside = Vec::new();
+
+                for idx in start_idx..=end_idx {
+                    if idx >= self.relf_entries.len() {
+                        break;
+                    }
+                    let original_idx = self.relf_entries[idx].original_index;
+
+                    if original_idx < outside_count {
+                        // Outside entry
+                        if let Some(outside) = obj.get("outside").and_then(|v| v.as_array()) {
+                            if original_idx < outside.len() {
+                                selected_outside.push(outside[original_idx].clone());
+                            }
+                        }
+                    } else {
+                        // Inside entry
+                        let inside_idx = original_idx - outside_count;
+                        if let Some(inside) = obj.get("inside").and_then(|v| v.as_array()) {
+                            if inside_idx < inside.len() {
+                                selected_inside.push(inside[inside_idx].clone());
+                            }
+                        }
+                    }
+                }
+
+                // Build JSON object with selected entries
+                let mut result_obj = serde_json::Map::new();
+                if !selected_outside.is_empty() {
+                    result_obj.insert("outside".to_string(), Value::Array(selected_outside));
+                }
+                if !selected_inside.is_empty() {
+                    result_obj.insert("inside".to_string(), Value::Array(selected_inside));
+                }
+
+                if result_obj.is_empty() {
+                    self.set_status("No cards to copy");
+                    return;
+                }
+
+                // Convert to markdown format using helper function
+                match Self::json_to_markdown_string(&Value::Object(result_obj)) {
+                    Ok(markdown_str) => {
+                        match Clipboard::new() {
+                            Ok(mut clipboard) => match clipboard.set_text(markdown_str) {
+                                Ok(()) => {
+                                    let count = end_idx - start_idx + 1;
+                                    self.set_status(&format!("Copied {} card(s) as Markdown", count));
+                                    // Exit Visual mode after copy
+                                    if self.visual_mode {
+                                        self.visual_mode = false;
+                                    }
+                                }
+                                Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
+                            },
+                            Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
+                        }
+                    }
+                    Err(e) => self.set_status(&format!("Markdown conversion error: {}", e)),
+                }
+            }
+        }
+    }
+
     pub fn copy_cards_json(&mut self) {
         // Copy card(s) as JSON
         // In Visual mode: copy selected range and exit Visual mode
@@ -1038,6 +1200,279 @@ impl App {
                     }
                     Err(e) => self.set_status(&format!("Format error: {}", e)),
                 }
+            }
+        }
+    }
+
+    /// Helper function to convert JSON value to Markdown string
+    fn json_to_markdown_string(json_value: &Value) -> Result<String, String> {
+        let mut output_lines = Vec::new();
+
+        if let Some(obj) = json_value.as_object() {
+            // OUTSIDE section
+            if let Some(outside) = obj.get("outside").and_then(|v| v.as_array()) {
+                if !outside.is_empty() {
+                    output_lines.push("## OUTSIDE".to_string());
+                    output_lines.push("".to_string());
+
+                    for item in outside {
+                        if let Some(item_obj) = item.as_object() {
+                            let name = item_obj.get("name").and_then(|v| v.as_str()).unwrap_or("");
+                            let context = item_obj.get("context").and_then(|v| v.as_str()).unwrap_or("");
+                            let url = item_obj.get("url").and_then(|v| v.as_str());
+                            let percentage = item_obj.get("percentage").and_then(|v| v.as_i64());
+
+                            if !name.is_empty() {
+                                output_lines.push(format!("### {}", name));
+                            }
+
+                            if !context.is_empty() {
+                                output_lines.push(context.to_string());
+                            }
+
+                            // Only output URL if it's not null and not empty
+                            if let Some(url_str) = url {
+                                if !url_str.is_empty() {
+                                    output_lines.push("".to_string());
+                                    output_lines.push(format!("**URL:** {}", url_str));
+                                }
+                            }
+
+                            // Only output percentage if it's not null
+                            if let Some(pct) = percentage {
+                                output_lines.push("".to_string());
+                                output_lines.push(format!("**Percentage:** {}%", pct));
+                            }
+
+                            // Only add blank line if we had any content
+                            if !name.is_empty() || !context.is_empty() || url.is_some() || percentage.is_some() {
+                                output_lines.push("".to_string());
+                            }
+                        }
+                    }
+                }
+            }
+
+            // INSIDE section
+            if let Some(inside) = obj.get("inside").and_then(|v| v.as_array()) {
+                if !inside.is_empty() {
+                    output_lines.push("## INSIDE".to_string());
+                    output_lines.push("".to_string());
+
+                    for item in inside {
+                        if let Some(item_obj) = item.as_object() {
+                            let date = item_obj.get("date").and_then(|v| v.as_str()).unwrap_or("");
+                            let context = item_obj.get("context").and_then(|v| v.as_str()).unwrap_or("");
+
+                            if !date.is_empty() {
+                                output_lines.push(format!("### {}", date));
+                            }
+
+                            if !context.is_empty() {
+                                output_lines.push(context.to_string());
+                            }
+
+                            // Only add blank line if we had content
+                            if !date.is_empty() || !context.is_empty() {
+                                output_lines.push("".to_string());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(output_lines.join("\n"))
+    }
+
+    /// Helper function to paste Markdown section content (INSIDE or OUTSIDE) from clipboard (overwrite)
+    fn paste_markdown_section_overwrite(&mut self, clipboard_text: &str, section: &str) {
+        // Parse the clipboard content to extract the section
+        let lines: Vec<&str> = clipboard_text.lines().collect();
+        let mut section_lines = Vec::new();
+        let mut in_target_section = false;
+        let section_header = format!("## {}", section);
+
+        for line in lines {
+            let trimmed = line.trim();
+
+            // Check if we're entering the target section
+            if trimmed == section_header.trim() {
+                in_target_section = true;
+                continue;
+            }
+
+            // Check if we're entering a different section
+            if trimmed.starts_with("## ") && trimmed != section_header.trim() {
+                in_target_section = false;
+                continue;
+            }
+
+            // Collect lines from target section
+            if in_target_section {
+                section_lines.push(line);
+            }
+        }
+
+        if section_lines.is_empty() {
+            self.set_status(&format!("No {} section found in clipboard", section));
+            return;
+        }
+
+        // Now replace the section in the current markdown file
+        let current_lines: Vec<&str> = self.markdown_input.lines().collect();
+        let mut result_lines = Vec::new();
+        let mut in_section_to_replace = false;
+        let mut found_section = false;
+
+        for line in current_lines {
+            let trimmed = line.trim();
+
+            // Found target section header
+            if trimmed == section_header.trim() {
+                found_section = true;
+                in_section_to_replace = true;
+                result_lines.push(line.to_string());
+                result_lines.push("".to_string());
+                // Insert new content
+                for section_line in &section_lines {
+                    result_lines.push(section_line.to_string());
+                }
+                continue;
+            }
+
+            // Check if we're entering a different section (end of section to replace)
+            if in_section_to_replace && trimmed.starts_with("## ") {
+                in_section_to_replace = false;
+                result_lines.push(line.to_string());
+                continue;
+            }
+
+            // Skip lines in the section we're replacing
+            if in_section_to_replace {
+                continue;
+            }
+
+            result_lines.push(line.to_string());
+        }
+
+        // If section not found, create it
+        if !found_section {
+            result_lines.push("".to_string());
+            result_lines.push(section_header);
+            result_lines.push("".to_string());
+            for section_line in &section_lines {
+                result_lines.push(section_line.to_string());
+            }
+        }
+
+        self.markdown_input = result_lines.join("\n");
+
+        // Re-parse markdown to update JSON
+        match self.parse_markdown(&self.markdown_input) {
+            Ok(json_content) => {
+                self.json_input = json_content;
+                self.is_modified = true;
+                self.convert_json();
+                self.set_status(&format!("{} section overwritten from clipboard", section));
+            }
+            Err(e) => {
+                self.set_status(&format!("Failed to parse markdown: {}", e));
+            }
+        }
+    }
+
+    /// Helper function to paste Markdown section content (INSIDE or OUTSIDE) from clipboard
+    fn paste_markdown_section_append(&mut self, clipboard_text: &str, section: &str) {
+        // Parse the clipboard content to extract the section
+        let lines: Vec<&str> = clipboard_text.lines().collect();
+        let mut section_lines = Vec::new();
+        let mut in_target_section = false;
+        let section_header = format!("## {}", section);
+
+        for line in lines {
+            let trimmed = line.trim();
+
+            // Check if we're entering the target section
+            if trimmed == section_header.trim() {
+                in_target_section = true;
+                continue;
+            }
+
+            // Check if we're entering a different section
+            if trimmed.starts_with("## ") && trimmed != section_header.trim() {
+                in_target_section = false;
+                continue;
+            }
+
+            // Collect lines from target section
+            if in_target_section {
+                section_lines.push(line);
+            }
+        }
+
+        if section_lines.is_empty() {
+            self.set_status(&format!("No {} section found in clipboard", section));
+            return;
+        }
+
+        // Now append these lines to the current markdown file
+        let current_lines: Vec<&str> = self.markdown_input.lines().collect();
+        let mut result_lines = Vec::new();
+        let mut found_section = false;
+        let mut inserted = false;
+
+        for (i, line) in current_lines.iter().enumerate() {
+            result_lines.push(line.to_string());
+
+            let trimmed = line.trim();
+
+            // Found target section header
+            if trimmed == section_header.trim() {
+                found_section = true;
+            }
+
+            // If we're in INSIDE section and about to hit end, or if we're in OUTSIDE and about to hit INSIDE, insert
+            if found_section && !inserted {
+                // Check if next line is a different section or EOF
+                let is_before_new_section = if i + 1 < current_lines.len() {
+                    current_lines[i + 1].trim().starts_with("## ") && current_lines[i + 1].trim() != section_header.trim()
+                } else {
+                    true // EOF
+                };
+
+                if is_before_new_section {
+                    // Insert at the end of the current section
+                    for section_line in &section_lines {
+                        result_lines.push(section_line.to_string());
+                    }
+                    inserted = true;
+                }
+            }
+        }
+
+        // If section not found, create it
+        if !found_section {
+            result_lines.push("".to_string());
+            result_lines.push(section_header);
+            result_lines.push("".to_string());
+            for section_line in &section_lines {
+                result_lines.push(section_line.to_string());
+            }
+        }
+
+        self.markdown_input = result_lines.join("\n");
+
+        // Re-parse markdown to update JSON
+        match self.parse_markdown(&self.markdown_input) {
+            Ok(json_content) => {
+                self.json_input = json_content;
+                self.is_modified = true;
+                self.convert_json();
+                self.set_status(&format!("{} entries appended from clipboard", section));
+            }
+            Err(e) => {
+                self.set_status(&format!("Failed to parse markdown: {}", e));
             }
         }
     }
