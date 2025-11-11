@@ -1205,7 +1205,7 @@ impl App {
     }
 
     /// Helper function to convert JSON value to Markdown string
-    fn json_to_markdown_string(json_value: &Value) -> Result<String, String> {
+    pub(crate) fn json_to_markdown_string(json_value: &Value) -> Result<String, String> {
         let mut output_lines = Vec::new();
 
         if let Some(obj) = json_value.as_object() {

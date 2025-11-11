@@ -230,6 +230,14 @@ impl App {
                         match serde_json::to_string_pretty(&json_value) {
                             Ok(formatted) => {
                                 self.json_input = formatted;
+
+                                // If working with a markdown file, sync markdown_input
+                                if self.is_markdown_file() {
+                                    if let Ok(json_value) = serde_json::from_str::<Value>(&self.json_input) {
+                                        self.markdown_input = Self::json_to_markdown_string(&json_value).unwrap_or_default();
+                                    }
+                                }
+
                                 self.convert_json();
 
                                 // Move selection up (to previous entry)

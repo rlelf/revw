@@ -6,6 +6,7 @@ mod explorer;
 mod cards;
 mod edit_overlay;
 mod content;
+mod outline;
 
 use ratatui::{
     layout::{Constraint, Direction, Layout},
@@ -17,6 +18,7 @@ use crate::app::App;
 use content::render_content;
 use edit_overlay::render_edit_overlay;
 use explorer::render_explorer;
+use outline::render_outline;
 use status_bar::render_status_bar;
 
 pub fn ui(f: &mut Frame, app: &mut App) {
@@ -48,5 +50,10 @@ pub fn ui(f: &mut Frame, app: &mut App) {
     // Render editing overlay on top if active
     if app.editing_entry {
         render_edit_overlay(f, app);
+    }
+
+    // Render outline overlay on top if active
+    if app.outline_open {
+        render_outline(f, app);
     }
 }

@@ -70,7 +70,7 @@ impl App {
                 "c", "ci", "co", "cu", "v", "vu", "vi", "vo", "va", "vai", "vao",
                 "xi", "xo", "gi", "go", "noh", "nof", "f", "cc", "ccj", "dc",
                 "set", "colorscheme", "ar", "h", "a", "d", "m", "markdown", "json",
-                "Lexplore", "Lex", "lx",
+                "Lexplore", "Lex", "lx", "outline", "ol",
             ];
 
             let mut matches: Vec<String> = commands.iter()
