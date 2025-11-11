@@ -105,6 +105,8 @@ Revw integrates seamlessly with AI assistants:
 3. Share with LLM for analysis, summarization, or questions
 
 ### Command Line Options
+
+**Basic Usage:**
 ```bash
 # View help
 revw --help
@@ -117,27 +119,55 @@ revw
 
 # View mode
 revw file.json
+revw file.md
 
 # Edit mode
-revw --json file.json
+revw --edit file.json
+revw --edit file.md
+```
 
-# Output to stdout
-revw --stdout file.json
+**File Operations:**
 
-# Output to file
-revw --output output.txt file.json
+```bash
+# Output
+revw --stdout file.json                     # Output to stdout
+revw --stdout file.md
+revw --output output.txt file.json          # Output to file
+revw --output output.txt file.md
+revw --stdout --inside file.json            # Output only INSIDE section
+revw --stdout --inside file.md
+revw --stdout --outside file.json           # Output only OUTSIDE section
+revw --stdout --outside file.md
+revw --stdout --markdown file.json          # Output in Markdown format
+revw --stdout --markdown file.md
 
-# Output only INSIDE section
-revw --stdout --inside file.json
+# Input (overwrite)
+revw --input data.json file.json          # Overwrite entire content
+revw --input data.json file.md
+revw --input data.md file.json
+revw --input data.md file.md
+revw --input data.json --inside file.json # Overwrite only INSIDE section
+revw --input data.json --inside file.md
+revw --input data.md --inside file.json
+revw --input data.md --inside file.md
+revw --input data.json --outside file.json # Overwrite only OUTSIDE section
+revw --input data.json --outside file.md
+revw --input data.md --outside file.json
+revw --input data.md --outside file.md
 
-# Output only OUTSIDE section
-revw --stdout --outside file.json
-
-# Output in Markdown format
-revw --stdout --markdown file.json
-
-# Output to file in Markdown format
-revw --output output.md --markdown file.json
+# Input (append)
+revw --input data.json --append file.json           # Append entire content
+revw --input data.json --append file.md
+revw --input data.md --append file.json
+revw --input data.md --append file.md
+revw --input data.json --append --inside file.json  # Append to INSIDE only
+revw --input data.json --append --inside file.md
+revw --input data.md --append --inside file.json
+revw --input data.md --append --inside file.md
+revw --input data.json --append --outside file.json # Append to OUTSIDE only
+revw --input data.json --append --outside file.md
+revw --input data.md --append --outside file.json
+revw --input data.md --append --outside file.md
 ```
 
 ## Controls
@@ -169,6 +199,7 @@ revw --output output.md --markdown file.json
 - `j/k` extend selection
 - `:cc` copy selected cards (rendered format)
 - `:ccj` copy selected cards (JSON format)
+- `:ccm` copy selected cards (Markdown format)
 - `:dc` delete selected cards
 - `Esc` or `Ctrl+[` exit Visual mode
 
@@ -176,6 +207,8 @@ revw --output output.md --markdown file.json
 - `:c` copy all rendered content (with OUTSIDE/INSIDE headers)
 - `:ci` copy INSIDE section only
 - `:co` copy OUTSIDE section only
+- `:cj` copy all content (JSON format)
+- `:cm` copy all content (Markdown format)
 - `:cu` copy URL from selected card
 - `:v` paste file path or JSON content
 - `:vu` paste URL from clipboard to selected card
@@ -201,6 +234,7 @@ revw --output output.md --markdown file.json
 **Other:**
 - `r` toggle View/Edit mode
 - `:Lexplore` or `:Lex` or `:lx` toggle file explorer
+- `:outline` or `:ol` toggle card outline view
 - `:x` clear content
 - `:h` or `?` toggle help mode
 - `q` or `Esc` quit
@@ -306,6 +340,8 @@ revw --output output.md --markdown file.json
 - `:c` copy all content
 - `:ci` copy INSIDE section (JSON format)
 - `:co` copy OUTSIDE section (JSON format)
+- `:cj` copy all content (JSON format)
+- `:cm` copy all content (Markdown format)
 - `:v` paste from clipboard
 - `:vi` paste INSIDE from clipboard (overwrite)
 - `:vo` paste OUTSIDE from clipboard (overwrite)
@@ -323,6 +359,7 @@ revw --output output.md --markdown file.json
 - `:ar` toggle auto-reload (default: on)
 - `:markdown` export current file to Markdown format (same folder, .md extension)
 - `:Lexplore` or `:Lex` or `:lx` toggle file explorer
+- `:outline` or `:ol` toggle card outline view
 - `Ctrl+w w` cycle between explorer and file window
 - `Ctrl+w h` move to explorer window (left)
 - `Ctrl+w l` move to file window (right)

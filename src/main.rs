@@ -37,11 +37,48 @@ fn main() -> Result<()> {
     let matches = Command::new("revw")
         .version(env!("BUILD_VERSION"))
         .about("A vim-like TUI for managing notes and resources")
-        .arg(Arg::new("file").help("JSON file to view").index(1))
+        .after_help(
+            "EXAMPLES:\n  \
+            revw file.json                            Open file in interactive mode\n  \
+            revw --stdout file.json                   Output to stdout\n  \
+            revw -o output.txt file.json              Output to file\n  \
+            revw --stdout --markdown file.json        Output in Markdown format\n\n  \
+            # Input from file (all format combinations supported)\n  \
+            revw -i data.json file.json               JSON → JSON\n  \
+            revw -i data.json file.md                 JSON → Markdown\n  \
+            revw -i data.md file.json                 Markdown → JSON\n  \
+            revw -i data.md file.md                   Markdown → Markdown\n\n  \
+            # Section-specific operations\n  \
+            revw -i data.json --inside file.json      Overwrite INSIDE section only\n  \
+            revw -i data.json --outside file.json     Overwrite OUTSIDE section only\n  \
+            revw -i data.json -a file.json            Append to both sections\n  \
+            revw -i data.json -a --inside file.json   Append to INSIDE section only\n\n\
+            INPUT FILE FORMAT:\n  \
+            JSON (data.json):\n  \
+            {\n    \
+            \"outside\": [\n      \
+            {\"name\": \"Resource\", \"context\": \"Description\", \"url\": \"https://...\", \"percentage\": 100}\n    \
+            ],\n    \
+            \"inside\": [\n      \
+            {\"date\": \"2025-01-01 00:00:00\", \"context\": \"Note content\"}\n    \
+            ]\n  \
+            }\n\n  \
+            Markdown (data.md):\n  \
+            ## OUTSIDE\n  \
+            ### Resource\n  \
+            Description\n  \
+            **URL:** https://...\n  \
+            **Percentage:** 100%\n  \
+            ## INSIDE\n  \
+            ### 2025-01-01 00:00:00\n  \
+            Note content\n\n\
+            For more help, run 'revw' and press :h or ?"
+        )
+        .arg(Arg::new("file").help("JSON or Markdown file to view").index(1))
         .arg(
-            Arg::new("json")
-                .long("json")
-                .help("Use JSON editing mode")
+            Arg::new("edit")
+                .long("edit")
+                .help("Use Edit mode")
                 .action(clap::ArgAction::SetTrue),
         )
         .arg(
@@ -75,9 +112,23 @@ fn main() -> Result<()> {
                 .help("Output in Markdown format")
                 .action(clap::ArgAction::SetTrue),
         )
+        .arg(
+            Arg::new("input")
+                .short('i')
+                .long("input")
+                .help("Input from file")
+                .value_name("FILE"),
+        )
+        .arg(
+            Arg::new("append")
+                .short('a')
+                .long("append")
+                .help("Append mode - append input instead of overwriting")
+                .action(clap::ArgAction::SetTrue),
+        )
         .get_matches();
 
-    let format_mode = if matches.get_flag("json") {
+    let format_mode = if matches.get_flag("edit") {
         FormatMode::Edit
     } else {
         FormatMode::View
@@ -88,6 +139,8 @@ fn main() -> Result<()> {
     let inside_only = matches.get_flag("inside");
     let outside_only = matches.get_flag("outside");
     let markdown_mode = matches.get_flag("markdown");
+    let input_file = matches.get_one::<String>("input");
+    let append_mode = matches.get_flag("append");
 
     // If stdout mode or output file specified, run in non-interactive mode
     if stdout_mode || output_file.is_some() {
@@ -334,6 +387,44 @@ fn main() -> Result<()> {
         if let Some(file_path) = matches.get_one::<String>("file") {
             let path = PathBuf::from(file_path);
             app.load_file(path);
+        }
+
+        // Process input file if provided
+        if let Some(input_path) = input_file {
+            // Read from file
+            let input_content = fs::read_to_string(input_path)
+                .map_err(|e| {
+                    eprintln!("Error: Cannot read input file '{}': {}", input_path, e);
+                    std::process::exit(1);
+                })
+                .unwrap();
+
+            // Determine how to process the input based on flags
+            if append_mode {
+                // Append mode: :va/:vai/:vao behavior
+                if inside_only {
+                    // Append INSIDE only (:vai)
+                    app.paste_inside_append_from_text(&input_content);
+                } else if outside_only {
+                    // Append OUTSIDE only (:vao)
+                    app.paste_outside_append_from_text(&input_content);
+                } else {
+                    // Append both (:va)
+                    app.paste_all_append_from_text(&input_content);
+                }
+            } else {
+                // Overwrite mode: :v/:vi/:vo behavior
+                if inside_only {
+                    // Overwrite INSIDE only (:vi)
+                    app.paste_inside_from_text(&input_content);
+                } else if outside_only {
+                    // Overwrite OUTSIDE only (:vo)
+                    app.paste_outside_from_text(&input_content);
+                } else {
+                    // Overwrite all (:v)
+                    app.paste_from_text(&input_content);
+                }
+            }
         }
 
         // Set up terminal with error handling
