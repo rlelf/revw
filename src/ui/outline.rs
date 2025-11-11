@@ -41,7 +41,6 @@ pub fn render_outline(f: &mut Frame, app: &App) {
 
     // Get outline entries
     let entries = app.get_outline_entries();
-    let total_entries = entries.len();
 
     // Create list items
     let items: Vec<ListItem> = entries
@@ -64,7 +63,7 @@ pub fn render_outline(f: &mut Frame, app: &App) {
         .collect();
 
     // Create title
-    let title = format!(" Outline ({}) ", total_entries);
+    let title = " Outline ".to_string();
 
     // Render the block with border
     let block = Block::default()

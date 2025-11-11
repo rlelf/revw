@@ -142,29 +142,29 @@ revw --stdout --markdown file.json          # Output in Markdown format
 revw --stdout --markdown file.md
 
 # Input (overwrite)
-revw --input data.json file.json          # Overwrite entire content
+revw --input data.json file.json            # Overwrite entire content
 revw --input data.json file.md
 revw --input data.md file.json
 revw --input data.md file.md
-revw --input data.json --inside file.json # Overwrite only INSIDE section
+revw --input data.json --inside file.json   # Overwrite only INSIDE section
 revw --input data.json --inside file.md
 revw --input data.md --inside file.json
 revw --input data.md --inside file.md
-revw --input data.json --outside file.json # Overwrite only OUTSIDE section
+revw --input data.json --outside file.json  # Overwrite only OUTSIDE section
 revw --input data.json --outside file.md
 revw --input data.md --outside file.json
 revw --input data.md --outside file.md
 
 # Input (append)
-revw --input data.json --append file.json           # Append entire content
+revw --input data.json --append file.json             # Append entire content
 revw --input data.json --append file.md
 revw --input data.md --append file.json
 revw --input data.md --append file.md
-revw --input data.json --append --inside file.json  # Append to INSIDE only
+revw --input data.json --append --inside file.json    # Append to INSIDE only
 revw --input data.json --append --inside file.md
 revw --input data.md --append --inside file.json
 revw --input data.md --append --inside file.md
-revw --input data.json --append --outside file.json # Append to OUTSIDE only
+revw --input data.json --append --outside file.json   # Append to OUTSIDE only
 revw --input data.json --append --outside file.md
 revw --input data.md --append --outside file.json
 revw --input data.md --append --outside file.md

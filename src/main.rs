@@ -39,20 +39,44 @@ fn main() -> Result<()> {
         .about("A vim-like TUI for managing notes and resources")
         .after_help(
             "EXAMPLES:\n  \
-            revw file.json                            Open file in interactive mode\n  \
-            revw --stdout file.json                   Output to stdout\n  \
-            revw -o output.txt file.json              Output to file\n  \
-            revw --stdout --markdown file.json        Output in Markdown format\n\n  \
+            # Open file in interactive mode\n  \
+            revw file.json\n  \
+            revw file.md\n\n  \
+            # Output to stdout\n  \
+            revw --stdout file.json\n  \
+            revw --stdout file.md\n\n  \
+            # Output to file\n  \
+            revw --output output.txt file.json\n  \
+            revw --output output.txt file.md\n\n  \
+            # Output in Markdown format\n  \
+            revw --stdout --markdown file.json\n  \
+            revw --stdout --markdown file.md\n\n  \
             # Input from file (all format combinations supported)\n  \
-            revw -i data.json file.json               JSON → JSON\n  \
-            revw -i data.json file.md                 JSON → Markdown\n  \
-            revw -i data.md file.json                 Markdown → JSON\n  \
-            revw -i data.md file.md                   Markdown → Markdown\n\n  \
+            revw --input data.json file.json                      JSON → JSON\n  \
+            revw --input data.json file.md                        JSON → Markdown\n  \
+            revw --input data.md file.json                        Markdown → JSON\n  \
+            revw --input data.md file.md                          Markdown → Markdown\n\n  \
             # Section-specific operations\n  \
-            revw -i data.json --inside file.json      Overwrite INSIDE section only\n  \
-            revw -i data.json --outside file.json     Overwrite OUTSIDE section only\n  \
-            revw -i data.json -a file.json            Append to both sections\n  \
-            revw -i data.json -a --inside file.json   Append to INSIDE section only\n\n\
+            revw --input data.json --inside file.json             Overwrite INSIDE section only\n  \
+            revw --input data.json --inside file.md\n  \
+            revw --input data.md --inside file.json\n  \
+            revw --input data.md --inside file.md\n  \
+            revw --input data.json --outside file.json            Overwrite OUTSIDE section only\n  \
+            revw --input data.json --outside file.md\n  \
+            revw --input data.md --outside file.json\n  \
+            revw --input data.md --outside file.md\n  \
+            revw --input data.json --append file.json             Append to both sections\n  \
+            revw --input data.json --append file.md\n  \
+            revw --input data.md --append file.json\n  \
+            revw --input data.md --append file.md\n  \
+            revw --input data.json --append --inside file.json    Append to INSIDE section only\n  \
+            revw --input data.json --append --inside file.md\n  \
+            revw --input data.md --append --inside file.json\n  \
+            revw --input data.md --append --inside file.md\n  \
+            revw --input data.json --append --outside file.json   Append to OUTSIDE section only\n  \
+            revw --input data.json --append --outside file.md\n  \
+            revw --input data.md --append --outside file.json\n  \
+            revw --input data.md --append --outside file.md\n\n\
             INPUT FILE FORMAT:\n  \
             JSON (data.json):\n  \
             {\n    \
@@ -89,7 +113,6 @@ fn main() -> Result<()> {
         )
         .arg(
             Arg::new("output")
-                .short('o')
                 .long("output")
                 .help("Output to file (use '-' for stdout)")
                 .value_name("FILE"),
@@ -114,14 +137,12 @@ fn main() -> Result<()> {
         )
         .arg(
             Arg::new("input")
-                .short('i')
                 .long("input")
                 .help("Input from file")
                 .value_name("FILE"),
         )
         .arg(
             Arg::new("append")
-                .short('a')
                 .long("append")
                 .help("Append mode - append input instead of overwriting")
                 .action(clap::ArgAction::SetTrue),
@@ -399,32 +420,127 @@ fn main() -> Result<()> {
                 })
                 .unwrap();
 
+            // Convert input content format if needed (JSON -> Markdown or Markdown -> JSON)
+            // Check if input is JSON and target is Markdown, or vice versa
+            let input_path_obj = PathBuf::from(input_path);
+            let input_is_json = input_path_obj.extension()
+                .and_then(|ext| ext.to_str())
+                .map(|ext| ext.eq_ignore_ascii_case("json"))
+                .unwrap_or(false);
+
+            let target_is_markdown = app.file_path.as_ref()
+                .and_then(|p| p.extension())
+                .and_then(|ext| ext.to_str())
+                .map(|ext| ext.eq_ignore_ascii_case("md"))
+                .unwrap_or(false);
+
+            let converted_content = if input_is_json && target_is_markdown {
+                // Convert JSON to Markdown format
+                if let Ok(json_val) = serde_json::from_str::<serde_json::Value>(&input_content) {
+                    let mut markdown_lines = Vec::new();
+
+                    if let Some(obj) = json_val.as_object() {
+                        // Convert OUTSIDE
+                        if let Some(outside) = obj.get("outside").and_then(|v| v.as_array()) {
+                            if !outside.is_empty() {
+                                markdown_lines.push("## OUTSIDE".to_string());
+                                for item in outside {
+                                    if let Some(item_obj) = item.as_object() {
+                                        let name = item_obj.get("name").and_then(|v| v.as_str()).unwrap_or("");
+                                        let context = item_obj.get("context").and_then(|v| v.as_str()).unwrap_or("");
+                                        let url = item_obj.get("url").and_then(|v| v.as_str());
+                                        let percentage = item_obj.get("percentage").and_then(|v| v.as_i64());
+
+                                        if !name.is_empty() {
+                                            markdown_lines.push(format!("### {}", name));
+                                        }
+                                        if !context.is_empty() {
+                                            let formatted_context = context.replace("\\n", "\n");
+                                            markdown_lines.push(formatted_context);
+                                        }
+                                        if let Some(url_str) = url {
+                                            if !url_str.is_empty() {
+                                                markdown_lines.push("".to_string());
+                                                markdown_lines.push(format!("**URL:** {}", url_str));
+                                            }
+                                        }
+                                        if let Some(pct) = percentage {
+                                            markdown_lines.push("".to_string());
+                                            markdown_lines.push(format!("**Percentage:** {}%", pct));
+                                        }
+                                        markdown_lines.push("".to_string());
+                                    }
+                                }
+                            }
+                        }
+
+                        // Convert INSIDE
+                        if let Some(inside) = obj.get("inside").and_then(|v| v.as_array()) {
+                            if !inside.is_empty() {
+                                markdown_lines.push("## INSIDE".to_string());
+                                for item in inside {
+                                    if let Some(item_obj) = item.as_object() {
+                                        let date = item_obj.get("date").and_then(|v| v.as_str()).unwrap_or("");
+                                        let context = item_obj.get("context").and_then(|v| v.as_str()).unwrap_or("");
+
+                                        if !date.is_empty() {
+                                            markdown_lines.push(format!("### {}", date));
+                                        }
+                                        if !context.is_empty() {
+                                            let formatted_context = context.replace("\\n", "\n");
+                                            markdown_lines.push(formatted_context);
+                                        }
+                                        markdown_lines.push("".to_string());
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    markdown_lines.join("\n")
+                } else {
+                    input_content.clone()
+                }
+            } else if !input_is_json && !target_is_markdown {
+                // Convert Markdown to JSON format
+                match app.parse_markdown(&input_content) {
+                    Ok(json) => json,
+                    Err(_) => input_content.clone()
+                }
+            } else {
+                input_content.clone()
+            };
+
             // Determine how to process the input based on flags
             if append_mode {
                 // Append mode: :va/:vai/:vao behavior
                 if inside_only {
                     // Append INSIDE only (:vai)
-                    app.paste_inside_append_from_text(&input_content);
+                    app.paste_inside_append_from_text(&converted_content);
                 } else if outside_only {
                     // Append OUTSIDE only (:vao)
-                    app.paste_outside_append_from_text(&input_content);
+                    app.paste_outside_append_from_text(&converted_content);
                 } else {
                     // Append both (:va)
-                    app.paste_all_append_from_text(&input_content);
+                    app.paste_all_append_from_text(&converted_content);
                 }
             } else {
                 // Overwrite mode: :v/:vi/:vo behavior
                 if inside_only {
                     // Overwrite INSIDE only (:vi)
-                    app.paste_inside_from_text(&input_content);
+                    app.paste_inside_from_text(&converted_content);
                 } else if outside_only {
                     // Overwrite OUTSIDE only (:vo)
-                    app.paste_outside_from_text(&input_content);
+                    app.paste_outside_from_text(&converted_content);
                 } else {
                     // Overwrite all (:v)
-                    app.paste_from_text(&input_content);
+                    app.paste_from_text(&converted_content);
                 }
             }
+
+            // Save and exit immediately when --input is used
+            app.save_file();
+            return Ok(());
         }
 
         // Set up terminal with error handling
