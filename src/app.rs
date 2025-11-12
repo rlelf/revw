@@ -156,6 +156,10 @@ pub struct App {
     pub outline_selected_index: usize,
     pub outline_scroll: u16,
     pub outline_opened_from_explorer: bool, // Track if outline was opened from explorer
+    pub outline_has_focus: bool, // Track if outline has mouse focus
+    pub outline_search_query: String, // Search query for outline
+    pub outline_search_matches: Vec<usize>, // Indices of matching entries
+    pub outline_search_current: usize, // Current match index in search_matches
     // File mode (JSON or Markdown)
     pub file_mode: FileMode,
 }
@@ -278,6 +282,10 @@ impl App {
             outline_selected_index: 0,
             outline_scroll: 0,
             outline_opened_from_explorer: false,
+            outline_has_focus: false,
+            outline_search_query: String::new(),
+            outline_search_matches: Vec::new(),
+            outline_search_current: 0,
             file_mode: if rc_config.default_format.as_deref() == Some("markdown") {
                 FileMode::Markdown
             } else {

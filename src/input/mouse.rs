@@ -35,8 +35,11 @@ pub fn handle_mouse_event<B: ratatui::backend::Backend>(
         MouseEventKind::ScrollUp => {
             // Don't scroll vertically if horizontal scrollbar is being dragged
             if app.dragging_scrollbar != Some(ScrollbarType::Horizontal) {
+                // If outline has focus, scroll outline
+                if app.outline_open && app.outline_has_focus {
+                    app.outline_move_up();
                 // If explorer has focus, scroll explorer
-                if app.explorer_open && app.explorer_has_focus {
+                } else if app.explorer_open && app.explorer_has_focus {
                     app.explorer_move_up();
                 } else if app.format_mode == FormatMode::Edit {
                     // Scroll and move cursor together
@@ -64,8 +67,11 @@ pub fn handle_mouse_event<B: ratatui::backend::Backend>(
         MouseEventKind::ScrollDown => {
             // Don't scroll vertically if horizontal scrollbar is being dragged
             if app.dragging_scrollbar != Some(ScrollbarType::Horizontal) {
+                // If outline has focus, scroll outline
+                if app.outline_open && app.outline_has_focus {
+                    app.outline_move_down();
                 // If explorer has focus, scroll explorer
-                if app.explorer_open && app.explorer_has_focus {
+                } else if app.explorer_open && app.explorer_has_focus {
                     app.explorer_move_down();
                 } else if app.format_mode == FormatMode::Edit {
                     // Scroll and move cursor together

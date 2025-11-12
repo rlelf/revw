@@ -7,6 +7,11 @@ impl App {
             self.outline_open = false;
             self.outline_selected_index = 0;
             self.outline_scroll = 0;
+            self.outline_has_focus = false;
+            // Clear search state
+            self.outline_search_query.clear();
+            self.outline_search_matches.clear();
+            self.outline_search_current = 0;
             // Restore focus based on where outline was opened from
             // Only restore if explorer is still open
             if self.explorer_open {
@@ -19,6 +24,7 @@ impl App {
                 self.outline_open = true;
                 self.outline_selected_index = 0;
                 self.outline_scroll = 0;
+                self.outline_has_focus = true; // Set focus to outline
                 // Remember where outline was opened from
                 self.outline_opened_from_explorer = self.explorer_open && self.explorer_has_focus;
                 // When opening outline, take focus away from explorer
@@ -238,5 +244,73 @@ impl App {
         }
 
         entries
+    }
+
+    pub fn outline_next_match(&mut self) {
+        // Use the last search from search history
+        let search_pattern = if !self.search_history.is_empty() {
+            self.search_history.last().unwrap().clone()
+        } else {
+            return;
+        };
+
+        if search_pattern.is_empty() {
+            return;
+        }
+
+        let entries = self.get_outline_entries();
+        let start_index = self.outline_selected_index + 1;
+
+        // Search forward from current position
+        for i in start_index..entries.len() {
+            if entries[i].to_lowercase().contains(&search_pattern.to_lowercase()) {
+                self.outline_selected_index = i;
+                return;
+            }
+        }
+
+        // Wrap around to beginning
+        for i in 0..start_index {
+            if entries[i].to_lowercase().contains(&search_pattern.to_lowercase()) {
+                self.outline_selected_index = i;
+                return;
+            }
+        }
+    }
+
+    pub fn outline_prev_match(&mut self) {
+        // Use the last search from search history
+        let search_pattern = if !self.search_history.is_empty() {
+            self.search_history.last().unwrap().clone()
+        } else {
+            return;
+        };
+
+        if search_pattern.is_empty() {
+            return;
+        }
+
+        let entries = self.get_outline_entries();
+        let start_index = if self.outline_selected_index > 0 {
+            self.outline_selected_index - 1
+        } else {
+            entries.len().saturating_sub(1)
+        };
+
+        // Search backwards from start_index to 0
+        for i in (0..=start_index).rev() {
+            if entries[i].to_lowercase().contains(&search_pattern.to_lowercase()) {
+                self.outline_selected_index = i;
+                return;
+            }
+        }
+
+        // Wrap around to end
+        for i in (start_index + 1..entries.len()).rev() {
+            if entries[i].to_lowercase().contains(&search_pattern.to_lowercase()) {
+                self.outline_selected_index = i;
+                return;
+            }
+        }
     }
 }

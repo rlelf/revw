@@ -570,6 +570,24 @@ fn handle_outline_navigation(app: &mut App, key: KeyEvent) -> Result<bool> {
             }
             return Ok(false);
         }
+        KeyCode::Char('/') => {
+            // Start search mode
+            app.input_mode = crate::app::InputMode::Search;
+            app.search_buffer = String::new();
+            app.search_history_index = None;
+            app.set_status("/");
+            return Ok(false);
+        }
+        KeyCode::Char('n') => {
+            // Next search match
+            app.outline_next_match();
+            return Ok(false);
+        }
+        KeyCode::Char('N') => {
+            // Previous search match
+            app.outline_prev_match();
+            return Ok(false);
+        }
         KeyCode::Enter => {
             // Jump to selected entry
             app.outline_jump_to_selected();
