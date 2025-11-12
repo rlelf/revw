@@ -185,6 +185,7 @@ pub enum ScrollbarType {
 #[derive(Clone)]
 pub struct UndoState {
     pub json_input: String,
+    pub markdown_input: String,
     pub content_cursor_line: usize,
     pub content_cursor_col: usize,
     pub scroll: u16,

@@ -123,6 +123,7 @@ impl App {
         } else if cmd == "enew" {
             // Clear file window (like vim :enew)
             self.json_input = String::new();
+            self.markdown_input = String::new();
             self.file_path = None;
             self.file_path_changed = false;
             self.is_modified = false;
