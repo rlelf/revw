@@ -8,6 +8,7 @@ impl App {
             self.outline_selected_index = 0;
             self.outline_scroll = 0;
             // Restore focus based on where outline was opened from
+            // Only restore if explorer is still open
             if self.explorer_open {
                 self.explorer_has_focus = self.outline_opened_from_explorer;
             }

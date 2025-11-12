@@ -576,10 +576,8 @@ fn handle_outline_navigation(app: &mut App, key: KeyEvent) -> Result<bool> {
             return Ok(false);
         }
         KeyCode::Char('q') | KeyCode::Esc => {
-            // Close outline
-            app.outline_open = false;
-            app.outline_selected_index = 0;
-            app.outline_scroll = 0;
+            // Close outline (use toggle_outline to properly restore focus)
+            app.toggle_outline();
             return Ok(false);
         }
         _ => {}
