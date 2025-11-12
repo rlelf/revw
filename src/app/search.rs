@@ -14,6 +14,26 @@ impl App {
             return;
         }
 
+        // If outline has focus, search in outline entries
+        if self.outline_open && self.outline_has_focus {
+            self.input_mode = InputMode::Normal;
+            // Jump to first match in outline
+            let search_pattern = self.search_buffer.clone();
+            let entries = self.get_outline_entries();
+
+            for i in 0..entries.len() {
+                if entries[i].to_lowercase().contains(&search_pattern.to_lowercase()) {
+                    let found_name = entries[i].clone();
+                    self.outline_selected_index = i;
+                    self.set_status(&format!("Found: {}", found_name));
+                    return;
+                }
+            }
+
+            self.set_status(&format!("Pattern not found: {}", search_pattern));
+            return;
+        }
+
         // If explorer has focus, search in explorer entries
         if self.explorer_open && self.explorer_has_focus {
             self.input_mode = InputMode::Normal;
