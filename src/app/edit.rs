@@ -348,6 +348,71 @@ impl App {
         }
     }
 
+    pub fn delete_line(&mut self) {
+        // dd command: delete current line and store in yank buffer
+        if self.format_mode == FormatMode::Edit {
+            // Save undo state before modification
+            self.save_undo_state();
+
+            let mut lines = self.get_content_lines();
+            if lines.is_empty() {
+                return;
+            }
+            if self.content_cursor_line < lines.len() {
+                // Yank the line to buffer
+                self.line_yank_buffer = lines[self.content_cursor_line].clone();
+                // Delete the line
+                lines.remove(self.content_cursor_line);
+                // Adjust cursor position
+                if lines.is_empty() {
+                    // If all lines deleted, add empty line
+                    lines.push(String::new());
+                    self.content_cursor_line = 0;
+                } else if self.content_cursor_line >= lines.len() {
+                    // If cursor was on last line, move up
+                    self.content_cursor_line = lines.len() - 1;
+                }
+                self.content_cursor_col = 0;
+                self.set_content_from_lines(lines);
+                self.is_modified = true;
+            }
+        }
+    }
+
+    pub fn yank_line(&mut self) {
+        // yy command: yank current line to buffer (without deleting)
+        if self.format_mode == FormatMode::Edit {
+            let lines = self.get_content_lines();
+            if !lines.is_empty() && self.content_cursor_line < lines.len() {
+                self.line_yank_buffer = lines[self.content_cursor_line].clone();
+                self.set_status("Yanked line");
+            }
+        }
+    }
+
+    pub fn paste_line(&mut self) {
+        // p command: paste yanked line after current line
+        if self.format_mode == FormatMode::Edit && !self.line_yank_buffer.is_empty() {
+            // Save undo state before modification
+            self.save_undo_state();
+
+            let mut lines = self.get_content_lines();
+            if lines.is_empty() {
+                lines.push(self.line_yank_buffer.clone());
+                self.content_cursor_line = 0;
+            } else {
+                // Insert after current line
+                let insert_pos = (self.content_cursor_line + 1).min(lines.len());
+                lines.insert(insert_pos, self.line_yank_buffer.clone());
+                self.content_cursor_line = insert_pos;
+            }
+            self.content_cursor_col = 0;
+            self.set_content_from_lines(lines);
+            self.is_modified = true;
+            self.set_status("Pasted line");
+        }
+    }
+
     pub fn move_cursor_left(&mut self) {
         if self.content_cursor_col > 0 {
             self.content_cursor_col -= 1;

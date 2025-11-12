@@ -182,28 +182,39 @@ impl App {
                 if new_path.exists() {
                     self.set_status(&format!("Error: File '{}' already exists", filename));
                 } else {
-                    // Create file with default JSON content
+                    // Check if this should be a markdown file
+                    let is_markdown = filename.ends_with(".md");
                     let now = chrono::Local::now();
                     let timestamp = now.format("%Y-%m-%d %H:%M:%S").to_string();
-                    let default_json = serde_json::json!({
-                        "outside": [
-                            {
-                                "name": "",
-                                "context": "",
-                                "url": "",
-                                "percentage": null
-                            }
-                        ],
-                        "inside": [
-                            {
-                                "date": timestamp,
-                                "context": ""
-                            }
-                        ]
-                    });
 
-                    let default_content = serde_json::to_string_pretty(&default_json)
-                        .unwrap_or_else(|_| String::from(r#"{"outside":[],"inside":[]}"#));
+                    let default_content = if is_markdown {
+                        // Create Markdown format
+                        format!(
+                            "## OUTSIDE\n### \n\n**URL:** \n\n**Percentage:** \n\n## INSIDE\n### {}\n",
+                            timestamp
+                        )
+                    } else {
+                        // Create JSON format
+                        let default_json = serde_json::json!({
+                            "outside": [
+                                {
+                                    "name": "",
+                                    "context": "",
+                                    "url": "",
+                                    "percentage": null
+                                }
+                            ],
+                            "inside": [
+                                {
+                                    "date": timestamp,
+                                    "context": ""
+                                }
+                            ]
+                        });
+
+                        serde_json::to_string_pretty(&default_json)
+                            .unwrap_or_else(|_| String::from(r#"{"outside":[],"inside":[]}"#))
+                    };
 
                     match fs::write(&new_path, default_content) {
                         Ok(()) => {

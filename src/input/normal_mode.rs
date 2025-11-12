@@ -143,6 +143,32 @@ pub fn handle_normal_mode(app: &mut App, key: KeyEvent) -> Result<bool> {
                 app.is_modified = true;
             }
         }
+        KeyCode::Char('d') => {
+            if !app.showing_help && app.format_mode == FormatMode::Edit {
+                // Handle dd (delete line)
+                app.dd_count += 1;
+                if app.dd_count == 2 {
+                    app.delete_line();
+                    app.dd_count = 0;
+                }
+            }
+        }
+        KeyCode::Char('y') => {
+            if !app.showing_help && app.format_mode == FormatMode::Edit {
+                // Handle yy (yank line)
+                app.yy_count += 1;
+                if app.yy_count == 2 {
+                    app.yank_line();
+                    app.yy_count = 0;
+                }
+            }
+        }
+        KeyCode::Char('p') => {
+            if !app.showing_help && app.format_mode == FormatMode::Edit {
+                // Paste yanked line
+                app.paste_line();
+            }
+        }
         KeyCode::Char(':') => {
             // Allow command mode even when showing help (for :h to toggle)
             app.input_mode = crate::app::InputMode::Command;
@@ -291,9 +317,11 @@ pub fn handle_normal_mode(app: &mut App, key: KeyEvent) -> Result<bool> {
             app.handle_vim_input(c);
         }
         _ => {
-            // Reset dd count if any other key is pressed
-            if app.dd_count > 0 {
-                app.dd_count = 0;
+            // Reset dd/yy count if any other key is pressed
+            let should_clear = app.dd_count > 0 || app.yy_count > 0;
+            app.dd_count = 0;
+            app.yy_count = 0;
+            if should_clear {
                 app.vim_buffer.clear();
             }
         }

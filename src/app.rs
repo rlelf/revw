@@ -85,6 +85,8 @@ pub struct App {
     pub content_cursor_col: usize,  // Current column in content line
     pub show_cursor: bool,          // Show/hide cursor in Normal mode
     pub dd_count: usize,            // Count consecutive 'd' presses for dd command
+    pub yy_count: usize,            // Count consecutive 'y' presses for yy command
+    pub line_yank_buffer: String,   // Buffer for yanked line (dd/yy commands)
     // Current renderable content width (inner area). Used for accurate wrapping.
     pub content_width: u16,
     // Horizontal scroll offset (used mainly in View mode without wrapping)
@@ -221,6 +223,8 @@ impl App {
             content_cursor_col: 0,
             show_cursor: true,
             dd_count: 0,
+            yy_count: 0,
+            line_yank_buffer: String::new(),
             content_width: 80,
             hscroll: 0,
             visible_height: 20,

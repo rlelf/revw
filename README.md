@@ -232,6 +232,8 @@ revw --input data.md --append --outside file.md
 - `:set card=N` set max visible cards (1-10, default: 5)
 - `:set extension` show file extensions in explorer (default)
 - `:set noextension` hide file extensions in explorer
+- `:set json` set format to JSON (for unnamed files)
+- `:set markdown` set format to Markdown (for unnamed files)
 
 **Other:**
 - `r` toggle View/Edit mode
@@ -318,6 +320,9 @@ revw --input data.md --append --outside file.md
 - `i` enter insert mode
 - `x` delete character at cursor
 - `X` delete character before cursor
+- `dd` delete current line
+- `yy` yank (copy) current line
+- `p` paste yanked line after current line
 - `Esc` or `Ctrl+[` exit insert mode
 - `:dd` delete current entry (entire object)
 - `:yy` duplicate current entry (entire object)
@@ -373,6 +378,8 @@ revw --input data.md --append --outside file.md
 - `:set card=N` set max visible cards (1-10, default: 5)
 - `:set extension` show file extensions in explorer (default)
 - `:set noextension` hide file extensions in explorer
+- `:set json` set format to JSON (for unnamed files)
+- `:set markdown` set format to Markdown (for unnamed files)
 
 **Substitute:**
 - `:s/foo/bar/` substitute first occurrence in current line

@@ -45,7 +45,7 @@ impl App {
             if self.outline_selected_index < self.relf_entries.len() {
                 self.selected_entry_index = self.outline_selected_index;
                 self.outline_open = false;
-                self.set_status(&format!("Jumped to card {}", self.outline_selected_index + 1));
+                self.set_status("");
             }
         } else if self.format_mode == FormatMode::Edit {
             // Jump to selected entry in Edit mode
@@ -54,7 +54,7 @@ impl App {
                 self.content_cursor_col = 0;
                 self.ensure_cursor_visible();
                 self.outline_open = false;
-                self.set_status(&format!("Jumped to card {}", self.outline_selected_index + 1));
+                self.set_status("");
             }
         }
     }
@@ -123,43 +123,51 @@ impl App {
 
         if self.format_mode == FormatMode::View && !self.relf_entries.is_empty() {
             // Use relf_entries for View mode
-            for (i, entry) in self.relf_entries.iter().enumerate() {
+            for entry in self.relf_entries.iter() {
                 // Get the first line as the title/summary
                 let title = entry.lines.first()
                     .map(|s| s.clone())
-                    .unwrap_or_else(|| format!("Card {}", i + 1));
+                    .unwrap_or_else(|| "".to_string());
 
                 // Truncate if too long
-                let display_title = if title.len() > 60 {
-                    format!("{}...", &title[..57])
+                let display_title = if title.len() > 80 {
+                    // Use char_indices to safely truncate at UTF-8 boundary
+                    let truncate_at = title.char_indices()
+                        .take(77)
+                        .last()
+                        .map(|(i, _)| i)
+                        .unwrap_or(0);
+                    format!("{}...", &title[..truncate_at])
                 } else {
                     title
                 };
 
-                entries.push(format!("{:3}. {}", i + 1, display_title));
+                entries.push(display_title);
             }
         } else if self.format_mode == FormatMode::Edit {
             // Parse from markdown or JSON
             if self.is_markdown_file() {
-                let mut count = 1;
                 for line in self.markdown_input.lines() {
                     if line.trim_start().starts_with("### ") {
                         let title = line.trim_start()[4..].trim();
-                        let display_title = if title.len() > 60 {
-                            format!("{}...", &title[..57])
+                        let display_title = if title.len() > 80 {
+                            // Use char_indices to safely truncate at UTF-8 boundary
+                            let truncate_at = title.char_indices()
+                                .take(77)
+                                .last()
+                                .map(|(i, _)| i)
+                                .unwrap_or(0);
+                            format!("{}...", &title[..truncate_at])
                         } else {
                             title.to_string()
                         };
-                        entries.push(format!("{:3}. {}", count, display_title));
-                        count += 1;
+                        entries.push(display_title);
                     }
                 }
             } else {
                 // Parse JSON
                 if let Ok(json_value) = serde_json::from_str::<serde_json::Value>(&self.json_input) {
                     if let Some(obj) = json_value.as_object() {
-                        let mut count = 1;
-
                         // Add OUTSIDE entries
                         if let Some(outside) = obj.get("outside").and_then(|v| v.as_array()) {
                             for item in outside {
@@ -167,13 +175,18 @@ impl App {
                                     let name = item_obj.get("name")
                                         .and_then(|v| v.as_str())
                                         .unwrap_or("Unnamed");
-                                    let display_title = if name.len() > 60 {
-                                        format!("{}...", &name[..57])
+                                    let display_title = if name.len() > 80 {
+                                        // Use char_indices to safely truncate at UTF-8 boundary
+                                        let truncate_at = name.char_indices()
+                                            .take(77)
+                                            .last()
+                                            .map(|(i, _)| i)
+                                            .unwrap_or(0);
+                                        format!("{}...", &name[..truncate_at])
                                     } else {
                                         name.to_string()
                                     };
-                                    entries.push(format!("{:3}. [OUT] {}", count, display_title));
-                                    count += 1;
+                                    entries.push(display_title);
                                 }
                             }
                         }
@@ -185,13 +198,18 @@ impl App {
                                     let date = item_obj.get("date")
                                         .and_then(|v| v.as_str())
                                         .unwrap_or("No date");
-                                    let display_title = if date.len() > 60 {
-                                        format!("{}...", &date[..57])
+                                    let display_title = if date.len() > 80 {
+                                        // Use char_indices to safely truncate at UTF-8 boundary
+                                        let truncate_at = date.char_indices()
+                                            .take(77)
+                                            .last()
+                                            .map(|(i, _)| i)
+                                            .unwrap_or(0);
+                                        format!("{}...", &date[..truncate_at])
                                     } else {
                                         date.to_string()
                                     };
-                                    entries.push(format!("{:3}. [IN]  {}", count, display_title));
-                                    count += 1;
+                                    entries.push(display_title);
                                 }
                             }
                         }
