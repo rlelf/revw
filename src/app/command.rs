@@ -301,28 +301,21 @@ impl App {
             }
         } else if cmd == "set json" {
             // Set format to JSON (useful for unnamed files)
+            use crate::app::FileMode;
+            self.file_mode = FileMode::Json;
             if self.file_path.is_none() {
-                // Clear markdown_input to force JSON mode
-                self.markdown_input = String::new();
                 self.set_status("Format set to JSON");
             } else {
-                self.set_status("Use :w filename.json to save as JSON");
+                self.set_status("Format set to JSON (use :w to save)");
             }
         } else if cmd == "set markdown" {
             // Set format to Markdown (useful for unnamed files)
+            use crate::app::FileMode;
+            self.file_mode = FileMode::Markdown;
             if self.file_path.is_none() {
-                // Convert current JSON to Markdown
-                match self.convert_to_markdown() {
-                    Ok(md_content) => {
-                        self.markdown_input = md_content;
-                        self.set_status("Format set to Markdown");
-                    }
-                    Err(e) => {
-                        self.set_status(&format!("Error converting to markdown: {}", e));
-                    }
-                }
+                self.set_status("Format set to Markdown");
             } else {
-                self.set_status("Use :w filename.md to save as Markdown");
+                self.set_status("Format set to Markdown (use :w to save)");
             }
         } else if cmd == "markdown" {
             // Export current file to Markdown format

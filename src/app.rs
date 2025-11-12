@@ -40,6 +40,12 @@ pub enum FormatMode {
     Help,
 }
 
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum FileMode {
+    Json,
+    Markdown,
+}
+
 #[derive(Clone)]
 pub struct SubstituteMatch {
     pub line: usize,
@@ -149,6 +155,9 @@ pub struct App {
     pub outline_open: bool,
     pub outline_selected_index: usize,
     pub outline_scroll: u16,
+    pub outline_opened_from_explorer: bool, // Track if outline was opened from explorer
+    // File mode (JSON or Markdown)
+    pub file_mode: FileMode,
 }
 
 #[derive(Clone)]
@@ -267,6 +276,12 @@ impl App {
             outline_open: false,
             outline_selected_index: 0,
             outline_scroll: 0,
+            outline_opened_from_explorer: false,
+            file_mode: if rc_config.default_format.as_deref() == Some("markdown") {
+                FileMode::Markdown
+            } else {
+                FileMode::Json
+            },
         };
 
         app
@@ -334,11 +349,13 @@ impl App {
                 // Check if we have valid entries (new card-based rendering)
                 if !self.relf_entries.is_empty() {
                     self.set_status("");
-                } else if self.rendered_content.is_empty()
-                    || (self.rendered_content.len() >= 2
-                        && self.rendered_content[0].contains("Not valid JSON"))
+                } else if !self.json_input.is_empty()
+                    && (self.rendered_content.is_empty()
+                        || (self.rendered_content.len() >= 2
+                            && self.rendered_content[0].contains("Not valid JSON")))
+                    && !self.is_markdown_file()
                 {
-                    // Only set status if not already showing this message
+                    // Only show error if we have input content, it's not markdown, and parsing failed
                     if !self.status_message.contains("Not a JSON file") {
                         self.set_status("Not a JSON file - showing as text");
                     }
@@ -373,12 +390,18 @@ impl App {
 
     /// Check if the current file is a Markdown file
     pub fn is_markdown_file(&self) -> bool {
-        self.file_path
+        // Check file extension if file path exists
+        if let Some(is_md) = self.file_path
             .as_ref()
             .and_then(|path| path.extension())
             .and_then(|ext| ext.to_str())
             .map(|ext| ext.eq_ignore_ascii_case("md"))
-            .unwrap_or(false)
+        {
+            return is_md;
+        }
+
+        // If no file path, use file_mode setting
+        self.file_mode == FileMode::Markdown
     }
 
     /// Get the appropriate content operations handler based on file type

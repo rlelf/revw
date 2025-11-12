@@ -500,7 +500,7 @@ impl App {
 
     pub fn append_inside(&mut self) {
         let ops = self.get_operations();
-        let content = if self.is_markdown_file() && !self.markdown_input.is_empty() {
+        let content = if self.is_markdown_file() {
             &self.markdown_input
         } else {
             &self.json_input
@@ -553,7 +553,7 @@ impl App {
 
     pub fn append_outside(&mut self) {
         let ops = self.get_operations();
-        let content = if self.is_markdown_file() && !self.markdown_input.is_empty() {
+        let content = if self.is_markdown_file() {
             &self.markdown_input
         } else {
             &self.json_input

@@ -2,7 +2,7 @@ use ratatui::{
     layout::Rect,
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, BorderType, Borders, Clear, List, ListItem},
+    widgets::{Block, BorderType, Borders, Clear, List, ListItem, Paragraph},
     Frame,
 };
 
@@ -36,8 +36,16 @@ pub fn render_outline(f: &mut Frame, app: &App) {
         height: popup_height,
     };
 
-    // Clear the area
+    // Clear the wider area to fully erase any wide characters
     f.render_widget(Clear, clear_area);
+
+    // Fill the clear area with background color using spaces
+    let blank_lines: Vec<Line> = (0..clear_area.height)
+        .map(|_| Line::from(" ".repeat(clear_area.width as usize)))
+        .collect();
+    let blank_paragraph = Paragraph::new(blank_lines)
+        .style(Style::default().bg(app.colorscheme.background));
+    f.render_widget(blank_paragraph, clear_area);
 
     // Get outline entries
     let entries = app.get_outline_entries();
@@ -76,8 +84,44 @@ pub fn render_outline(f: &mut Frame, app: &App) {
                 .fg(app.colorscheme.text),
         );
 
-    // Render the list
+    // Render the list with scroll support
     let list = List::new(items).block(block);
 
-    f.render_widget(list, popup_area);
+    // Calculate the scroll position
+    // Make sure the selected item is visible
+    let visible_height = popup_area.height.saturating_sub(2) as usize; // Subtract 2 for borders
+    let total_items = entries.len();
+
+    // Auto-scroll to keep selected item visible
+    let scroll = if total_items > visible_height {
+        let selected = app.outline_selected_index;
+        let current_scroll = app.outline_scroll as usize;
+
+        // If selected is below visible area, scroll down
+        if selected >= current_scroll + visible_height {
+            (selected - visible_height + 1) as u16
+        }
+        // If selected is above visible area, scroll up
+        else if selected < current_scroll {
+            selected as u16
+        }
+        // Otherwise keep current scroll
+        else {
+            app.outline_scroll
+        }
+    } else {
+        0
+    };
+
+    // Create a stateful list with scroll
+    use ratatui::widgets::ListState;
+    let mut list_state = ListState::default();
+    list_state.select(Some(app.outline_selected_index));
+
+    // Set offset for scrolling when there are many items
+    if total_items > visible_height {
+        *list_state.offset_mut() = scroll as usize;
+    }
+
+    f.render_stateful_widget(list, popup_area, &mut list_state);
 }

@@ -7,13 +7,23 @@ impl App {
             self.outline_open = false;
             self.outline_selected_index = 0;
             self.outline_scroll = 0;
+            // Restore focus based on where outline was opened from
+            if self.explorer_open {
+                self.explorer_has_focus = self.outline_opened_from_explorer;
+            }
         } else {
-            // Open outline - only works in View or Edit mode with entries
+            // Open outline - works in View or Edit mode with entries (even when explorer is open)
             if (self.format_mode == FormatMode::View && !self.relf_entries.is_empty())
                 || self.format_mode == FormatMode::Edit {
                 self.outline_open = true;
                 self.outline_selected_index = 0;
                 self.outline_scroll = 0;
+                // Remember where outline was opened from
+                self.outline_opened_from_explorer = self.explorer_open && self.explorer_has_focus;
+                // When opening outline, take focus away from explorer
+                if self.explorer_open {
+                    self.explorer_has_focus = false;
+                }
             } else {
                 self.set_status("No cards to show in outline");
             }
@@ -45,6 +55,10 @@ impl App {
             if self.outline_selected_index < self.relf_entries.len() {
                 self.selected_entry_index = self.outline_selected_index;
                 self.outline_open = false;
+                // When jumping to an entry, move focus to file content (not explorer)
+                if self.explorer_open {
+                    self.explorer_has_focus = false;
+                }
                 self.set_status("");
             }
         } else if self.format_mode == FormatMode::Edit {
@@ -54,6 +68,10 @@ impl App {
                 self.content_cursor_col = 0;
                 self.ensure_cursor_visible();
                 self.outline_open = false;
+                // When jumping to an entry, move focus to file content (not explorer)
+                if self.explorer_open {
+                    self.explorer_has_focus = false;
+                }
                 self.set_status("");
             }
         }

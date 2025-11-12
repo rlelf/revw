@@ -8,6 +8,7 @@ pub struct RcConfig {
     pub colorscheme: ColorScheme,
     pub max_visible_cards: usize,
     pub show_extension: bool,
+    pub default_format: Option<String>,
 }
 
 impl Default for RcConfig {
@@ -17,6 +18,7 @@ impl Default for RcConfig {
             colorscheme: ColorScheme::default(),
             max_visible_cards: 5,
             show_extension: true,
+            default_format: None,
         }
     }
 }
@@ -102,6 +104,12 @@ impl RcConfig {
             }
             "noextension" => {
                 self.show_extension = false;
+            }
+            "json" => {
+                self.default_format = Some("json".to_string());
+            }
+            "markdown" => {
+                self.default_format = Some("markdown".to_string());
             }
             _ => {
                 // Check for card=N format
