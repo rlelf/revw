@@ -359,16 +359,163 @@ fn handle_field_editing_mode(app: &mut App, key: KeyEvent) {
             }
         }
         KeyCode::Char('h') | KeyCode::Left => {
-            if app.edit_cursor_pos > 0 {
+            if app.view_edit_mode && app.edit_field_index < app.edit_buffer.len() {
+                // In View Edit mode, handle multi-line navigation
+                let field = &app.edit_buffer[app.edit_field_index];
+                let lines: Vec<&str> = field.split('\n').collect();
+
+                let mut char_count = 0;
+                let mut current_line = 0;
+                let mut col_in_line = 0;
+
+                for (line_idx, line) in lines.iter().enumerate() {
+                    let line_len = line.chars().count();
+                    let separator_len = if line_idx < lines.len() - 1 { 1 } else { 0 };
+
+                    if app.edit_cursor_pos <= char_count + line_len {
+                        current_line = line_idx;
+                        col_in_line = app.edit_cursor_pos - char_count;
+                        break;
+                    }
+
+                    char_count += line_len + separator_len;
+                }
+
+                if col_in_line > 0 {
+                    app.edit_cursor_pos -= 1;
+                } else if current_line > 0 {
+                    // Move to end of previous line
+                    let mut new_pos = 0;
+                    for i in 0..(current_line - 1) {
+                        let line_len = lines[i].chars().count();
+                        let separator_len = if i < lines.len() - 1 { 1 } else { 0 };
+                        new_pos += line_len + separator_len;
+                    }
+                    new_pos += lines[current_line - 1].chars().count();
+                    app.edit_cursor_pos = new_pos;
+                }
+            } else if app.edit_cursor_pos > 0 {
                 app.edit_cursor_pos -= 1;
             }
             app.ensure_overlay_cursor_visible();
         }
         KeyCode::Char('l') | KeyCode::Right => {
-            if app.edit_field_index < app.edit_buffer.len() {
+            if app.view_edit_mode && app.edit_field_index < app.edit_buffer.len() {
+                // In View Edit mode, handle multi-line navigation
+                let field = &app.edit_buffer[app.edit_field_index];
+                let lines: Vec<&str> = field.split('\n').collect();
+                let field_len = field.chars().count();
+
+                if app.edit_cursor_pos < field_len {
+                    let mut char_count = 0;
+                    let mut current_line = 0;
+                    let mut col_in_line = 0;
+
+                    for (line_idx, line) in lines.iter().enumerate() {
+                        let line_len = line.chars().count();
+                        let separator_len = if line_idx < lines.len() - 1 { 1 } else { 0 };
+
+                        if app.edit_cursor_pos <= char_count + line_len {
+                            current_line = line_idx;
+                            col_in_line = app.edit_cursor_pos - char_count;
+                            break;
+                        }
+
+                        char_count += line_len + separator_len;
+                    }
+
+                    let current_line_len = lines[current_line].chars().count();
+
+                    if col_in_line < current_line_len {
+                        app.edit_cursor_pos += 1;
+                    } else if current_line + 1 < lines.len() {
+                        app.edit_cursor_pos += 1; // Skip newline
+                    }
+                }
+            } else if app.edit_field_index < app.edit_buffer.len() {
                 let field_len = app.edit_buffer[app.edit_field_index].chars().count();
                 if app.edit_cursor_pos < field_len {
                     app.edit_cursor_pos += 1;
+                }
+            }
+            app.ensure_overlay_cursor_visible();
+        }
+        KeyCode::Char('j') | KeyCode::Down => {
+            // In View Edit mode, move down one line
+            if app.view_edit_mode && app.edit_field_index < app.edit_buffer.len() {
+                let field = &app.edit_buffer[app.edit_field_index];
+                let lines: Vec<&str> = field.split('\n').collect();
+
+                let mut current_pos = 0;
+                let mut current_line = 0;
+                let mut col_in_line = 0;
+
+                for (line_idx, line) in lines.iter().enumerate() {
+                    let line_len = line.chars().count();
+                    let separator_len = if line_idx < lines.len() - 1 { 1 } else { 0 };
+
+                    if app.edit_cursor_pos <= current_pos + line_len {
+                        current_line = line_idx;
+                        col_in_line = app.edit_cursor_pos - current_pos;
+                        break;
+                    }
+
+                    current_pos += line_len + separator_len;
+                }
+
+                if current_line + 1 < lines.len() {
+                    let next_line = lines[current_line + 1];
+                    let next_line_len = next_line.chars().count();
+
+                    let mut new_pos = 0;
+                    for i in 0..=current_line {
+                        let line_len = lines[i].chars().count();
+                        let separator_len = if i < lines.len() - 1 { 1 } else { 0 };
+                        new_pos += line_len + separator_len;
+                    }
+
+                    new_pos += col_in_line.min(next_line_len);
+                    app.edit_cursor_pos = new_pos;
+                }
+            }
+            app.ensure_overlay_cursor_visible();
+        }
+        KeyCode::Char('k') | KeyCode::Up => {
+            // In View Edit mode, move up one line
+            if app.view_edit_mode && app.edit_field_index < app.edit_buffer.len() {
+                let field = &app.edit_buffer[app.edit_field_index];
+                let lines: Vec<&str> = field.split('\n').collect();
+
+                let mut current_pos = 0;
+                let mut current_line = 0;
+                let mut col_in_line = 0;
+
+                for (line_idx, line) in lines.iter().enumerate() {
+                    let line_len = line.chars().count();
+                    let separator_len = if line_idx < lines.len() - 1 { 1 } else { 0 };
+
+                    if app.edit_cursor_pos <= current_pos + line_len {
+                        current_line = line_idx;
+                        col_in_line = app.edit_cursor_pos - current_pos;
+                        break;
+                    }
+
+                    current_pos += line_len + separator_len;
+                }
+
+                if current_line > 0 {
+                    let prev_line = lines[current_line - 1];
+                    let prev_line_len = prev_line.chars().count();
+
+                    let mut new_pos = 0;
+                    for i in 0..(current_line - 1) {
+                        let line_len = lines[i].chars().count();
+                        let separator_len = if i < lines.len() - 1 { 1 } else { 0 };
+                        new_pos += line_len + separator_len;
+                    }
+
+                    new_pos += col_in_line.min(prev_line_len);
+                    app.edit_cursor_pos = new_pos;
                 }
             }
             app.ensure_overlay_cursor_visible();
