@@ -267,9 +267,9 @@ revw --input data.md --append --outside file.md
 #### Edit Overlay
 **Field Selection Mode (default):**
 - `j/k` or `↑/↓` navigate between fields
-- `Enter` enter field editing mode (shows cursor)
+- `Enter` enter field editing mode (Normal mode, shows cursor)
 - `i` enter insert mode directly
-- `v` enter View Edit mode (renders `\n` as newlines)
+- `v` enter View Edit mode in Normal mode (renders `\n` as newlines)
 - `w` save changes
 - `Esc` or `q` cancel
 
@@ -293,14 +293,23 @@ revw --input data.md --append --outside file.md
 - `Backspace` delete character
 - `Esc` or `Ctrl+[` exit to field editing mode
 
-**View Edit Mode (from Field Selection):**
-- `v` enter View Edit mode (renders `\n` as newlines, yellow text)
-- Type to edit text (h/j/k/l are text input, not navigation)
-- `↑/↓` move between lines
-- `←/→` move cursor
-- `Enter` insert `\n` (literal newline)
-- `Backspace` delete character (or `\n` together)
-- `Esc` or `Ctrl+[` exit to field selection mode
+**View Edit Mode (from Field Selection with `v`):**
+- Starts in Normal mode (renders `\n` as newlines, blue text)
+- `h/j/k/l` or arrow keys navigate
+- `gg` jump to start, `G` jump to end
+- `w/b/e` word navigation
+- `0/$` start/end of line
+- `x/X` delete character
+- `i` enter Insert mode (yellow text)
+- `Esc` or `Ctrl+[` from Normal mode: exit to field selection
+- `Esc` or `Ctrl+[` from Insert mode: return to Normal mode
+
+**View Edit Mode - Insert Mode:**
+- Type to edit text
+- `↑/↓/←/→` move cursor
+- `Enter` insert literal newline (`\n`)
+- `Backspace` delete character (including `\n`)
+- `Esc` or `Ctrl+[` return to Normal mode
 
 ### Edit Mode
 **Navigation:**

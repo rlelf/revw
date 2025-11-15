@@ -9,15 +9,15 @@ pub fn handle_overlay_keyboard(app: &mut App, key: KeyEvent) {
             KeyCode::Esc | KeyCode::Char('[') if key.code == KeyCode::Esc || key.modifiers.contains(KeyModifiers::CONTROL) => {
                 // Exit insert mode
                 app.edit_insert_mode = false;
-                // Exit View Edit mode if active and reset scroll
-                if app.view_edit_mode {
-                    app.view_edit_mode = false;
-                    app.edit_vscroll = 0; // Reset to first line
-                }
-                // If entered insert mode directly with 'i' or 'v', skip normal mode and go back to field selection
+                // If entered insert mode directly with 'i' (not 'v'), skip normal mode and go back to field selection
                 if app.edit_skip_normal_mode {
                     app.edit_field_editing_mode = false;
                     app.edit_skip_normal_mode = false;
+                    // Exit View Edit mode if active and reset scroll
+                    if app.view_edit_mode {
+                        app.view_edit_mode = false;
+                        app.edit_vscroll = 0; // Reset to first line
+                    }
                     // Restore placeholder if field is empty (for :ai/:ao flow)
                     if app.edit_field_index < app.edit_buffer.len() {
                         let field = &app.edit_buffer[app.edit_field_index];
@@ -316,15 +316,17 @@ pub fn handle_overlay_keyboard(app: &mut App, key: KeyEvent) {
 fn handle_field_editing_mode(app: &mut App, key: KeyEvent) {
     match key.code {
         KeyCode::Esc | KeyCode::Char('[') if key.code == KeyCode::Esc || key.modifiers.contains(KeyModifiers::CONTROL) => {
-            // Exit field editing mode, go back to field selection
-            app.edit_field_editing_mode = false;
-            app.edit_cursor_pos = 0;
-            app.edit_hscroll = 0;
-            // Exit View Edit mode if active and reset scroll
+            // If in View Edit mode, exit View Edit mode first (go back to field selection)
             if app.view_edit_mode {
                 app.view_edit_mode = false;
                 app.edit_vscroll = 0; // Reset to first line
+                app.edit_field_editing_mode = false;
+            } else {
+                // Otherwise, just exit field editing mode normally
+                app.edit_field_editing_mode = false;
             }
+            app.edit_cursor_pos = 0;
+            app.edit_hscroll = 0;
             // Restore placeholder if field is empty
             if app.edit_field_index < app.edit_buffer.len() {
                 let field = &app.edit_buffer[app.edit_field_index];
@@ -630,11 +632,11 @@ fn handle_field_selection_mode(app: &mut App, key: KeyEvent) {
                     app.edit_cursor_pos = 0;
                 }
             }
-            // Enter View Edit mode directly in insert mode (skip normal mode)
+            // Enter View Edit mode in normal mode (NOT insert mode)
             app.view_edit_mode = true;
             app.edit_field_editing_mode = true;
-            app.edit_insert_mode = true;
-            app.edit_skip_normal_mode = true;
+            app.edit_insert_mode = false; // Start in normal mode, not insert
+            app.edit_skip_normal_mode = false;
             // Ensure cursor is visible in the window
             app.ensure_overlay_cursor_visible();
         }

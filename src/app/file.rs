@@ -59,6 +59,9 @@ impl App {
                     self.content_cursor_line = 0;
                     self.content_cursor_col = 0;
                     self.scroll = 0;
+                    // Clear undo/redo history when switching files
+                    self.undo_stack.clear();
+                    self.redo_stack.clear();
                 }
             }
             Err(e) => {
@@ -133,6 +136,9 @@ impl App {
                                 self.content_cursor_line = 0;
                                 self.content_cursor_col = 0;
                                 self.scroll = 0;
+                                // Clear undo/redo history when switching files
+                                self.undo_stack.clear();
+                                self.redo_stack.clear();
                             }
                             // Reload explorer if open
                             if self.explorer_open {

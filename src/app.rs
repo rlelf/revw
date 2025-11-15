@@ -332,7 +332,7 @@ impl App {
                 };
                 self.relf_line_styles.clear();
                 self.relf_visual_styles.clear();
-                self.scroll = 0;
+                // Don't reset scroll in Edit mode - preserve cursor position
                 self.set_status("");
             }
             FormatMode::Help => {

@@ -322,9 +322,9 @@ fn render_context_field(f: &mut Frame, app: &App, inner_area: Rect, field_index:
 
 fn get_field_style(app: &App, is_selected: bool, is_placeholder: bool) -> Style {
     if is_selected {
-        // Insert mode or View Edit mode: active color (yellow)
-        // Field selection mode and Normal mode: selected color (blue)
-        if app.edit_insert_mode || app.view_edit_mode {
+        // Insert mode: active color (yellow)
+        // Normal mode (including View Edit mode): selected color (blue)
+        if app.edit_insert_mode {
             Style::default().fg(app.colorscheme.overlay_field_active).add_modifier(Modifier::BOLD)
         } else {
             Style::default().fg(app.colorscheme.overlay_field_selected).add_modifier(Modifier::BOLD)

@@ -200,7 +200,8 @@ fn render_outside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: R
         // Context already contains actual newline characters
         let visible_lines = inner_area.height as usize;
         let total_lines = context.lines().count();
-        let max_scroll = total_lines.saturating_sub(visible_lines);
+        // Allow scrolling to see all content (like overlay mode)
+        let max_scroll = total_lines;
         let vscroll = if is_selected {
             (app.hscroll as usize).min(max_scroll)
         } else {
@@ -257,7 +258,8 @@ fn render_inside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: Re
         // Context already contains actual newline characters
         let visible_lines = inner_area.height as usize;
         let total_lines = context.lines().count();
-        let max_scroll = total_lines.saturating_sub(visible_lines);
+        // Allow scrolling to see all content (like overlay mode)
+        let max_scroll = total_lines;
         let vscroll = if is_selected {
             (app.hscroll as usize).min(max_scroll)
         } else {
