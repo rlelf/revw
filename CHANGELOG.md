@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.2.7
+
+- Added View Edit mode (`v` key) in overlay with Normal/Insert mode separation
+- Added `hjkl` and arrow key navigation in View Edit mode normal mode
+- Added `:outline` (`:ol`) command for card outline navigation
+- Added search functionality in outline window (`/`, `n`, `N`)
+- Added mouse focus and scrolling support for outline window
+- Improved card scroll margins for better content visibility
+- Enhanced overlay mode color indicators: blue for Normal mode, yellow for Insert mode
+- Improved horizontal scroll behavior in Edit mode (preserves camera position when typing)
+- Fixed `:enew` bug where previous file content appeared in new buffers
+- Fixed outline search to work correctly (not triggering file search)
+- Fixed outline focus restoration when closing with `q`/`Esc`
+- Fixed Edit mode scroll preservation when inserting/deleting characters
+- Added undo/redo buffer reset when switching files
+- Added markdown support to undo/redo functionality
+- Updated README with detailed View Edit mode documentation
+
 ## 0.2.6
 
 - Improved Markdown support: entries without `###` headers are now recognized (separated by blank lines)
