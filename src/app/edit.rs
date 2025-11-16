@@ -293,6 +293,32 @@ impl App {
         }
     }
 
+    pub fn open_line_below(&mut self) {
+        if self.format_mode == FormatMode::Edit {
+            // Save undo state before modification
+            self.save_undo_state();
+
+            let mut lines = self.get_content_lines();
+            if lines.is_empty() {
+                lines.push(String::new());
+                self.content_cursor_line = 0;
+                self.content_cursor_col = 0;
+            } else {
+                // Ensure cursor is within bounds
+                if self.content_cursor_line >= lines.len() {
+                    self.content_cursor_line = lines.len().saturating_sub(1);
+                }
+
+                // Insert a new empty line after the current line
+                lines.insert(self.content_cursor_line + 1, String::new());
+                self.content_cursor_line += 1;
+                self.content_cursor_col = 0;
+            }
+            self.set_content_from_lines(lines);
+            self.ensure_cursor_visible();
+        }
+    }
+
     pub fn backspace(&mut self) {
         if self.format_mode == FormatMode::Edit {
             // Save undo state before modification

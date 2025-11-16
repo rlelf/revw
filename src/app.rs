@@ -434,17 +434,28 @@ impl App {
 
 
     pub fn get_content_lines(&self) -> Vec<String> {
-        if self.is_markdown_file() && !self.markdown_input.is_empty() {
-            self.markdown_input.lines().map(|s| s.to_string()).collect()
+        let content = if self.is_markdown_file() && !self.markdown_input.is_empty() {
+            &self.markdown_input
         } else {
-            self.json_input.lines().map(|s| s.to_string()).collect()
+            &self.json_input
+        };
+
+        // Use split('\n') instead of lines() to preserve trailing empty lines
+        // Remove the last element if it's empty and was caused by trailing \n
+        let mut result: Vec<String> = content.split('\n').map(|s| s.to_string()).collect();
+        // If content ends with \n, split will create an extra empty string at the end
+        // We want to keep it if the user intentionally has an empty line, but remove if it's just the trailing \n
+        if result.len() > 1 && result.last() == Some(&String::new()) && content.ends_with('\n') {
+            result.pop();
         }
+        result
     }
 
     pub fn set_content_from_lines(&mut self, lines: Vec<String>) {
         if self.is_markdown_file() {
             self.markdown_input = lines.join("\n");
-            if !self.markdown_input.is_empty() && !self.markdown_input.ends_with('\n') {
+            // Always add trailing newline for consistency
+            if !self.markdown_input.is_empty() {
                 self.markdown_input.push('\n');
             }
             match self.parse_markdown(&self.markdown_input) {
@@ -458,7 +469,8 @@ impl App {
             }
         } else {
             self.json_input = lines.join("\n");
-            if !self.json_input.is_empty() && !self.json_input.ends_with('\n') {
+            // Always add trailing newline for consistency
+            if !self.json_input.is_empty() {
                 self.json_input.push('\n');
             }
         }

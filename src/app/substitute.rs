@@ -67,7 +67,7 @@ impl App {
     fn build_substitute_confirmations(&mut self, pattern: &str, replacement: &str, is_global_file: bool, global_line: bool) {
         self.substitute_confirmations.clear();
 
-        let lines: Vec<String> = self.json_input.lines().map(|s| s.to_string()).collect();
+        let lines = self.get_content_lines();
 
         let line_range = if is_global_file {
             0..lines.len()
@@ -109,7 +109,7 @@ impl App {
     }
 
     fn perform_substitute(&mut self, pattern: &str, replacement: &str, is_global_file: bool, global_line: bool) -> usize {
-        let mut lines: Vec<String> = self.json_input.lines().map(|s| s.to_string()).collect();
+        let mut lines = self.get_content_lines();
         let mut count = 0;
 
         let line_range = if is_global_file {
@@ -141,15 +141,7 @@ impl App {
         }
 
         if count > 0 {
-            self.json_input = lines.join("\n");
-            // Preserve trailing newline if original had one
-            if self.json_input.chars().last() != Some('\n') && !self.json_input.is_empty() {
-                if let Some(last_char) = self.json_input.chars().last() {
-                    if last_char != '\n' {
-                        self.json_input.push('\n');
-                    }
-                }
-            }
+            self.set_content_from_lines(lines);
         }
 
         count
@@ -194,7 +186,7 @@ impl App {
                 .to_vec();
 
             // Apply substitutions in reverse order to maintain positions
-            let mut lines: Vec<String> = self.json_input.lines().map(|s| s.to_string()).collect();
+            let mut lines = self.get_content_lines();
             for match_item in matches_to_apply.iter().rev() {
                 if match_item.line < lines.len() {
                     let line = &mut lines[match_item.line];
@@ -206,18 +198,17 @@ impl App {
                     }
                 }
             }
-            self.json_input = lines.join("\n");
+            self.set_content_from_lines(lines);
 
             self.substitute_confirmations.clear();
             self.current_substitute_index = 0;
             self.is_modified = true;
-            self.convert_json();
             self.set_status(&format!("{} substitution{} made", remaining_count, if remaining_count == 1 { "" } else { "s" }));
         } else {
             if should_substitute {
                 // Perform this substitution
                 let match_item = &self.substitute_confirmations[self.current_substitute_index];
-                let mut lines: Vec<String> = self.json_input.lines().map(|s| s.to_string()).collect();
+                let mut lines = self.get_content_lines();
 
                 if match_item.line < lines.len() {
                     let line = &mut lines[match_item.line];
@@ -226,7 +217,7 @@ impl App {
                             match_item.col..match_item.col + match_item.pattern.len(),
                             &match_item.replacement,
                         );
-                        self.json_input = lines.join("\n");
+                        self.set_content_from_lines(lines);
                         self.is_modified = true;
                     }
                 }

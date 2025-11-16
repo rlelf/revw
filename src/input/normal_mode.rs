@@ -131,6 +131,27 @@ pub fn handle_normal_mode(app: &mut App, key: KeyEvent) -> Result<bool> {
                 app.set_status("-- INSERT --");
             }
         }
+        KeyCode::Char('a') if !app.substitute_confirmations.is_empty() => {
+            // Handle substitute confirmation 'a' (replace all)
+            // This case is handled elsewhere
+        }
+        KeyCode::Char('a') => {
+            if !app.showing_help && app.format_mode == FormatMode::Edit {
+                // Append: move cursor right then enter insert mode
+                app.move_cursor_right();
+                app.input_mode = crate::app::InputMode::Insert;
+                app.ensure_cursor_visible();
+                app.set_status("-- INSERT --");
+            }
+        }
+        KeyCode::Char('o') => {
+            if !app.showing_help && app.format_mode == FormatMode::Edit {
+                // Open line below: insert new line and enter insert mode
+                app.open_line_below();
+                app.input_mode = crate::app::InputMode::Insert;
+                app.set_status("-- INSERT --");
+            }
+        }
         KeyCode::Char('x') => {
             if !app.showing_help && app.format_mode == FormatMode::Edit {
                 app.delete_char();
