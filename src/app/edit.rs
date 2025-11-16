@@ -862,24 +862,25 @@ impl App {
             }
 
             // Vertical scroll: ensure current line is visible
-            // Use same dynamic window height calculation as rendering
-            let num_lines = lines.len();
-            let min_window_height = 5;
-            let window_height = if num_lines < min_window_height {
-                num_lines.max(1) as u16
-            } else {
-                // We don't have access to inner_area here, so use a reasonable max
-                // This matches the rendering logic but with a fixed max
-                num_lines.min(20) as u16
-            };
+            // Use a fixed window height that matches the overlay rendering
+            // The actual visible height is determined by inner_area in render_context_field
+            // We use a conservative estimate here (the overlay uses 70% of screen height)
+            let window_height = 20u16; // Fixed reasonable height
             let margin_v = 1u16;
 
-            if (current_line as u16) < self.edit_vscroll + margin_v {
-                // Cursor near top edge - scroll up
-                self.edit_vscroll = (current_line as u16).saturating_sub(margin_v);
-            } else if (current_line as u16) >= self.edit_vscroll + window_height.saturating_sub(margin_v) {
-                // Cursor near bottom edge - scroll down
-                self.edit_vscroll = (current_line as u16) + margin_v - window_height + 1;
+            // Only scroll if content is taller than window
+            let num_lines = lines.len() as u16;
+            if num_lines > window_height {
+                if (current_line as u16) < self.edit_vscroll + margin_v {
+                    // Cursor near top edge - scroll up
+                    self.edit_vscroll = (current_line as u16).saturating_sub(margin_v);
+                } else if (current_line as u16) >= self.edit_vscroll + window_height.saturating_sub(margin_v) {
+                    // Cursor near bottom edge - scroll down
+                    self.edit_vscroll = (current_line as u16) + margin_v - window_height + 1;
+                }
+            } else {
+                // Content fits in window, no scrolling needed
+                self.edit_vscroll = 0;
             }
 
             // Context field doesn't use horizontal scrolling

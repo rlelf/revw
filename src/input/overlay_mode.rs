@@ -359,6 +359,7 @@ fn handle_field_editing_mode(app: &mut App, key: KeyEvent) {
             }
         }
         KeyCode::Char('h') | KeyCode::Left => {
+            app.vim_buffer.clear();
             if app.view_edit_mode && app.edit_field_index < app.edit_buffer.len() {
                 // In View Edit mode, handle multi-line navigation
                 let field = &app.edit_buffer[app.edit_field_index];
@@ -400,6 +401,7 @@ fn handle_field_editing_mode(app: &mut App, key: KeyEvent) {
             app.ensure_overlay_cursor_visible();
         }
         KeyCode::Char('l') | KeyCode::Right => {
+            app.vim_buffer.clear();
             if app.view_edit_mode && app.edit_field_index < app.edit_buffer.len() {
                 // In View Edit mode, handle multi-line navigation
                 let field = &app.edit_buffer[app.edit_field_index];
@@ -441,6 +443,7 @@ fn handle_field_editing_mode(app: &mut App, key: KeyEvent) {
             app.ensure_overlay_cursor_visible();
         }
         KeyCode::Char('j') | KeyCode::Down => {
+            app.vim_buffer.clear();
             // In View Edit mode, move down one line
             if app.view_edit_mode && app.edit_field_index < app.edit_buffer.len() {
                 let field = &app.edit_buffer[app.edit_field_index];
@@ -481,6 +484,7 @@ fn handle_field_editing_mode(app: &mut App, key: KeyEvent) {
             app.ensure_overlay_cursor_visible();
         }
         KeyCode::Char('k') | KeyCode::Up => {
+            app.vim_buffer.clear();
             // In View Edit mode, move up one line
             if app.view_edit_mode && app.edit_field_index < app.edit_buffer.len() {
                 let field = &app.edit_buffer[app.edit_field_index];
@@ -594,8 +598,13 @@ fn handle_field_editing_mode(app: &mut App, key: KeyEvent) {
             app.ensure_overlay_cursor_visible();
         }
         KeyCode::Char('g') => {
-            // Handle gg (go to start)
-            app.edit_cursor_pos = 0;
+            // Handle gg (go to start) - requires double press
+            if app.vim_buffer == "g" {
+                app.edit_cursor_pos = 0;
+                app.vim_buffer.clear();
+            } else {
+                app.vim_buffer = "g".to_string();
+            }
             app.ensure_overlay_cursor_visible();
         }
         KeyCode::Char('G') => {
@@ -604,6 +613,7 @@ fn handle_field_editing_mode(app: &mut App, key: KeyEvent) {
                 let field_len = app.edit_buffer[app.edit_field_index].chars().count();
                 app.edit_cursor_pos = field_len;
             }
+            app.vim_buffer.clear();
             app.ensure_overlay_cursor_visible();
         }
         KeyCode::Char('x') => {
@@ -720,12 +730,67 @@ fn handle_field_editing_mode(app: &mut App, key: KeyEvent) {
             app.ensure_overlay_cursor_visible();
         }
         KeyCode::Char('d') => {
-            // dd: delete current line (in View Edit mode)
-            if app.view_edit_mode && app.edit_field_index < app.edit_buffer.len() {
-                let field = &mut app.edit_buffer[app.edit_field_index];
-                let mut lines: Vec<String> = field.split('\n').map(|s| s.to_string()).collect();
+            // dd: delete current line (in View Edit mode) - requires double press
+            if app.vim_buffer == "d" {
+                app.vim_buffer.clear();
+                if app.view_edit_mode && app.edit_field_index < app.edit_buffer.len() {
+                    let field = &mut app.edit_buffer[app.edit_field_index];
+                    let mut lines: Vec<String> = field.split('\n').map(|s| s.to_string()).collect();
 
-                if lines.len() > 1 {
+                    if lines.len() > 1 {
+                        // Find current line
+                        let mut char_count = 0;
+                        let mut current_line = 0;
+
+                        for (line_idx, line) in lines.iter().enumerate() {
+                            let line_len = line.chars().count();
+                            let separator_len = if line_idx < lines.len() - 1 { 1 } else { 0 };
+
+                            if app.edit_cursor_pos <= char_count + line_len {
+                                current_line = line_idx;
+                                break;
+                            }
+
+                            char_count += line_len + separator_len;
+                        }
+
+                        // Yank the line before deleting
+                        app.edit_yank_buffer = lines[current_line].clone();
+
+                        // Remove the line
+                        lines.remove(current_line);
+                        *field = lines.join("\n");
+
+                        // Adjust cursor position
+                        if current_line >= lines.len() {
+                            current_line = lines.len().saturating_sub(1);
+                        }
+
+                        // Move cursor to start of current line
+                        let mut new_pos = 0;
+                        for i in 0..current_line {
+                            new_pos += lines[i].chars().count() + 1;
+                        }
+                        app.edit_cursor_pos = new_pos;
+
+                        if app.edit_field_index < app.edit_buffer_is_placeholder.len() {
+                            app.edit_buffer_is_placeholder[app.edit_field_index] = false;
+                        }
+                    }
+                }
+            } else {
+                app.vim_buffer = "d".to_string();
+            }
+            app.ensure_overlay_cursor_visible();
+        }
+        KeyCode::Char('y') => {
+            // yy: yank current line (in View Edit mode) - requires double press
+            if app.vim_buffer == "y" {
+                app.vim_buffer.clear();
+                if app.view_edit_mode && app.edit_field_index < app.edit_buffer.len() {
+                    let field = &app.edit_buffer[app.edit_field_index];
+                    let lines: Vec<&str> = field.split('\n').collect();
+
                     // Find current line
                     let mut char_count = 0;
                     let mut current_line = 0;
@@ -742,59 +807,15 @@ fn handle_field_editing_mode(app: &mut App, key: KeyEvent) {
                         char_count += line_len + separator_len;
                     }
 
-                    // Yank the line before deleting
-                    app.edit_yank_buffer = lines[current_line].clone();
-
-                    // Remove the line
-                    lines.remove(current_line);
-                    *field = lines.join("\n");
-
-                    // Adjust cursor position
-                    if current_line >= lines.len() {
-                        current_line = lines.len().saturating_sub(1);
-                    }
-
-                    // Move cursor to start of current line
-                    let mut new_pos = 0;
-                    for i in 0..current_line {
-                        new_pos += lines[i].chars().count() + 1;
-                    }
-                    app.edit_cursor_pos = new_pos;
-
-                    if app.edit_field_index < app.edit_buffer_is_placeholder.len() {
-                        app.edit_buffer_is_placeholder[app.edit_field_index] = false;
-                    }
+                    // Yank the line
+                    app.edit_yank_buffer = lines[current_line].to_string();
                 }
-            }
-            app.ensure_overlay_cursor_visible();
-        }
-        KeyCode::Char('y') => {
-            // yy: yank current line (in View Edit mode)
-            if app.view_edit_mode && app.edit_field_index < app.edit_buffer.len() {
-                let field = &app.edit_buffer[app.edit_field_index];
-                let lines: Vec<&str> = field.split('\n').collect();
-
-                // Find current line
-                let mut char_count = 0;
-                let mut current_line = 0;
-
-                for (line_idx, line) in lines.iter().enumerate() {
-                    let line_len = line.chars().count();
-                    let separator_len = if line_idx < lines.len() - 1 { 1 } else { 0 };
-
-                    if app.edit_cursor_pos <= char_count + line_len {
-                        current_line = line_idx;
-                        break;
-                    }
-
-                    char_count += line_len + separator_len;
-                }
-
-                // Yank the line
-                app.edit_yank_buffer = lines[current_line].to_string();
+            } else {
+                app.vim_buffer = "y".to_string();
             }
         }
         KeyCode::Char('p') => {
+            app.vim_buffer.clear();
             // p: paste yanked line below current line (in View Edit mode)
             if app.view_edit_mode && app.edit_field_index < app.edit_buffer.len() && !app.edit_yank_buffer.is_empty() {
                 let field = &mut app.edit_buffer[app.edit_field_index];
