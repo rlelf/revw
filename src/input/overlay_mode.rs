@@ -651,6 +651,202 @@ fn handle_field_editing_mode(app: &mut App, key: KeyEvent) {
                 app.edit_cursor_pos = 0;
             }
         }
+        KeyCode::Char('a') => {
+            // Append after cursor (like vim 'a')
+            if app.view_edit_mode && app.edit_field_index < app.edit_buffer.len() {
+                let field = &app.edit_buffer[app.edit_field_index];
+                let field_len = field.chars().count();
+                // Move cursor right (if not at end)
+                if app.edit_cursor_pos < field_len {
+                    app.edit_cursor_pos += 1;
+                }
+            }
+            app.edit_insert_mode = true;
+            if app.edit_field_index < app.edit_buffer_is_placeholder.len()
+                && app.edit_buffer_is_placeholder[app.edit_field_index] {
+                app.edit_buffer[app.edit_field_index] = String::new();
+                app.edit_buffer_is_placeholder[app.edit_field_index] = false;
+                app.edit_cursor_pos = 0;
+            }
+        }
+        KeyCode::Char('o') => {
+            // Open line below (like vim 'o')
+            if app.view_edit_mode && app.edit_field_index < app.edit_buffer.len() {
+                let field = &mut app.edit_buffer[app.edit_field_index];
+                let lines: Vec<&str> = field.split('\n').collect();
+
+                // Find current line
+                let mut char_count = 0;
+                let mut current_line = 0;
+
+                for (line_idx, line) in lines.iter().enumerate() {
+                    let line_len = line.chars().count();
+                    let separator_len = if line_idx < lines.len() - 1 { 1 } else { 0 };
+
+                    if app.edit_cursor_pos <= char_count + line_len {
+                        current_line = line_idx;
+                        break;
+                    }
+
+                    char_count += line_len + separator_len;
+                }
+
+                // Calculate position at end of current line
+                let mut end_of_line_pos = 0;
+                for i in 0..=current_line {
+                    let line_len = lines[i].chars().count();
+                    end_of_line_pos += line_len;
+                    if i < current_line {
+                        end_of_line_pos += 1; // newline
+                    }
+                }
+
+                // Insert newline at end of current line
+                let byte_pos = if end_of_line_pos == 0 {
+                    0
+                } else if end_of_line_pos >= field.chars().count() {
+                    field.len()
+                } else {
+                    field.char_indices().nth(end_of_line_pos).map(|(i, _)| i).unwrap_or(field.len())
+                };
+                field.insert(byte_pos, '\n');
+                app.edit_cursor_pos = end_of_line_pos + 1;
+
+                app.edit_insert_mode = true;
+                if app.edit_field_index < app.edit_buffer_is_placeholder.len() {
+                    app.edit_buffer_is_placeholder[app.edit_field_index] = false;
+                }
+            }
+            app.ensure_overlay_cursor_visible();
+        }
+        KeyCode::Char('d') => {
+            // dd: delete current line (in View Edit mode)
+            if app.view_edit_mode && app.edit_field_index < app.edit_buffer.len() {
+                let field = &mut app.edit_buffer[app.edit_field_index];
+                let mut lines: Vec<String> = field.split('\n').map(|s| s.to_string()).collect();
+
+                if lines.len() > 1 {
+                    // Find current line
+                    let mut char_count = 0;
+                    let mut current_line = 0;
+
+                    for (line_idx, line) in lines.iter().enumerate() {
+                        let line_len = line.chars().count();
+                        let separator_len = if line_idx < lines.len() - 1 { 1 } else { 0 };
+
+                        if app.edit_cursor_pos <= char_count + line_len {
+                            current_line = line_idx;
+                            break;
+                        }
+
+                        char_count += line_len + separator_len;
+                    }
+
+                    // Yank the line before deleting
+                    app.edit_yank_buffer = lines[current_line].clone();
+
+                    // Remove the line
+                    lines.remove(current_line);
+                    *field = lines.join("\n");
+
+                    // Adjust cursor position
+                    if current_line >= lines.len() {
+                        current_line = lines.len().saturating_sub(1);
+                    }
+
+                    // Move cursor to start of current line
+                    let mut new_pos = 0;
+                    for i in 0..current_line {
+                        new_pos += lines[i].chars().count() + 1;
+                    }
+                    app.edit_cursor_pos = new_pos;
+
+                    if app.edit_field_index < app.edit_buffer_is_placeholder.len() {
+                        app.edit_buffer_is_placeholder[app.edit_field_index] = false;
+                    }
+                }
+            }
+            app.ensure_overlay_cursor_visible();
+        }
+        KeyCode::Char('y') => {
+            // yy: yank current line (in View Edit mode)
+            if app.view_edit_mode && app.edit_field_index < app.edit_buffer.len() {
+                let field = &app.edit_buffer[app.edit_field_index];
+                let lines: Vec<&str> = field.split('\n').collect();
+
+                // Find current line
+                let mut char_count = 0;
+                let mut current_line = 0;
+
+                for (line_idx, line) in lines.iter().enumerate() {
+                    let line_len = line.chars().count();
+                    let separator_len = if line_idx < lines.len() - 1 { 1 } else { 0 };
+
+                    if app.edit_cursor_pos <= char_count + line_len {
+                        current_line = line_idx;
+                        break;
+                    }
+
+                    char_count += line_len + separator_len;
+                }
+
+                // Yank the line
+                app.edit_yank_buffer = lines[current_line].to_string();
+            }
+        }
+        KeyCode::Char('p') => {
+            // p: paste yanked line below current line (in View Edit mode)
+            if app.view_edit_mode && app.edit_field_index < app.edit_buffer.len() && !app.edit_yank_buffer.is_empty() {
+                let field = &mut app.edit_buffer[app.edit_field_index];
+                let lines: Vec<&str> = field.split('\n').collect();
+
+                // Find current line
+                let mut char_count = 0;
+                let mut current_line = 0;
+
+                for (line_idx, line) in lines.iter().enumerate() {
+                    let line_len = line.chars().count();
+                    let separator_len = if line_idx < lines.len() - 1 { 1 } else { 0 };
+
+                    if app.edit_cursor_pos <= char_count + line_len {
+                        current_line = line_idx;
+                        break;
+                    }
+
+                    char_count += line_len + separator_len;
+                }
+
+                // Calculate position at end of current line
+                let mut end_of_line_pos = 0;
+                for i in 0..=current_line {
+                    let line_len = lines[i].chars().count();
+                    end_of_line_pos += line_len;
+                    if i < current_line {
+                        end_of_line_pos += 1;
+                    }
+                }
+
+                // Insert newline + yanked content
+                let byte_pos = if end_of_line_pos == 0 {
+                    0
+                } else if end_of_line_pos >= field.chars().count() {
+                    field.len()
+                } else {
+                    field.char_indices().nth(end_of_line_pos).map(|(i, _)| i).unwrap_or(field.len())
+                };
+
+                let insert_text = format!("\n{}", app.edit_yank_buffer);
+                field.insert_str(byte_pos, &insert_text);
+
+                // Move cursor to start of pasted line
+                app.edit_cursor_pos = end_of_line_pos + 1;
+
+                if app.edit_field_index < app.edit_buffer_is_placeholder.len() {
+                    app.edit_buffer_is_placeholder[app.edit_field_index] = false;
+                }
+            }
+            app.ensure_overlay_cursor_visible();
+        }
         _ => {}
     }
 }

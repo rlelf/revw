@@ -73,6 +73,7 @@ pub struct App {
     pub edit_cursor_pos: usize, // Cursor position within current field
     pub edit_hscroll: u16, // Horizontal scroll offset for overlay fields
     pub edit_vscroll: u16, // Vertical scroll offset for context field
+    pub edit_yank_buffer: String, // Yank buffer for overlay context field
     pub showing_help: bool, // Track if help is being shown
     pub scroll: u16,
     pub max_scroll: u16,
@@ -219,6 +220,7 @@ impl App {
             edit_cursor_pos: 0,
             edit_hscroll: 0,
             edit_vscroll: 0,
+            edit_yank_buffer: String::new(),
             showing_help: false,
             scroll: 0,
             max_scroll: 0,
