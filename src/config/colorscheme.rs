@@ -32,6 +32,10 @@ pub struct ColorScheme {
     pub number: Color,                       // JSON number value color (Edit mode)
     pub boolean: Color,                      // JSON boolean/null value color (Edit mode)
     pub bracket: Color,                      // JSON bracket color (Edit mode)
+    pub md_header: Color,                    // Markdown header color (##, ###)
+    pub md_bold: Color,                      // Markdown bold text color (**text**)
+    pub md_url: Color,                       // Markdown URL/link color
+    pub md_text: Color,                      // Markdown normal text color
 }
 
 impl ColorScheme {
@@ -67,6 +71,10 @@ impl ColorScheme {
             number: Color::Magenta,
             boolean: Color::Yellow,
             bracket: Color::Yellow,
+            md_header: Color::Cyan,
+            md_bold: Color::Yellow,
+            md_url: Color::Magenta,
+            md_text: Color::White,
         }
     }
 
@@ -102,6 +110,10 @@ impl ColorScheme {
             number: Color::Magenta,
             boolean: Color::DarkGray,
             bracket: Color::Black,
+            md_header: Color::Blue,
+            md_bold: Color::Red,
+            md_url: Color::Magenta,
+            md_text: Color::Black,
         }
     }
 
@@ -137,6 +149,10 @@ impl ColorScheme {
             number: Color::Rgb(200, 150, 255),
             boolean: Color::Rgb(200, 200, 150),
             bracket: Color::Rgb(180, 180, 200),
+            md_header: Color::Rgb(150, 200, 255),
+            md_bold: Color::Rgb(255, 200, 100),
+            md_url: Color::Rgb(255, 150, 150),
+            md_text: Color::Rgb(220, 220, 255),
         }
     }
 
@@ -172,6 +188,10 @@ impl ColorScheme {
             number: Color::Magenta,
             boolean: Color::Yellow,
             bracket: Color::White,
+            md_header: Color::Cyan,
+            md_bold: Color::Yellow,
+            md_url: Color::Red,
+            md_text: Color::White,
         }
     }
 
@@ -207,6 +227,10 @@ impl ColorScheme {
             number: Color::Rgb(215, 135, 255),
             boolean: Color::Rgb(255, 215, 0),
             bracket: Color::Rgb(175, 175, 175),
+            md_header: Color::Rgb(175, 215, 255),
+            md_bold: Color::Rgb(255, 215, 0),
+            md_url: Color::Rgb(255, 135, 135),
+            md_text: Color::Rgb(215, 215, 215),
         }
     }
 
@@ -242,6 +266,10 @@ impl ColorScheme {
             number: Color::Rgb(215, 175, 255),
             boolean: Color::Rgb(135, 255, 175),
             bracket: Color::Rgb(175, 215, 255),
+            md_header: Color::Rgb(175, 215, 255),
+            md_bold: Color::Rgb(255, 255, 135),
+            md_url: Color::Rgb(255, 175, 175),
+            md_text: Color::Rgb(215, 215, 255),
         }
     }
 
