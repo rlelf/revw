@@ -277,7 +277,7 @@ fn render_context_field(f: &mut Frame, app: &App, inner_area: Rect, field_index:
             content_lines.push(Line::styled(String::new(), style));
         }
 
-        let context_para = Paragraph::new(content_lines);
+        let context_para = Paragraph::new(content_lines).wrap(Wrap { trim: false });
         f.render_widget(context_para, inner_area);
     } else {
         // Normal/Insert mode: show raw \n (replace with \\n for display)
