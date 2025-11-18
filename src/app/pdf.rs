@@ -1,6 +1,44 @@
 use super::App;
 use printpdf::*;
 use std::fs;
+use std::path::PathBuf;
+
+/// Find a suitable Japanese font on the system
+fn find_japanese_font() -> Option<PathBuf> {
+    let font_paths = if cfg!(target_os = "windows") {
+        vec![
+            "C:\\Windows\\Fonts\\msgothic.ttc",     // MS Gothic
+            "C:\\Windows\\Fonts\\msmincho.ttc",     // MS Mincho
+            "C:\\Windows\\Fonts\\meiryo.ttc",       // Meiryo
+            "C:\\Windows\\Fonts\\YuGothM.ttc",      // Yu Gothic Medium
+        ]
+    } else if cfg!(target_os = "macos") {
+        vec![
+            "/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc",
+            "/System/Library/Fonts/Hiragino Sans GB.ttc",
+            "/Library/Fonts/Arial Unicode.ttf",
+            "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
+        ]
+    } else {
+        // Linux
+        vec![
+            "/usr/share/fonts/truetype/takao-gothic/TakaoPGothic.ttf",
+            "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/truetype/vlgothic/VL-Gothic-Regular.ttf",
+            "/usr/share/fonts/truetype/fonts-japanese-gothic.ttf",
+        ]
+    };
+
+    for path in font_paths {
+        let p = PathBuf::from(path);
+        if p.exists() {
+            return Some(p);
+        }
+    }
+
+    None
+}
 
 impl App {
     /// Export current content to PDF format
@@ -35,8 +73,22 @@ impl App {
         let mut current_page_ops: Vec<Op> = Vec::new();
         let mut current_y = page_height - margin_top;
 
-        // Built-in Helvetica font (available in PDF viewers without embedding)
-        let font = BuiltinFont::Helvetica;
+        // Try to load Japanese font from system, fallback to Helvetica if not found
+        let font_id = if let Some(font_path) = find_japanese_font() {
+            match fs::read(&font_path) {
+                Ok(font_bytes) => {
+                    let mut warnings = Vec::new();
+                    if let Some(parsed_font) = ParsedFont::from_bytes(&font_bytes, 0, &mut warnings) {
+                        Some(doc.add_font(&parsed_font))
+                    } else {
+                        None
+                    }
+                }
+                Err(_) => None,
+            }
+        } else {
+            None
+        };
 
         // Parse markdown and render
         for line in markdown_content.lines() {
@@ -81,17 +133,30 @@ impl App {
                     pos: Point::new(margin_left, current_y),
                 });
 
-                // Set font size
-                current_page_ops.push(Op::SetFontSizeBuiltinFont {
-                    size: Pt(font_size),
-                    font: font.clone(),
-                });
+                if let Some(ref fid) = font_id {
+                    // Use custom font (Japanese)
+                    current_page_ops.push(Op::SetFontSize {
+                        size: Pt(font_size),
+                        font: fid.clone(),
+                    });
 
-                // Write text
-                current_page_ops.push(Op::WriteTextBuiltinFont {
-                    items: vec![TextItem::Text(text.to_string())],
-                    font: font.clone(),
-                });
+                    current_page_ops.push(Op::WriteText {
+                        items: vec![TextItem::Text(text.to_string())],
+                        font: fid.clone(),
+                    });
+                } else {
+                    // Fallback to built-in Helvetica font
+                    let font = BuiltinFont::Helvetica;
+                    current_page_ops.push(Op::SetFontSizeBuiltinFont {
+                        size: Pt(font_size),
+                        font: font.clone(),
+                    });
+
+                    current_page_ops.push(Op::WriteTextBuiltinFont {
+                        items: vec![TextItem::Text(text.to_string())],
+                        font: font.clone(),
+                    });
+                }
 
                 current_page_ops.push(Op::EndTextSection);
                 current_page_ops.push(Op::RestoreGraphicsState);
