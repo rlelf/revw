@@ -143,6 +143,10 @@ revw --stdout --markdown file.md
 revw --stdout --json file.json              # Output in JSON format
 revw --stdout --json file.md
 
+# Export to PDF
+revw --pdf file.json                        # Export JSON to PDF
+revw --pdf file.md                          # Export Markdown to PDF
+
 # Input (overwrite)
 revw --input data.json file.json            # Overwrite entire content
 revw --input data.json file.md
@@ -267,49 +271,28 @@ revw --input data.md --append --outside file.md
 #### Edit Overlay
 **Field Selection Mode (default):**
 - `j/k` or `↑/↓` navigate between fields
-- `Enter` enter field editing mode (Normal mode, shows cursor)
-- `i` enter insert mode directly
-- `v` enter View Edit mode in Normal mode (renders `\n` as newlines)
+- `Enter` enter Normal mode (renders `\n` as newlines, allows navigation)
+- `i` enter Insert mode (renders `\n` as newlines, allows editing)
 - `w` save changes
 - `Esc` or `q` cancel
 
-**Field Editing Mode:**
-- `h/l` or `←/→` move cursor left/right
-- `0` move to start of field
-- `$` move to end of field
-- `w` next word
-- `b` previous word
-- `e` end of word
-- `g` or `gg` jump to start
-- `G` jump to end
-- `i` enter insert mode
-- `x` delete character at cursor
-- `X` delete character before cursor
-- `Esc` or `Ctrl+[` exit to field selection mode
-
-**Insert Mode:**
-- Type to edit text
-- `←/→` move cursor
-- `Backspace` delete character
-- `Esc` or `Ctrl+[` exit to field editing mode
-
-**View Edit Mode (from Field Selection with `v`):**
-- Starts in Normal mode (renders `\n` as newlines, blue text)
+**Normal Mode (after pressing `Enter`):**
+- Renders `\n` as actual newlines for multi-line viewing
 - `h/j/k/l` or arrow keys navigate
 - `gg` jump to start, `G` jump to end
 - `w/b/e` word navigation
 - `0/$` start/end of line
 - `x/X` delete character
-- `i` enter Insert mode (yellow text)
-- `Esc` or `Ctrl+[` from Normal mode: exit to field selection
-- `Esc` or `Ctrl+[` from Insert mode: return to Normal mode
+- `i` enter Insert mode
+- `Esc` or `Ctrl+[` exit to field selection mode
 
-**View Edit Mode - Insert Mode:**
+**Insert Mode (after pressing `i`):**
+- Renders `\n` as actual newlines for multi-line editing
 - Type to edit text
 - `↑/↓/←/→` move cursor
 - `Enter` insert literal newline (`\n`)
 - `Backspace` delete character (including `\n`)
-- `Esc` or `Ctrl+[` return to Normal mode
+- `Esc` or `Ctrl+[` exit to field selection mode
 
 ### Edit Mode
 **Navigation:**
@@ -374,6 +357,7 @@ revw --input data.md --append --outside file.md
 - `:e` reload file
 - `:ar` toggle auto-reload (default: on)
 - `:markdown` export current file to Markdown format (same folder, .md extension)
+- `:pdf` export current file to PDF format (same folder, .pdf extension)
 - `:Lexplore` or `:Lex` or `:lx` toggle file explorer
 - `:outline` or `:ol` toggle card outline view
 - `Ctrl+w w` cycle between explorer and file window

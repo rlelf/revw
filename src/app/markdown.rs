@@ -32,7 +32,12 @@ impl App {
             }
 
             // Check for entry headers (### Title) or any non-empty line as implicit entry
-            let (title, has_header) = if line.starts_with("### ") {
+            // Reject #### or higher (only allow ### for entries)
+            let (title, has_header) = if line.starts_with("#### ") || (line.starts_with("####") && !line.starts_with("### ") && !line.starts_with("###")) {
+                // Ignore #### or higher level headers
+                i += 1;
+                continue;
+            } else if line.starts_with("### ") {
                 let trimmed = line[4..].trim();
                 // If only "###" with nothing after it, treat as empty string
                 (trimmed.to_string(), true)
@@ -67,8 +72,8 @@ impl App {
                     let content_line = lines[i];
                     let trimmed = content_line.trim();
 
-                    // Stop at next section or entry header
-                    if trimmed.starts_with("## ") || trimmed.starts_with("###") {
+                    // Stop at next section or entry header (## or ###, but not ####)
+                    if trimmed.starts_with("## ") || (trimmed.starts_with("### ") || (trimmed.starts_with("###") && !trimmed.starts_with("####"))) {
                         break;
                     }
 
@@ -79,6 +84,7 @@ impl App {
                         if !next_line.is_empty()
                             && !next_line.starts_with("**")
                             && !next_line.starts_with("## ")
+                            && !next_line.starts_with("####")
                             && !next_line.starts_with("###") {
                             // Next entry starts after this blank line
                             i += 1; // Skip the blank line

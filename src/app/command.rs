@@ -324,6 +324,12 @@ impl App {
         } else if cmd == "json" {
             // Export current file to JSON format
             self.export_to_json();
+        } else if cmd == "pdf" {
+            // Export current file to PDF format
+            match self.export_to_pdf() {
+                Ok(path) => self.set_status(&format!("PDF exported to: {}", path)),
+                Err(e) => self.set_status(&format!("PDF export failed: {}", e)),
+            }
         } else {
             self.set_status(&format!("Unknown command: {}", cmd));
         }

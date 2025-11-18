@@ -941,50 +941,8 @@ fn handle_field_selection_mode(app: &mut App, key: KeyEvent) {
             }
         }
         KeyCode::Enter => {
-            // Enter Normal mode (field editing mode without insert)
+            // Enter View Edit mode in Normal mode (renders \n as newlines)
             // Clear placeholder text when entering normal mode
-            if app.edit_field_index < app.edit_buffer.len() {
-                if app.edit_field_index < app.edit_buffer_is_placeholder.len()
-                    && app.edit_buffer_is_placeholder[app.edit_field_index] {
-                    app.edit_buffer[app.edit_field_index] = String::new();
-                    app.edit_buffer_is_placeholder[app.edit_field_index] = false;
-                }
-            }
-            // Enter field editing mode (Normal mode for navigation)
-            app.edit_field_editing_mode = true;
-            app.edit_insert_mode = false;
-            app.edit_cursor_pos = 0;
-            app.edit_hscroll = 0;
-        }
-        KeyCode::Char('i') => {
-            // Skip field editing mode, go straight to insert mode with cursor at end
-            app.edit_field_editing_mode = true;
-            app.edit_insert_mode = true;
-            app.edit_skip_normal_mode = true; // Mark that we skipped normal mode
-            if app.edit_field_index < app.edit_buffer.len() {
-                let field = &app.edit_buffer[app.edit_field_index];
-                // Clear placeholder text when entering insert mode
-                if app.edit_field_index < app.edit_buffer_is_placeholder.len()
-                    && app.edit_buffer_is_placeholder[app.edit_field_index] {
-                    app.edit_buffer[app.edit_field_index] = String::new();
-                    app.edit_buffer_is_placeholder[app.edit_field_index] = false;
-                    app.edit_cursor_pos = 0;
-                } else {
-                    // Move cursor to end of text
-                    app.edit_cursor_pos = field.chars().count();
-                }
-            }
-            app.ensure_overlay_cursor_visible();
-        }
-        KeyCode::Char('v') => {
-            // Enter View Edit mode: render \n as newlines
-            // ONLY allow View Edit mode for context field (index 1)
-            if app.edit_field_index != 1 {
-                // Not on context field, ignore 'v' key
-                return;
-            }
-
-            // Clear placeholder text when entering View Edit mode
             if app.edit_field_index < app.edit_buffer.len() {
                 if app.edit_field_index < app.edit_buffer_is_placeholder.len()
                     && app.edit_buffer_is_placeholder[app.edit_field_index] {
@@ -1002,6 +960,27 @@ fn handle_field_selection_mode(app: &mut App, key: KeyEvent) {
             app.edit_insert_mode = false; // Start in normal mode, not insert
             app.edit_skip_normal_mode = false;
             // Ensure cursor is visible in the window
+            app.ensure_overlay_cursor_visible();
+        }
+        KeyCode::Char('i') => {
+            // Enter View Edit mode in Insert mode directly (renders \n as newlines)
+            app.view_edit_mode = true;
+            app.edit_field_editing_mode = true;
+            app.edit_insert_mode = true;
+            app.edit_skip_normal_mode = true; // Mark that we skipped normal mode
+            if app.edit_field_index < app.edit_buffer.len() {
+                let field = &app.edit_buffer[app.edit_field_index];
+                // Clear placeholder text when entering insert mode
+                if app.edit_field_index < app.edit_buffer_is_placeholder.len()
+                    && app.edit_buffer_is_placeholder[app.edit_field_index] {
+                    app.edit_buffer[app.edit_field_index] = String::new();
+                    app.edit_buffer_is_placeholder[app.edit_field_index] = false;
+                    app.edit_cursor_pos = 0;
+                } else {
+                    // Move cursor to end of text
+                    app.edit_cursor_pos = field.chars().count();
+                }
+            }
             app.ensure_overlay_cursor_visible();
         }
         _ => {}

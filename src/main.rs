@@ -54,6 +54,9 @@ fn main() -> Result<()> {
             # Output in JSON format\n  \
             revw --stdout --json file.json\n  \
             revw --stdout --json file.md\n\n  \
+            # Export to PDF\n  \
+            revw --pdf file.json\n  \
+            revw --pdf file.md\n\n  \
             # Input from file\n  \
             revw --input data.json file.json                      JSON → JSON\n  \
             revw --input data.json file.md                        JSON → Markdown\n  \
@@ -145,6 +148,12 @@ fn main() -> Result<()> {
                 .action(clap::ArgAction::SetTrue),
         )
         .arg(
+            Arg::new("pdf")
+                .long("pdf")
+                .help("Export to PDF format")
+                .action(clap::ArgAction::SetTrue),
+        )
+        .arg(
             Arg::new("input")
                 .long("input")
                 .help("Input from file")
@@ -170,11 +179,59 @@ fn main() -> Result<()> {
     let outside_only = matches.get_flag("outside");
     let markdown_mode = matches.get_flag("markdown");
     let json_mode = matches.get_flag("json");
+    let pdf_mode = matches.get_flag("pdf");
     let input_file = matches.get_one::<String>("input");
     let append_mode = matches.get_flag("append");
 
-    // If stdout mode or output file specified, run in non-interactive mode
-    if stdout_mode || output_file.is_some() {
+    // If PDF mode, export to PDF and exit
+    if pdf_mode {
+        let mut app = App::new(format_mode);
+
+        // Load file if provided
+        if let Some(file_path) = matches.get_one::<String>("file") {
+            let path = PathBuf::from(file_path);
+            let content = fs::read_to_string(&path)
+                .map_err(|e| {
+                    eprintln!("Error: Cannot read file '{}': {}", file_path, e);
+                    std::process::exit(1);
+                })
+                .unwrap();
+
+            // Check if file is Markdown
+            let is_markdown = path.extension()
+                .and_then(|ext| ext.to_str())
+                .map(|ext| ext.eq_ignore_ascii_case("md"))
+                .unwrap_or(false);
+
+            if is_markdown {
+                app.file_path = Some(path);
+                app.markdown_input = content;
+                // Convert markdown to JSON for processing
+                if let Ok(json) = app.parse_markdown(&app.markdown_input.clone()) {
+                    app.json_input = json;
+                }
+                app.convert_json();
+            } else {
+                app.file_path = Some(path);
+                app.json_input = content;
+                app.convert_json();
+            }
+
+            // Export to PDF
+            match app.export_to_pdf() {
+                Ok(pdf_path) => {
+                    println!("PDF exported to: {}", pdf_path);
+                }
+                Err(e) => {
+                    eprintln!("Error: Failed to export PDF: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        } else {
+            eprintln!("Error: No input file specified for PDF export");
+            std::process::exit(1);
+        }
+    } else if stdout_mode || output_file.is_some() {
         let mut app = App::new(format_mode);
 
         // Load file if provided

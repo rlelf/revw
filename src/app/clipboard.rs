@@ -328,8 +328,22 @@ impl App {
         match Clipboard::new() {
             Ok(mut clipboard) => match clipboard.get_text() {
                 Ok(clipboard_text) => {
-                    // For Markdown files, parse markdown format from clipboard
+                    // For Markdown files, check if clipboard contains JSON or Markdown
                     if self.is_markdown_file() {
+                        let trimmed = clipboard_text.trim();
+
+                        // Try to parse as JSON first
+                        if trimmed.starts_with('{') || trimmed.starts_with('[') {
+                            if let Ok(clipboard_json) = serde_json::from_str::<Value>(&clipboard_text) {
+                                // Convert JSON to Markdown
+                                if let Ok(md_text) = Self::json_to_markdown_string(&clipboard_json) {
+                                    self.paste_markdown_section_overwrite(&md_text, "INSIDE");
+                                    return;
+                                }
+                            }
+                        }
+
+                        // Otherwise treat as Markdown
                         self.paste_markdown_section_overwrite(&clipboard_text, "INSIDE");
                         return;
                     }
@@ -387,8 +401,22 @@ impl App {
         match Clipboard::new() {
             Ok(mut clipboard) => match clipboard.get_text() {
                 Ok(clipboard_text) => {
-                    // For Markdown files, parse markdown format from clipboard
+                    // For Markdown files, check if clipboard contains JSON or Markdown
                     if self.is_markdown_file() {
+                        let trimmed = clipboard_text.trim();
+
+                        // Try to parse as JSON first
+                        if trimmed.starts_with('{') || trimmed.starts_with('[') {
+                            if let Ok(clipboard_json) = serde_json::from_str::<Value>(&clipboard_text) {
+                                // Convert JSON to Markdown
+                                if let Ok(md_text) = Self::json_to_markdown_string(&clipboard_json) {
+                                    self.paste_markdown_section_overwrite(&md_text, "OUTSIDE");
+                                    return;
+                                }
+                            }
+                        }
+
+                        // Otherwise treat as Markdown
                         self.paste_markdown_section_overwrite(&clipboard_text, "OUTSIDE");
                         return;
                     }
@@ -446,8 +474,22 @@ impl App {
         match Clipboard::new() {
             Ok(mut clipboard) => match clipboard.get_text() {
                 Ok(clipboard_text) => {
-                    // For Markdown files, parse markdown format from clipboard
+                    // For Markdown files, check if clipboard contains JSON or Markdown
                     if self.is_markdown_file() {
+                        let trimmed = clipboard_text.trim();
+
+                        // Try to parse as JSON first
+                        if trimmed.starts_with('{') || trimmed.starts_with('[') {
+                            if let Ok(clipboard_json) = serde_json::from_str::<Value>(&clipboard_text) {
+                                // Convert JSON to Markdown
+                                if let Ok(md_text) = Self::json_to_markdown_string(&clipboard_json) {
+                                    self.paste_markdown_section_append(&md_text, "INSIDE");
+                                    return;
+                                }
+                            }
+                        }
+
+                        // Otherwise treat as Markdown
                         self.paste_markdown_section_append(&clipboard_text, "INSIDE");
                         return;
                     }
@@ -515,8 +557,22 @@ impl App {
         match Clipboard::new() {
             Ok(mut clipboard) => match clipboard.get_text() {
                 Ok(clipboard_text) => {
-                    // For Markdown files, parse markdown format from clipboard
+                    // For Markdown files, check if clipboard contains JSON or Markdown
                     if self.is_markdown_file() {
+                        let trimmed = clipboard_text.trim();
+
+                        // Try to parse as JSON first
+                        if trimmed.starts_with('{') || trimmed.starts_with('[') {
+                            if let Ok(clipboard_json) = serde_json::from_str::<Value>(&clipboard_text) {
+                                // Convert JSON to Markdown
+                                if let Ok(md_text) = Self::json_to_markdown_string(&clipboard_json) {
+                                    self.paste_markdown_section_append(&md_text, "OUTSIDE");
+                                    return;
+                                }
+                            }
+                        }
+
+                        // Otherwise treat as Markdown
                         self.paste_markdown_section_append(&clipboard_text, "OUTSIDE");
                         return;
                     }

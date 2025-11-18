@@ -10,6 +10,7 @@ mod history;
 mod markdown;
 mod navigation;
 mod outline;
+mod pdf;
 mod search;
 mod substitute;
 mod undo;
