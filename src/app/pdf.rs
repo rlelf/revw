@@ -1,7 +1,6 @@
 use super::App;
 use printpdf::*;
-use std::fs::File;
-use std::io::BufWriter;
+use std::fs;
 
 impl App {
     /// Export current content to PDF format
@@ -22,77 +21,110 @@ impl App {
         };
 
         // Create PDF document
-        let (doc, page1, layer1) = PdfDocument::new(
-            "Revw Export",
-            Mm(210.0), // A4 width
-            Mm(297.0), // A4 height
-            "Layer 1",
-        );
+        let mut doc = PdfDocument::new("Revw Export");
 
-        // Use built-in font
-        let font = doc.add_builtin_font(BuiltinFont::Helvetica)
-            .map_err(|e| format!("Failed to load font: {}", e))?;
-
-        // Page margins
+        // Page dimensions
+        let page_width = Mm(210.0);
+        let page_height = Mm(297.0);
         let margin_left = Mm(20.0);
         let margin_top = Mm(20.0);
-        let page_height = Mm(297.0);
-
-        let mut current_y = page_height - margin_top;
         let line_height = Mm(5.0);
-        let mut pages = vec![(page1, layer1)];
-        let mut current_page_idx = 0;
+
+        // Collect all pages
+        let mut all_pages: Vec<PdfPage> = Vec::new();
+        let mut current_page_ops: Vec<Op> = Vec::new();
+        let mut current_y = page_height - margin_top;
+
+        // Built-in Helvetica font (available in PDF viewers without embedding)
+        let font = BuiltinFont::Helvetica;
+
+        // Start graphics state and text section
+        current_page_ops.push(Op::SaveGraphicsState);
+        current_page_ops.push(Op::StartTextSection);
 
         // Parse markdown and render
         for line in markdown_content.lines() {
             // Check if we need a new page
             if current_y < Mm(30.0) {
-                // Add new page
-                let (new_page, new_layer) = doc.add_page(Mm(210.0), Mm(297.0), "Layer 1");
-                pages.push((new_page, new_layer));
-                current_page_idx += 1;
+                // End text section and restore graphics state for current page
+                current_page_ops.push(Op::EndTextSection);
+                current_page_ops.push(Op::RestoreGraphicsState);
+
+                // Save current page
+                let page = PdfPage::new(page_width, page_height, current_page_ops.clone());
+                all_pages.push(page);
+
+                // Reset for new page
+                current_page_ops.clear();
                 current_y = page_height - margin_top;
+
+                // Start new text section
+                current_page_ops.push(Op::SaveGraphicsState);
+                current_page_ops.push(Op::StartTextSection);
             }
 
             let trimmed = line.trim();
 
             // Determine font size based on markdown syntax
-            let (text, font_size) = if trimmed.starts_with("## ") {
-                // Section header (OUTSIDE/INSIDE)
-                (&trimmed[3..], 16.0)
+            let font_size = if trimmed.starts_with("## ") {
+                16.0
             } else if trimmed.starts_with("### ") {
-                // Entry header
-                (&trimmed[4..], 14.0)
-            } else if trimmed.starts_with("**") && trimmed.ends_with("**") {
-                // Bold text (like **URL:** or **Percentage:**)
-                (trimmed, 11.0)
+                14.0
             } else {
-                // Regular text
-                (trimmed, 11.0)
+                11.0
+            };
+
+            // Extract text content (remove markdown syntax)
+            let text = if trimmed.starts_with("## ") {
+                &trimmed[3..]
+            } else if trimmed.starts_with("### ") {
+                &trimmed[4..]
+            } else {
+                trimmed
             };
 
             if !text.is_empty() {
-                let (page_ref, layer_ref) = pages[current_page_idx];
-                let current_layer = doc.get_page(page_ref).get_layer(layer_ref);
+                // Set cursor position
+                current_page_ops.push(Op::SetTextCursor {
+                    pos: Point::new(margin_left, current_y),
+                });
 
-                current_layer.use_text(
-                    text,
-                    font_size,
-                    margin_left,
-                    current_y,
-                    &font,
-                );
+                // Set font size
+                current_page_ops.push(Op::SetFontSizeBuiltinFont {
+                    size: Pt(font_size),
+                    font: font.clone(),
+                });
+
+                // Write text
+                current_page_ops.push(Op::WriteTextBuiltinFont {
+                    items: vec![TextItem::Text(text.to_string())],
+                    font: font.clone(),
+                });
             }
 
-            current_y -= line_height;
+            current_y = current_y - line_height;
         }
 
-        // Save PDF
-        let file = File::create(&pdf_path)
-            .map_err(|e| format!("Failed to create PDF file: {}", e))?;
-        let mut writer = BufWriter::new(file);
-        doc.save(&mut writer)
-            .map_err(|e| format!("Failed to save PDF: {}", e))?;
+        // End text section and restore graphics state for final page
+        current_page_ops.push(Op::EndTextSection);
+        current_page_ops.push(Op::RestoreGraphicsState);
+
+        // Save final page
+        if !current_page_ops.is_empty() {
+            let page = PdfPage::new(page_width, page_height, current_page_ops);
+            all_pages.push(page);
+        }
+
+        // Add all pages to document
+        doc.with_pages(all_pages);
+
+        // Save PDF with default options
+        let mut warnings = Vec::new();
+        let pdf_bytes = doc.save(&PdfSaveOptions::default(), &mut warnings);
+
+        // Write to file
+        fs::write(&pdf_path, pdf_bytes)
+            .map_err(|e| format!("Failed to write PDF file: {}", e))?;
 
         Ok(pdf_path.to_string_lossy().to_string())
     }
