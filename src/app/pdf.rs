@@ -38,18 +38,10 @@ impl App {
         // Built-in Helvetica font (available in PDF viewers without embedding)
         let font = BuiltinFont::Helvetica;
 
-        // Start graphics state and text section
-        current_page_ops.push(Op::SaveGraphicsState);
-        current_page_ops.push(Op::StartTextSection);
-
         // Parse markdown and render
         for line in markdown_content.lines() {
             // Check if we need a new page
             if current_y < Mm(30.0) {
-                // End text section and restore graphics state for current page
-                current_page_ops.push(Op::EndTextSection);
-                current_page_ops.push(Op::RestoreGraphicsState);
-
                 // Save current page
                 let page = PdfPage::new(page_width, page_height, current_page_ops.clone());
                 all_pages.push(page);
@@ -57,10 +49,6 @@ impl App {
                 // Reset for new page
                 current_page_ops.clear();
                 current_y = page_height - margin_top;
-
-                // Start new text section
-                current_page_ops.push(Op::SaveGraphicsState);
-                current_page_ops.push(Op::StartTextSection);
             }
 
             let trimmed = line.trim();
@@ -84,6 +72,10 @@ impl App {
             };
 
             if !text.is_empty() {
+                // Each line gets its own text section
+                current_page_ops.push(Op::SaveGraphicsState);
+                current_page_ops.push(Op::StartTextSection);
+
                 // Set cursor position
                 current_page_ops.push(Op::SetTextCursor {
                     pos: Point::new(margin_left, current_y),
@@ -100,27 +92,25 @@ impl App {
                     items: vec![TextItem::Text(text.to_string())],
                     font: font.clone(),
                 });
+
+                current_page_ops.push(Op::EndTextSection);
+                current_page_ops.push(Op::RestoreGraphicsState);
             }
 
             current_y = current_y - line_height;
         }
 
-        // End text section and restore graphics state for final page
-        current_page_ops.push(Op::EndTextSection);
-        current_page_ops.push(Op::RestoreGraphicsState);
-
-        // Save final page
+        // Save final page (no need to end text section since each line handles its own)
         if !current_page_ops.is_empty() {
             let page = PdfPage::new(page_width, page_height, current_page_ops);
             all_pages.push(page);
         }
 
-        // Add all pages to document
-        doc.with_pages(all_pages);
-
-        // Save PDF with default options
-        let mut warnings = Vec::new();
-        let pdf_bytes = doc.save(&PdfSaveOptions::default(), &mut warnings);
+        // Save PDF with all pages
+        let mut _warnings = Vec::new();
+        let pdf_bytes = doc
+            .with_pages(all_pages)
+            .save(&PdfSaveOptions::default(), &mut _warnings);
 
         // Write to file
         fs::write(&pdf_path, pdf_bytes)
