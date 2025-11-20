@@ -285,9 +285,7 @@ impl App {
 
                     self.is_modified = false;
                     self.convert_json();
-                    self.content_cursor_line = 0;
-                    self.content_cursor_col = 0;
-                    self.scroll = 0;
+
                     self.set_status(&format!("Reloaded: {}", path.display()));
                 }
                 Err(e) => {
