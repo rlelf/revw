@@ -8,10 +8,15 @@ use ratatui::{
 
 use crate::app::App;
 use crate::rendering::RelfEntry;
+use crate::syntax_highlight::SyntaxHighlighter;
 
 use super::utils::highlight_search_in_line;
 
 pub fn render_relf_cards(f: &mut Frame, app: &mut App, area: Rect) {
+    // Initialize syntax highlighter if needed (lazy initialization)
+    if app.syntax_highlighter.is_none() {
+        app.syntax_highlighter = Some(SyntaxHighlighter::new());
+    }
     let title = match &app.file_path {
         Some(path) => {
             if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
@@ -199,8 +204,21 @@ fn render_outside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: R
     if !context.is_empty() {
         // Context already contains actual newline characters
         let visible_lines = inner_area.height as usize;
-        let total_lines = context.lines().count();
-        // Allow scrolling to see all content (like overlay mode)
+
+        // Use syntax highlighting for context
+        let highlighted_lines = {
+            let highlighter = app.syntax_highlighter.as_ref();
+            if let Some(h) = highlighter {
+                h.render_lines(context, Style::default().fg(app.colorscheme.card_content))
+            } else {
+                // Fallback: no highlighting
+                context.lines().map(|line| {
+                    Line::styled(line.to_string(), Style::default().fg(app.colorscheme.card_content))
+                }).collect()
+            }
+        };
+
+        let total_lines = highlighted_lines.len();
         let max_scroll = total_lines;
         let vscroll = if is_selected {
             (app.hscroll as usize).min(max_scroll)
@@ -208,19 +226,16 @@ fn render_outside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: R
             0
         };
 
-        let context_lines: Vec<Line> = context
-            .lines()
+        let context_lines: Vec<Line> = highlighted_lines
+            .into_iter()
             .skip(vscroll)
             .take(visible_lines)
             .map(|line| {
                 if !app.search_query.is_empty() {
-                    highlight_search_in_line(
-                        line,
-                        &app.search_query,
-                        Style::default().fg(app.colorscheme.card_content),
-                    )
+                    // TODO: Apply search highlighting on top of syntax highlighting
+                    line
                 } else {
-                    Line::styled(line.to_string(), Style::default().fg(app.colorscheme.card_content))
+                    line
                 }
             })
             .collect();
@@ -257,8 +272,21 @@ fn render_inside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: Re
     if let Some(context) = &entry.context {
         // Context already contains actual newline characters
         let visible_lines = inner_area.height as usize;
-        let total_lines = context.lines().count();
-        // Allow scrolling to see all content (like overlay mode)
+
+        // Use syntax highlighting for context
+        let highlighted_lines = {
+            let highlighter = app.syntax_highlighter.as_ref();
+            if let Some(h) = highlighter {
+                h.render_lines(context, Style::default().fg(app.colorscheme.card_content))
+            } else {
+                // Fallback: no highlighting
+                context.lines().map(|line| {
+                    Line::styled(line.to_string(), Style::default().fg(app.colorscheme.card_content))
+                }).collect()
+            }
+        };
+
+        let total_lines = highlighted_lines.len();
         let max_scroll = total_lines;
         let vscroll = if is_selected {
             (app.hscroll as usize).min(max_scroll)
@@ -266,19 +294,16 @@ fn render_inside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: Re
             0
         };
 
-        let context_lines: Vec<Line> = context
-            .lines()
+        let context_lines: Vec<Line> = highlighted_lines
+            .into_iter()
             .skip(vscroll)
             .take(visible_lines)
             .map(|line| {
                 if !app.search_query.is_empty() {
-                    highlight_search_in_line(
-                        line,
-                        &app.search_query,
-                        Style::default().fg(app.colorscheme.card_content),
-                    )
+                    // TODO: Apply search highlighting on top of syntax highlighting
+                    line
                 } else {
-                    Line::styled(line.to_string(), Style::default().fg(app.colorscheme.card_content))
+                    line
                 }
             })
             .collect();

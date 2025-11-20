@@ -21,6 +21,9 @@ use crate::json_ops::JsonOperations;
 use crate::markdown_ops::MarkdownOperations;
 use crate::navigation::Navigator;
 use crate::rendering::{RelfEntry, RelfLineStyle, RelfRenderResult, Renderer};
+use crate::syntax_highlight::SyntaxHighlighter;
+use crate::ui::markdown_highlight::highlight_markdown_with_code_blocks;
+use ratatui::text::Span;
 use std::{
     path::PathBuf,
     time::{Duration, Instant},
@@ -164,6 +167,10 @@ pub struct App {
     pub outline_search_current: usize, // Current match index in search_matches
     // File mode (JSON or Markdown)
     pub file_mode: FileMode,
+    // Syntax highlighter (lazy initialized)
+    pub syntax_highlighter: Option<SyntaxHighlighter>,
+    // Cache for markdown syntax highlighting (Edit mode)
+    pub markdown_highlight_cache: Vec<Vec<Span<'static>>>,
 }
 
 #[derive(Clone)]
@@ -294,6 +301,8 @@ impl App {
             } else {
                 FileMode::Json
             },
+            syntax_highlighter: None,
+            markdown_highlight_cache: Vec::new(),
         };
 
         app
@@ -329,6 +338,8 @@ impl App {
             FormatMode::Edit => {
                 // In Edit mode, always show raw content without any processing
                 self.rendered_content = if self.is_markdown_file() {
+                    // Update highlight cache for markdown
+                    self.update_markdown_highlight_cache();
                     self.render_markdown()
                 } else {
                     self.render_json()
@@ -589,6 +600,30 @@ impl App {
             self.convert_json();
             self.set_status("Filter cleared");
         }
+    }
+
+    /// Update markdown highlight cache (for Edit mode)
+    pub fn update_markdown_highlight_cache(&mut self) {
+        if !self.is_markdown_file() {
+            return;
+        }
+
+        // Ensure syntax highlighter is initialized
+        if self.syntax_highlighter.is_none() {
+            self.syntax_highlighter = Some(SyntaxHighlighter::new());
+        }
+
+        let lines: Vec<String> = if self.is_markdown_file() {
+            self.markdown_input.lines().map(|s| s.to_string()).collect()
+        } else {
+            self.json_input.lines().map(|s| s.to_string()).collect()
+        };
+
+        self.markdown_highlight_cache = highlight_markdown_with_code_blocks(
+            &lines,
+            &self.colorscheme,
+            self.syntax_highlighter.as_ref(),
+        );
     }
 
 }

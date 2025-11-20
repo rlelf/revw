@@ -6,6 +6,7 @@ mod json_ops;
 mod markdown_ops;
 mod navigation;
 mod rendering;
+mod syntax_highlight;
 mod ui;
 
 use anyhow::Result;

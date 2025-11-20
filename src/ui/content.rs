@@ -105,7 +105,12 @@ pub fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
             if !app.search_query.is_empty() && app.format_mode == FormatMode::Edit {
                 // In Edit mode with search: apply syntax highlighting to full line first
                 let json_spans = if app.is_markdown_file() {
-                    highlight_markdown_line(s, &app.colorscheme)
+                    // Use cached highlight if available
+                    if actual_idx < app.markdown_highlight_cache.len() {
+                        app.markdown_highlight_cache[actual_idx].clone()
+                    } else {
+                        highlight_markdown_line(s, &app.colorscheme)
+                    }
                 } else {
                     highlight_json_line(s, &app.colorscheme)
                 };
@@ -230,7 +235,12 @@ pub fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
                 if app.format_mode == FormatMode::Edit {
                     // Apply syntax highlighting to full line, then slice
                     let full_line_spans = if app.is_markdown_file() {
-                        highlight_markdown_line(s, &app.colorscheme)
+                        // Use cached highlight if available
+                        if actual_idx < app.markdown_highlight_cache.len() {
+                            app.markdown_highlight_cache[actual_idx].clone()
+                        } else {
+                            highlight_markdown_line(s, &app.colorscheme)
+                        }
                     } else {
                         highlight_json_line(s, &app.colorscheme)
                     };

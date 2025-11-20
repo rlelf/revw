@@ -86,10 +86,26 @@ impl App {
 
     pub fn get_entry_count_from_content(&self) -> usize {
         if self.is_markdown_file() {
-            // Count ### headers in markdown
-            self.markdown_input.lines()
-                .filter(|line| line.trim_start().starts_with("### "))
-                .count()
+            // Count ### headers in markdown, excluding code blocks
+            let mut in_code_block = false;
+            let mut count = 0;
+            for line in self.markdown_input.lines() {
+                // Track code block state
+                if line.trim_start().starts_with("```") {
+                    in_code_block = !in_code_block;
+                    continue;
+                }
+
+                // Skip lines inside code blocks
+                if in_code_block {
+                    continue;
+                }
+
+                if line.trim_start().starts_with("### ") {
+                    count += 1;
+                }
+            }
+            count
         } else {
             // Count entries in JSON (outside + inside)
             if let Ok(json_value) = serde_json::from_str::<serde_json::Value>(&self.json_input) {
@@ -111,10 +127,22 @@ impl App {
 
     fn get_entry_start_line(&self, entry_index: usize) -> Option<usize> {
         if self.is_markdown_file() {
-            // Find the nth ### header
+            // Find the nth ### header, excluding code blocks
             let lines = self.markdown_input.lines().collect::<Vec<_>>();
+            let mut in_code_block = false;
             let mut count = 0;
             for (i, line) in lines.iter().enumerate() {
+                // Track code block state
+                if line.trim_start().starts_with("```") {
+                    in_code_block = !in_code_block;
+                    continue;
+                }
+
+                // Skip lines inside code blocks
+                if in_code_block {
+                    continue;
+                }
+
                 if line.trim_start().starts_with("### ") {
                     if count == entry_index {
                         return Some(i);
@@ -172,7 +200,19 @@ impl App {
         } else if self.format_mode == FormatMode::Edit {
             // Parse from markdown or JSON
             if self.is_markdown_file() {
+                let mut in_code_block = false;
                 for line in self.markdown_input.lines() {
+                    // Track code block state
+                    if line.trim_start().starts_with("```") {
+                        in_code_block = !in_code_block;
+                        continue;
+                    }
+
+                    // Skip lines inside code blocks
+                    if in_code_block {
+                        continue;
+                    }
+
                     if line.trim_start().starts_with("### ") {
                         let title = line.trim_start()[4..].trim();
                         let display_title = if title.len() > 80 {

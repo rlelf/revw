@@ -10,9 +10,23 @@ impl App {
         let lines: Vec<&str> = content.lines().collect();
         let mut i = 0;
         let mut current_section = None; // "OUTSIDE" or "INSIDE"
+        let mut in_code_block = false;
 
         while i < lines.len() {
             let line = lines[i].trim();
+
+            // Check for code block markers (```)
+            if line.starts_with("```") {
+                in_code_block = !in_code_block;
+                i += 1;
+                continue;
+            }
+
+            // Skip lines inside code blocks
+            if in_code_block {
+                i += 1;
+                continue;
+            }
 
             // Check for section headers
             if line == "## OUTSIDE" {
@@ -72,9 +86,21 @@ impl App {
                     let content_line = lines[i];
                     let trimmed = content_line.trim();
 
-                    // Stop at next section or entry header (## or ###, but not ####)
-                    if trimmed.starts_with("## ") || (trimmed.starts_with("### ") || (trimmed.starts_with("###") && !trimmed.starts_with("####"))) {
-                        break;
+                    // Track code blocks within content
+                    if trimmed.starts_with("```") {
+                        in_code_block = !in_code_block;
+                        // Include the code block markers in content
+                        content_lines.push(content_line);
+                        i += 1;
+                        continue;
+                    }
+
+                    // Only check for headers outside of code blocks
+                    if !in_code_block {
+                        // Stop at next section or entry header (## or ###, but not ####)
+                        if trimmed.starts_with("## ") || (trimmed.starts_with("### ") || (trimmed.starts_with("###") && !trimmed.starts_with("####"))) {
+                            break;
+                        }
                     }
 
                     // Stop at blank lines followed by non-empty lines (potential new entry)

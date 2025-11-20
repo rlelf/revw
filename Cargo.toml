@@ -32,6 +32,7 @@ chrono = "0.4"
 unicode-width = "0.2.0"
 dirs = "6.0.0"
 printpdf = "0.8.2"
+syntect = "5.2"
 
 [profile.release]
 opt-level = 3
