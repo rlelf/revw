@@ -610,7 +610,7 @@ impl App {
 
         // Ensure syntax highlighter is initialized
         if self.syntax_highlighter.is_none() {
-            self.syntax_highlighter = Some(SyntaxHighlighter::new());
+            self.syntax_highlighter = Some(SyntaxHighlighter::new(self.colorscheme.clone()));
         }
 
         let lines: Vec<String> = if self.is_markdown_file() {

@@ -295,7 +295,11 @@ impl App {
             use super::ColorScheme;
             let scheme_name = cmd.strip_prefix("colorscheme ").unwrap().trim();
             if let Some(scheme) = ColorScheme::by_name(scheme_name) {
-                self.colorscheme = scheme;
+                self.colorscheme = scheme.clone();
+                // Update syntax highlighter with new colorscheme
+                if let Some(highlighter) = &mut self.syntax_highlighter {
+                    highlighter.update_colorscheme(scheme);
+                }
                 self.set_status(&format!("Color scheme changed to {}", scheme_name));
             } else {
                 self.set_status(&format!("Unknown color scheme: {}", scheme_name));

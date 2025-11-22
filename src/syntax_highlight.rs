@@ -4,14 +4,16 @@ use syntect::easy::HighlightLines;
 use syntect::highlighting::{ThemeSet, Theme};
 use syntect::parsing::SyntaxSet;
 use syntect::util::LinesWithEndings;
+use crate::config::colorscheme::ColorScheme;
 
 pub struct SyntaxHighlighter {
     syntax_set: SyntaxSet,
     theme: Theme,
+    colorscheme: ColorScheme,
 }
 
 impl SyntaxHighlighter {
-    pub fn new() -> Self {
+    pub fn new(colorscheme: ColorScheme) -> Self {
         let syntax_set = SyntaxSet::load_defaults_newlines();
         let theme_set = ThemeSet::load_defaults();
         let theme = theme_set.themes["base16-ocean.dark"].clone();
@@ -19,7 +21,13 @@ impl SyntaxHighlighter {
         Self {
             syntax_set,
             theme,
+            colorscheme,
         }
+    }
+
+    /// Update the colorscheme (used when user changes colorscheme)
+    pub fn update_colorscheme(&mut self, colorscheme: ColorScheme) {
+        self.colorscheme = colorscheme;
     }
 
     /// Parse content and split into regular text and code blocks
@@ -144,16 +152,10 @@ impl SyntaxHighlighter {
         if text.trim_start().starts_with('#') {
             let header_end = text.trim_start().chars().take_while(|c| *c == '#').count();
             if header_end > 0 && text.trim_start().chars().nth(header_end) == Some(' ') {
-                // Color headers differently based on level
-                let color = match header_end {
-                    1 => Color::Rgb(255, 100, 100), // Bright red for #
-                    2 => Color::Rgb(255, 150, 100), // Orange for ##
-                    3 => Color::Rgb(255, 200, 100), // Yellow for ###
-                    _ => Color::Rgb(255, 255, 100), // Lighter yellow for ####+
-                };
+                // Use colorscheme header color (same as raw edit mode)
                 spans.push(Span::styled(
                     text.to_string(),
-                    Style::default().fg(color),
+                    Style::default().fg(self.colorscheme.md_header),
                 ));
                 return spans;
             }
@@ -173,7 +175,7 @@ impl SyntaxHighlighter {
             }
             spans.push(Span::styled(
                 marker_and_space.to_string(),
-                Style::default().fg(Color::Rgb(100, 200, 255)), // Light blue for list markers
+                Style::default().fg(self.colorscheme.md_url), // Use md_url color (same as raw edit mode)
             ));
 
             // Process the rest for bold
@@ -220,7 +222,7 @@ impl SyntaxHighlighter {
 
                     spans.push(Span::styled(
                         full_bold,
-                        Style::default().fg(Color::Rgb(255, 255, 150)), // Light yellow for bold
+                        Style::default().fg(self.colorscheme.md_bold), // Use md_bold color (same as raw edit mode)
                     ));
                     i = end + 2;
                 } else {

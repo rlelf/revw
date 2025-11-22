@@ -15,7 +15,7 @@ use super::utils::highlight_search_in_line;
 pub fn render_relf_cards(f: &mut Frame, app: &mut App, area: Rect) {
     // Initialize syntax highlighter if needed (lazy initialization)
     if app.syntax_highlighter.is_none() {
-        app.syntax_highlighter = Some(SyntaxHighlighter::new());
+        app.syntax_highlighter = Some(SyntaxHighlighter::new(app.colorscheme.clone()));
     }
     let title = match &app.file_path {
         Some(path) => {
