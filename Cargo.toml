@@ -1,6 +1,6 @@
 [package]
 name = "revw"
-version = "0.2.7"
+version = "0.2.8"
 edition = "2024"
 authors = ["rlelf"]
 license = "MIT"
@@ -32,7 +32,7 @@ chrono = "0.4"
 unicode-width = "0.2.0"
 dirs = "6.0.0"
 printpdf = "0.8.2"
-syntect = "5.2"
+syntect = { version = "5.2", default-features = false, features = ["default-fancy"] }
 
 [profile.release]
 opt-level = 3

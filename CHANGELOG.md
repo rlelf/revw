@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.8
+
+- Fixed markdown syntax colors to match between view mode and raw edit mode
+- Added markdown syntax highlighting with theme support for code blocks
+- Added vim-like `a` (append) and `o` (new line) commands in View Edit mode
+- Added PDF export functionality with `:pdf` command
+
 ## 0.2.7
 
 - Added View Edit mode (`v` key) in overlay with Normal/Insert mode separation
