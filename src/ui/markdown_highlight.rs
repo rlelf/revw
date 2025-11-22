@@ -30,7 +30,44 @@ pub fn highlight_markdown_line(line: &str, colorscheme: &ColorScheme) -> Vec<Spa
         }
     }
 
-    // Parse line for bold text (**text**) and URLs
+    // Check for list markers (-, *, +)
+    let trimmed = line.trim_start();
+    if trimmed.starts_with("- ") || trimmed.starts_with("* ") || trimmed.starts_with("+ ") {
+        let indent_len = line.len() - trimmed.len();
+        let indent = &line[..indent_len];
+        let marker_and_space = &trimmed[..2];
+        let content = &trimmed[2..];
+
+        // Render indent as normal text
+        if !indent.is_empty() {
+            spans.push(Span::styled(
+                indent.to_string(),
+                Style::default().fg(colorscheme.md_text),
+            ));
+        }
+
+        // Render list marker in special color
+        spans.push(Span::styled(
+            marker_and_space.to_string(),
+            Style::default().fg(colorscheme.md_url), // Use URL color for list markers
+        ));
+
+        // Process the rest of the line for bold text
+        let content_spans = parse_bold_in_line(content, colorscheme);
+        spans.extend(content_spans);
+        return spans;
+    }
+
+    // Parse line for bold text (**text**)
+    let content_spans = parse_bold_in_line(line, colorscheme);
+    spans.extend(content_spans);
+
+    spans
+}
+
+/// Parse bold text (**text**) in a line
+fn parse_bold_in_line(line: &str, colorscheme: &ColorScheme) -> Vec<Span<'static>> {
+    let mut spans = Vec::new();
     let chars: Vec<char> = line.chars().collect();
     let mut i = 0;
     let mut current_text = String::new();

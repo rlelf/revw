@@ -571,6 +571,20 @@ fn handle_outline_navigation(app: &mut App, key: KeyEvent) -> Result<bool> {
             app.outline_move_up();
             return Ok(false);
         }
+        KeyCode::Char('f') => {
+            // Ctrl+f: page down
+            if key.modifiers.contains(KeyModifiers::CONTROL) {
+                app.outline_page_down();
+                return Ok(false);
+            }
+        }
+        KeyCode::Char('b') => {
+            // Ctrl+b: page up
+            if key.modifiers.contains(KeyModifiers::CONTROL) {
+                app.outline_page_up();
+                return Ok(false);
+            }
+        }
         KeyCode::Char('G') => {
             // Go to bottom
             let max_index = if app.format_mode == FormatMode::View {

@@ -56,6 +56,23 @@ impl App {
         }
     }
 
+    pub fn outline_page_down(&mut self) {
+        let max_index = if self.format_mode == FormatMode::View {
+            self.relf_entries.len().saturating_sub(1)
+        } else {
+            self.get_entry_count_from_content().saturating_sub(1)
+        };
+
+        // Move down by 10 entries (or to the end)
+        let new_index = (self.outline_selected_index + 10).min(max_index);
+        self.outline_selected_index = new_index;
+    }
+
+    pub fn outline_page_up(&mut self) {
+        // Move up by 10 entries (or to the beginning)
+        self.outline_selected_index = self.outline_selected_index.saturating_sub(10);
+    }
+
     pub fn outline_jump_to_selected(&mut self) {
         if self.format_mode == FormatMode::View && !self.relf_entries.is_empty() {
             // Jump to selected card in View mode
