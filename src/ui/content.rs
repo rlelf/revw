@@ -130,7 +130,16 @@ pub fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
                     // Check if this span overlaps with any search match
                     let mut last_split = 0;
 
-                    while let Some(match_pos) = line_lower[span_start..span_end].find(&query_lower) {
+                    // Ensure span_end doesn't exceed line_lower length
+                    let safe_span_end = span_end.min(line_lower.len());
+                    if span_start >= line_lower.len() {
+                        // Skip this span if start is already out of bounds
+                        result_spans.push(json_span);
+                        char_pos += span_len;
+                        continue;
+                    }
+
+                    while let Some(match_pos) = line_lower[span_start..safe_span_end].find(&query_lower) {
                         let abs_match_pos = span_start + match_pos;
 
                         if abs_match_pos < span_start + last_split {
@@ -139,6 +148,17 @@ pub fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
 
                         let rel_match_start = abs_match_pos - span_start;
                         let rel_match_end = (abs_match_pos + app.search_query.len()).min(span_end) - span_start;
+
+                        // Ensure indices are within span_text bounds and on UTF-8 char boundaries
+                        let safe_rel_match_start = rel_match_start.min(span_text.len());
+                        let safe_rel_match_end = rel_match_end.min(span_text.len());
+
+                        // Validate UTF-8 char boundaries
+                        if !span_text.is_char_boundary(safe_rel_match_start)
+                            || !span_text.is_char_boundary(safe_rel_match_end)
+                            || !span_text.is_char_boundary(last_split) {
+                            break;
+                        }
 
                         // Check if this is the current match
                         let is_current_match = app
@@ -154,24 +174,24 @@ pub fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
                         };
 
                         // Add text before match (with original JSON color)
-                        if rel_match_start > last_split {
+                        if safe_rel_match_start > last_split {
                             result_spans.push(Span::styled(
-                                span_text[last_split..rel_match_start].to_string(),
+                                span_text[last_split..safe_rel_match_start].to_string(),
                                 json_span.style,
                             ));
                         }
 
                         // Add matched text with background
                         result_spans.push(Span::styled(
-                            span_text[rel_match_start..rel_match_end].to_string(),
+                            span_text[safe_rel_match_start..safe_rel_match_end].to_string(),
                             json_span.style.bg(bg_color),
                         ));
 
-                        last_split = rel_match_end;
+                        last_split = safe_rel_match_end;
                     }
 
                     // Add remaining text from this span
-                    if last_split < span_len {
+                    if last_split < span_len && span_text.is_char_boundary(last_split) {
                         result_spans.push(Span::styled(
                             span_text[last_split..].to_string(),
                             json_span.style,
