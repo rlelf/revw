@@ -233,7 +233,11 @@ revw --input data.md --append --outside file.md
 **Settings:**
 - `:set number` or `:set nu` enable line numbers (Edit mode)
 - `:set nonumber` or `:set nonu` disable line numbers
+- `:set relativenumber` or `:set rnu` enable relative line numbers (Edit mode)
+- `:set norelativenumber` or `:set nornu` disable relative line numbers
 - `:set card=N` set max visible cards (1-10, default: 5)
+- `:set border=rounded` use rounded border style (default)
+- `:set border=plain` use plain border style
 - `:set extension` show file extensions in explorer (default)
 - `:set noextension` hide file extensions in explorer
 - `:set json` set format to JSON (for unnamed files)
@@ -368,7 +372,11 @@ revw --input data.md --append --outside file.md
 **Settings:**
 - `:set number` or `:set nu` enable line numbers
 - `:set nonumber` or `:set nonu` disable line numbers
+- `:set relativenumber` or `:set rnu` enable relative line numbers
+- `:set norelativenumber` or `:set nornu` disable relative line numbers
 - `:set card=N` set max visible cards (1-10, default: 5)
+- `:set border=rounded` use rounded border style (default)
+- `:set border=plain` use plain border style
 - `:set extension` show file extensions in explorer (default)
 - `:set noextension` hide file extensions in explorer
 - `:set json` set format to JSON (for unnamed files)
@@ -390,11 +398,19 @@ Revw can be configured using a `.revwrc` file in your home directory (`~/.revwrc
 ```vim
 set number        # Enable line numbers (Edit mode)
 set nonumber      # Disable line numbers (default)
+set relativenumber # Enable relative line numbers (Edit mode)
+set norelativenumber # Disable relative line numbers (default)
 ```
 
 **Max Visible Cards:**
 ```vim
 set card=5        # Set max visible cards (1-10, default: 5)
+```
+
+**Border Style:**
+```vim
+set border=rounded # Use rounded border style (default)
+set border=plain   # Use plain border style
 ```
 
 **File Extensions:**
