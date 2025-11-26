@@ -1,4 +1,4 @@
-use revw::app::{App, FormatMode, InputMode};
+use revw::app::{App, FileMode, FormatMode, InputMode};
 
 #[test]
 fn test_app_creation() {
@@ -187,6 +187,7 @@ fn test_clear_content_in_edit_mode() {
 #[test]
 fn test_substitute_current_line_first_match() {
     let mut app = App::new(FormatMode::Edit);
+    app.file_mode = FileMode::Json;
     app.json_input = "foo bar foo baz\nqux quux".to_string();
     app.content_cursor_line = 0;
 
@@ -199,6 +200,7 @@ fn test_substitute_current_line_first_match() {
 #[test]
 fn test_substitute_current_line_all_matches() {
     let mut app = App::new(FormatMode::Edit);
+    app.file_mode = FileMode::Json;
     app.json_input = "foo bar foo baz\nqux quux".to_string();
     app.content_cursor_line = 0;
 
@@ -211,6 +213,7 @@ fn test_substitute_current_line_all_matches() {
 #[test]
 fn test_substitute_entire_file_all_matches() {
     let mut app = App::new(FormatMode::Edit);
+    app.file_mode = FileMode::Json;
     app.json_input = "foo bar foo\nbaz foo qux\nfoo quux".to_string();
 
     app.execute_substitute("%s/foo/replaced/g");
@@ -222,6 +225,7 @@ fn test_substitute_entire_file_all_matches() {
 #[test]
 fn test_substitute_pattern_not_found() {
     let mut app = App::new(FormatMode::Edit);
+    app.file_mode = FileMode::Json;
     app.json_input = "foo bar baz\nqux quux".to_string();
     app.content_cursor_line = 0;
 
@@ -235,6 +239,7 @@ fn test_substitute_pattern_not_found() {
 #[test]
 fn test_substitute_empty_pattern() {
     let mut app = App::new(FormatMode::Edit);
+    app.file_mode = FileMode::Json;
     app.json_input = "foo bar\nbaz qux".to_string();
 
     app.execute_substitute("s//replaced/");
@@ -247,6 +252,7 @@ fn test_substitute_empty_pattern() {
 #[test]
 fn test_substitute_invalid_syntax() {
     let mut app = App::new(FormatMode::Edit);
+    app.file_mode = FileMode::Json;
     app.json_input = "foo bar\nbaz qux".to_string();
 
     app.execute_substitute("s/foo");
@@ -259,6 +265,7 @@ fn test_substitute_invalid_syntax() {
 #[test]
 fn test_substitute_only_in_edit_mode() {
     let mut app = App::new(FormatMode::View);
+    app.file_mode = FileMode::Json;
     app.json_input = "foo bar\nbaz qux".to_string();
 
     app.execute_substitute("s/foo/replaced/");
@@ -271,6 +278,7 @@ fn test_substitute_only_in_edit_mode() {
 #[test]
 fn test_substitute_current_line_second_line() {
     let mut app = App::new(FormatMode::Edit);
+    app.file_mode = FileMode::Json;
     app.json_input = "first line\nfoo bar foo\nthird line".to_string();
     app.content_cursor_line = 1;
 
@@ -283,6 +291,7 @@ fn test_substitute_current_line_second_line() {
 #[test]
 fn test_substitute_entire_file_first_match_per_line() {
     let mut app = App::new(FormatMode::Edit);
+    app.file_mode = FileMode::Json;
     app.json_input = "foo bar foo\nbaz foo qux\nfoo quux foo".to_string();
 
     app.execute_substitute("%s/foo/replaced/");
@@ -294,6 +303,7 @@ fn test_substitute_entire_file_first_match_per_line() {
 #[test]
 fn test_substitute_with_special_characters() {
     let mut app = App::new(FormatMode::Edit);
+    app.file_mode = FileMode::Json;
     app.json_input = "test@example.com\nfoo@bar.com".to_string();
     app.content_cursor_line = 0;
 
@@ -306,6 +316,7 @@ fn test_substitute_with_special_characters() {
 #[test]
 fn test_substitute_empty_replacement() {
     let mut app = App::new(FormatMode::Edit);
+    app.file_mode = FileMode::Json;
     app.json_input = "foo bar baz\nqux quux".to_string();
     app.content_cursor_line = 0;
 
@@ -318,6 +329,7 @@ fn test_substitute_empty_replacement() {
 #[test]
 fn test_substitute_multiple_spaces() {
     let mut app = App::new(FormatMode::Edit);
+    app.file_mode = FileMode::Json;
     app.json_input = "foo  bar  baz\nqux quux".to_string();
     app.content_cursor_line = 0;
 
@@ -330,6 +342,7 @@ fn test_substitute_multiple_spaces() {
 #[test]
 fn test_substitute_confirmation_mode_builds_matches() {
     let mut app = App::new(FormatMode::Edit);
+    app.file_mode = FileMode::Json;
     app.json_input = "foo bar foo\nbaz foo".to_string();
 
     app.execute_substitute("%s/foo/replaced/gc");
@@ -344,6 +357,7 @@ fn test_substitute_confirmation_mode_builds_matches() {
 #[test]
 fn test_substitute_confirmation_single_match() {
     let mut app = App::new(FormatMode::Edit);
+    app.file_mode = FileMode::Json;
     app.json_input = "foo bar baz".to_string();
     app.content_cursor_line = 0;
 
@@ -356,6 +370,7 @@ fn test_substitute_confirmation_single_match() {
 #[test]
 fn test_substitute_confirmation_no_matches() {
     let mut app = App::new(FormatMode::Edit);
+    app.file_mode = FileMode::Json;
     app.json_input = "foo bar baz".to_string();
 
     app.execute_substitute("%s/notfound/replaced/gc");
@@ -367,6 +382,7 @@ fn test_substitute_confirmation_no_matches() {
 #[test]
 fn test_substitute_json_content() {
     let mut app = App::new(FormatMode::Edit);
+    app.file_mode = FileMode::Json;
     app.json_input = r#"{"name": "test", "value": "test"}"#.to_string();
 
     app.execute_substitute("%s/test/replaced/g");
@@ -378,6 +394,7 @@ fn test_substitute_json_content() {
 #[test]
 fn test_substitute_preserves_other_lines() {
     let mut app = App::new(FormatMode::Edit);
+    app.file_mode = FileMode::Json;
     app.json_input = "line1\nfoo bar\nline3\nline4".to_string();
     app.content_cursor_line = 1;
 
@@ -389,6 +406,7 @@ fn test_substitute_preserves_other_lines() {
 #[test]
 fn test_substitute_entire_word_replacement() {
     let mut app = App::new(FormatMode::Edit);
+    app.file_mode = FileMode::Json;
     app.json_input = "foo foobar foo\nbarfoo foo".to_string();
 
     app.execute_substitute("%s/foo/XXX/g");
@@ -401,6 +419,7 @@ fn test_substitute_entire_word_replacement() {
 #[test]
 fn test_substitute_case_sensitive() {
     let mut app = App::new(FormatMode::Edit);
+    app.file_mode = FileMode::Json;
     app.json_input = "Foo foo FOO\nfoo Foo".to_string();
 
     app.execute_substitute("%s/foo/replaced/g");
@@ -413,6 +432,7 @@ fn test_substitute_case_sensitive() {
 #[test]
 fn test_substitute_numbers() {
     let mut app = App::new(FormatMode::Edit);
+    app.file_mode = FileMode::Json;
     app.json_input = "version 1.0.0\nversion 1.0.0".to_string();
 
     app.execute_substitute("%s/1.0.0/2.0.0/g");
@@ -424,6 +444,7 @@ fn test_substitute_numbers() {
 #[test]
 fn test_substitute_single_line_file() {
     let mut app = App::new(FormatMode::Edit);
+    app.file_mode = FileMode::Json;
     app.json_input = "foo bar foo".to_string();
 
     app.execute_substitute("%s/foo/replaced/g");
@@ -435,6 +456,7 @@ fn test_substitute_single_line_file() {
 #[test]
 fn test_substitute_undo() {
     let mut app = App::new(FormatMode::Edit);
+    app.file_mode = FileMode::Json;
     app.json_input = "foo bar foo".to_string();
     let original = app.json_input.clone();
 
@@ -448,6 +470,7 @@ fn test_substitute_undo() {
 #[test]
 fn test_substitute_redo() {
     let mut app = App::new(FormatMode::Edit);
+    app.file_mode = FileMode::Json;
     app.json_input = "foo bar foo".to_string();
 
     app.execute_substitute("%s/foo/replaced/g");
@@ -461,6 +484,7 @@ fn test_substitute_redo() {
 #[test]
 fn test_substitute_no_undo_when_pattern_not_found() {
     let mut app = App::new(FormatMode::Edit);
+    app.file_mode = FileMode::Json;
     app.json_input = "foo bar".to_string();
 
     let undo_stack_size = app.undo_stack.len();
@@ -473,6 +497,7 @@ fn test_substitute_no_undo_when_pattern_not_found() {
 #[test]
 fn test_substitute_multiple_operations_undo() {
     let mut app = App::new(FormatMode::Edit);
+    app.file_mode = FileMode::Json;
     app.json_input = "foo bar baz".to_string();
     let original = app.json_input.clone();
 
@@ -490,6 +515,7 @@ fn test_substitute_multiple_operations_undo() {
 #[test]
 fn test_substitute_confirmation_accept() {
     let mut app = App::new(FormatMode::Edit);
+    app.file_mode = FileMode::Json;
     app.json_input = "foo bar".to_string();
 
     // Start confirmation mode
@@ -499,7 +525,7 @@ fn test_substitute_confirmation_accept() {
     // Accept the substitution
     app.handle_substitute_confirmation('y');
 
-    assert_eq!(app.json_input, "replaced bar");
+    assert_eq!(app.json_input, "replaced bar\n");
     assert!(app.substitute_confirmations.is_empty());
     assert!(app.is_modified);
 }
@@ -507,6 +533,7 @@ fn test_substitute_confirmation_accept() {
 #[test]
 fn test_substitute_confirmation_reject() {
     let mut app = App::new(FormatMode::Edit);
+    app.file_mode = FileMode::Json;
     app.json_input = "foo bar".to_string();
     let original = app.json_input.clone();
 
@@ -523,6 +550,7 @@ fn test_substitute_confirmation_reject() {
 #[test]
 fn test_substitute_confirmation_quit() {
     let mut app = App::new(FormatMode::Edit);
+    app.file_mode = FileMode::Json;
     app.json_input = "foo bar foo".to_string();
     let original = app.json_input.clone();
 
@@ -541,6 +569,7 @@ fn test_substitute_confirmation_quit() {
 #[test]
 fn test_substitute_confirmation_all() {
     let mut app = App::new(FormatMode::Edit);
+    app.file_mode = FileMode::Json;
     app.json_input = "foo bar foo baz".to_string();
 
     // Start confirmation mode
@@ -550,7 +579,7 @@ fn test_substitute_confirmation_all() {
     // Accept all substitutions
     app.handle_substitute_confirmation('a');
 
-    assert_eq!(app.json_input, "replaced bar replaced baz");
+    assert_eq!(app.json_input, "replaced bar replaced baz\n");
     assert!(app.substitute_confirmations.is_empty());
     assert!(app.is_modified);
 }
@@ -558,6 +587,7 @@ fn test_substitute_confirmation_all() {
 #[test]
 fn test_substitute_confirmation_selective() {
     let mut app = App::new(FormatMode::Edit);
+    app.file_mode = FileMode::Json;
     // Use different lines to avoid position shift issues
     app.json_input = "foo bar\nbaz qux\nfoo quux".to_string();
 
@@ -576,7 +606,7 @@ fn test_substitute_confirmation_selective() {
     assert!(app.substitute_confirmations.is_empty());
 
     // First line replaced, third line not replaced
-    assert_eq!(app.json_input, "replaced bar\nbaz qux\nfoo quux");
+    assert_eq!(app.json_input, "replaced bar\nbaz qux\nfoo quux\n");
 }
 
 #[test]
@@ -616,6 +646,7 @@ fn test_view_mode_parsing() {
 #[test]
 fn test_edit_mode_json_output() {
     let mut app = App::new(FormatMode::Edit);
+    app.file_mode = FileMode::Json;
     let json = r#"{"test": "value"}"#;
     app.json_input = json.to_string();
     app.convert_json();
