@@ -115,9 +115,10 @@ impl Renderer {
                                         if !url.is_empty() {
                                             entry_lines.push(url.to_string());
                                         }
-                                        // Add percentage line, defaulting to 0% if not specified
-                                        let pct = percentage.unwrap_or(0);
-                                        entry_lines.push(format!("{}%", pct));
+                                        // Add percentage line only if specified
+                                        if let Some(pct) = percentage {
+                                            entry_lines.push(format!("{}%", pct));
+                                        }
 
                                         // Apply filter if pattern is provided
                                         if !filter_pattern.is_empty() {

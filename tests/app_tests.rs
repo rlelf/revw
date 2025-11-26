@@ -679,9 +679,9 @@ fn test_outside_entry_missing_fields() {
     // Should have 1 entry
     assert_eq!(app.relf_entries.len(), 1);
 
-    // Entry should have name and percentage (0% default)
+    // Entry should have name but no percentage (null percentage is not rendered)
     assert!(app.relf_entries[0].lines.iter().any(|l| l == "Resource Only"));
-    assert!(app.relf_entries[0].lines.iter().any(|l| l == "0%"));
+    assert!(!app.relf_entries[0].lines.iter().any(|l| l == "0%"));
 }
 
 #[test]
