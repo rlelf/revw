@@ -72,7 +72,21 @@ pub fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
                 let total_lines = visual_lines.len();
                 let line_num_width = format!("{}", total_lines).len().max(3);
                 let line_num_str = if actual_idx < total_lines {
-                    format!("{:>width$} ", actual_idx + 1, width = line_num_width)
+                    if app.show_relative_line_numbers {
+                        // Relative line numbers: show absolute for current line, relative distance for others
+                        let cursor_line = app.content_cursor_line;
+                        if actual_idx == cursor_line {
+                            // Current line shows absolute number
+                            format!("{:>width$} ", actual_idx + 1, width = line_num_width)
+                        } else {
+                            // Other lines show relative distance
+                            let distance = (actual_idx as isize - cursor_line as isize).unsigned_abs();
+                            format!("{:>width$} ", distance, width = line_num_width)
+                        }
+                    } else {
+                        // Absolute line numbers only
+                        format!("{:>width$} ", actual_idx + 1, width = line_num_width)
+                    }
                 } else {
                     " ".repeat(line_num_width + 1)
                 };

@@ -268,6 +268,14 @@ impl App {
             // Disable line numbers
             self.show_line_numbers = false;
             self.set_status("Line numbers disabled");
+        } else if cmd == "set relativenumber" || cmd == "set rnu" {
+            // Enable relative line numbers
+            self.show_relative_line_numbers = true;
+            self.set_status("Relative line numbers enabled");
+        } else if cmd == "set norelativenumber" || cmd == "set nornu" {
+            // Disable relative line numbers
+            self.show_relative_line_numbers = false;
+            self.set_status("Relative line numbers disabled");
         } else if cmd.starts_with("set card=") {
             // Set maximum visible cards
             if let Some(value_str) = cmd.strip_prefix("set card=") {

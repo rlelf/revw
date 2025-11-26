@@ -27,6 +27,7 @@ impl BorderStyle {
 #[derive(Debug, Clone)]
 pub struct RcConfig {
     pub show_line_numbers: bool,
+    pub show_relative_line_numbers: bool,
     pub colorscheme: ColorScheme,
     pub max_visible_cards: usize,
     pub show_extension: bool,
@@ -38,6 +39,7 @@ impl Default for RcConfig {
     fn default() -> Self {
         Self {
             show_line_numbers: false,
+            show_relative_line_numbers: false,
             colorscheme: ColorScheme::default(),
             max_visible_cards: 5,
             show_extension: true,
@@ -122,6 +124,12 @@ impl RcConfig {
             }
             "nonumber" | "nonu" => {
                 self.show_line_numbers = false;
+            }
+            "relativenumber" | "rnu" => {
+                self.show_relative_line_numbers = true;
+            }
+            "norelativenumber" | "nornu" => {
+                self.show_relative_line_numbers = false;
             }
             "extension" => {
                 self.show_extension = true;
@@ -248,5 +256,41 @@ mod tests {
     fn test_border_style_default() {
         let config = RcConfig::default();
         assert_eq!(config.border_style, BorderStyle::Rounded);
+    }
+
+    #[test]
+    fn test_parse_set_relativenumber() {
+        let mut config = RcConfig::default();
+        config.parse("set relativenumber");
+        assert!(config.show_relative_line_numbers);
+    }
+
+    #[test]
+    fn test_parse_set_rnu() {
+        let mut config = RcConfig::default();
+        config.parse("set rnu");
+        assert!(config.show_relative_line_numbers);
+    }
+
+    #[test]
+    fn test_parse_set_norelativenumber() {
+        let mut config = RcConfig::default();
+        config.show_relative_line_numbers = true;
+        config.parse("set norelativenumber");
+        assert!(!config.show_relative_line_numbers);
+    }
+
+    #[test]
+    fn test_parse_set_nornu() {
+        let mut config = RcConfig::default();
+        config.show_relative_line_numbers = true;
+        config.parse("set nornu");
+        assert!(!config.show_relative_line_numbers);
+    }
+
+    #[test]
+    fn test_relativenumber_default() {
+        let config = RcConfig::default();
+        assert!(!config.show_relative_line_numbers);
     }
 }

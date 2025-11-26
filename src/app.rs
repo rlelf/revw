@@ -127,6 +127,7 @@ pub struct App {
     pub last_click_time: Option<Instant>,
     // Line number display setting
     pub show_line_numbers: bool,
+    pub show_relative_line_numbers: bool,
     // Maximum visible cards in View mode (1-10, default 5)
     pub max_visible_cards: usize,
     // Show file extension in explorer
@@ -269,6 +270,7 @@ impl App {
             current_substitute_index: 0,
             last_click_time: None,
             show_line_numbers: rc_config.show_line_numbers,
+            show_relative_line_numbers: rc_config.show_relative_line_numbers,
             show_extension: rc_config.show_extension,
             max_visible_cards: rc_config.max_visible_cards,
             command_history: Vec::new(),
