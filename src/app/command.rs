@@ -1,4 +1,5 @@
 use super::{App, FormatMode};
+use crate::config::BorderStyle;
 use std::path::PathBuf;
 
 impl App {
@@ -290,6 +291,14 @@ impl App {
                     self.set_status("Invalid card value");
                 }
             }
+        } else if cmd == "set border=rounded" {
+            // Switch to rounded borders
+            self.border_style = BorderStyle::Rounded;
+            self.set_status("Border style set to rounded");
+        } else if cmd == "set border=plain" {
+            // Switch to plain borders
+            self.border_style = BorderStyle::Plain;
+            self.set_status("Border style set to plain");
         } else if cmd == "set extension" {
             // Enable file extension display in explorer
             self.show_extension = true;
