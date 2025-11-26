@@ -2,7 +2,7 @@ use ratatui::{
     layout::Rect,
     style::{Color, Modifier, Style},
     text::Line,
-    widgets::{Block, BorderType, Borders, Paragraph},
+    widgets::{Block, Borders, Paragraph},
     Frame,
 };
 
@@ -21,7 +21,7 @@ pub fn render_explorer(f: &mut Frame, app: &App, area: Rect) {
         .title(title)
         .title_style(Style::default().fg(app.colorscheme.explorer_title))
         .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
+        .border_type(app.border_style.to_border_type())
         .border_style(Style::default().fg(app.colorscheme.explorer_border))
         .style(Style::default().bg(app.colorscheme.background));
 

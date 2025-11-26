@@ -2,7 +2,7 @@ use ratatui::{
     layout::{Alignment, Rect},
     style::{Color, Modifier, Style},
     text::Line,
-    widgets::{Block, BorderType, Borders, Clear, Paragraph, Wrap},
+    widgets::{Block, Borders, Clear, Paragraph, Wrap},
     Frame,
 };
 
@@ -54,7 +54,7 @@ pub fn render_edit_overlay(f: &mut Frame, app: &App) {
     // Render the popup border
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
+        .border_type(app.border_style.to_border_type())
         .style(Style::default().bg(app.colorscheme.background).fg(Color::White));
 
     f.render_widget(block.clone(), popup_area);

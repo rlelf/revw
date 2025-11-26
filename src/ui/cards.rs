@@ -2,7 +2,7 @@ use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::Style,
     text::Line,
-    widgets::{Block, BorderType, Borders, Paragraph, Wrap},
+    widgets::{Block, Borders, Paragraph, Wrap},
     Frame,
 };
 
@@ -42,7 +42,7 @@ pub fn render_relf_cards(f: &mut Frame, app: &mut App, area: Rect) {
         .title(title)
         .title_style(Style::default().fg(app.colorscheme.window_title))
         .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
+        .border_type(app.border_style.to_border_type())
         .border_style(Style::default().fg(app.colorscheme.window_border))
         .style(Style::default().bg(app.colorscheme.background));
 
@@ -121,7 +121,7 @@ pub fn render_relf_cards(f: &mut Frame, app: &mut App, area: Rect) {
 
         let block = Block::default()
             .borders(Borders::ALL)
-            .border_type(BorderType::Rounded)
+            .border_type(app.border_style.to_border_type())
             .style(border_style);
 
         let inner = block.inner(chunks[i]);

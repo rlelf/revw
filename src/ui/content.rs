@@ -2,7 +2,7 @@ use ratatui::{
     layout::{Margin, Rect},
     style::{Color, Style},
     text::{Line, Span},
-    widgets::{Block, BorderType, Borders, Paragraph, Wrap},
+    widgets::{Block, Borders, Paragraph, Wrap},
     Frame,
 };
 
@@ -399,7 +399,7 @@ pub fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
             .title(title)
             .title_style(Style::default().fg(app.colorscheme.window_title))
             .borders(Borders::ALL)
-            .border_type(BorderType::Rounded)
+            .border_type(app.border_style.to_border_type())
             .border_style(Style::default().fg(app.colorscheme.window_border))
             .style(Style::default().bg(app.colorscheme.background)),
     );
@@ -411,7 +411,7 @@ fn render_help_content(f: &mut Frame, app: &mut App, area: Rect) {
     // Create a block with border like View/Edit modes
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
+        .border_type(app.border_style.to_border_type())
         .border_style(Style::default().fg(app.colorscheme.window_border))
         .style(Style::default().bg(app.colorscheme.background));
 

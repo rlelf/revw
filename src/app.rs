@@ -15,7 +15,7 @@ mod search;
 mod substitute;
 mod undo;
 
-use crate::config::{ColorScheme, RcConfig};
+use crate::config::{BorderStyle, ColorScheme, RcConfig};
 use crate::content_ops::ContentOperations;
 use crate::json_ops::JsonOperations;
 use crate::markdown_ops::MarkdownOperations;
@@ -156,6 +156,8 @@ pub struct App {
     pub view_edit_mode: bool,
     // Color scheme
     pub colorscheme: ColorScheme,
+    // Border style (rounded or plain)
+    pub border_style: BorderStyle,
     // Card outline overlay
     pub outline_open: bool,
     pub outline_selected_index: usize,
@@ -288,6 +290,7 @@ impl App {
             visual_end_index: 0,
             view_edit_mode: false,
             colorscheme: rc_config.colorscheme,
+            border_style: rc_config.border_style,
             outline_open: false,
             outline_selected_index: 0,
             outline_scroll: 0,

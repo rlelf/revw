@@ -2,6 +2,28 @@ use std::fs;
 use std::path::PathBuf;
 use super::colorscheme::ColorScheme;
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum BorderStyle {
+    Rounded,
+    Plain,
+}
+
+impl Default for BorderStyle {
+    fn default() -> Self {
+        BorderStyle::Rounded
+    }
+}
+
+impl BorderStyle {
+    /// Convert to ratatui BorderType
+    pub fn to_border_type(self) -> ratatui::widgets::BorderType {
+        match self {
+            BorderStyle::Rounded => ratatui::widgets::BorderType::Rounded,
+            BorderStyle::Plain => ratatui::widgets::BorderType::Plain,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct RcConfig {
     pub show_line_numbers: bool,
@@ -9,6 +31,7 @@ pub struct RcConfig {
     pub max_visible_cards: usize,
     pub show_extension: bool,
     pub default_format: Option<String>,
+    pub border_style: BorderStyle,
 }
 
 impl Default for RcConfig {
@@ -19,6 +42,7 @@ impl Default for RcConfig {
             max_visible_cards: 5,
             show_extension: true,
             default_format: None,
+            border_style: BorderStyle::default(),
         }
     }
 }
@@ -120,6 +144,14 @@ impl RcConfig {
                         }
                     }
                 }
+                // Check for border=rounded/plain format
+                else if let Some(value_str) = option.strip_prefix("border=") {
+                    match value_str {
+                        "rounded" => self.border_style = BorderStyle::Rounded,
+                        "plain" => self.border_style = BorderStyle::Plain,
+                        _ => {} // Unknown border style, ignore
+                    }
+                }
                 // Unknown option, ignore
             }
         }
@@ -195,5 +227,26 @@ mod tests {
         config.parse(rc_contents);
         assert!(config.show_line_numbers);
         assert_eq!(config.max_visible_cards, 4);
+    }
+
+    #[test]
+    fn test_parse_border_rounded() {
+        let mut config = RcConfig::default();
+        config.border_style = BorderStyle::Plain; // Start with plain
+        config.parse("set border=rounded");
+        assert_eq!(config.border_style, BorderStyle::Rounded);
+    }
+
+    #[test]
+    fn test_parse_border_plain() {
+        let mut config = RcConfig::default();
+        config.parse("set border=plain");
+        assert_eq!(config.border_style, BorderStyle::Plain);
+    }
+
+    #[test]
+    fn test_border_style_default() {
+        let config = RcConfig::default();
+        assert_eq!(config.border_style, BorderStyle::Rounded);
     }
 }
