@@ -83,9 +83,14 @@ pub fn handle_normal_mode(app: &mut App, key: KeyEvent) -> Result<bool> {
             }
         }
         KeyCode::Char('b') => {
-            // Ctrl+b: page up (vim-like)
+            // Ctrl+b: page up (vim-like) or page scroll in View mode
             if key.modifiers.contains(KeyModifiers::CONTROL) {
-                app.page_up();
+                if !app.showing_help && app.format_mode == FormatMode::View {
+                    // Page scroll up (5 lines at a time, like Ctrl+h)
+                    app.hscroll = app.hscroll.saturating_sub(5);
+                } else {
+                    app.page_up();
+                }
             } else {
                 // Vim-like: move to start of previous word (Edit mode)
                 // Or scroll card content up in View mode (like h)
@@ -100,9 +105,14 @@ pub fn handle_normal_mode(app: &mut App, key: KeyEvent) -> Result<bool> {
             }
         }
         KeyCode::Char('f') => {
-            // Ctrl+f: page down (vim-like)
+            // Ctrl+f: page down (vim-like) or page scroll in View mode
             if key.modifiers.contains(KeyModifiers::CONTROL) {
-                app.page_down();
+                if !app.showing_help && app.format_mode == FormatMode::View {
+                    // Page scroll down (5 lines at a time, like Ctrl+l)
+                    app.hscroll += 5;
+                } else {
+                    app.page_down();
+                }
             } else {
                 // Scroll card content down in View mode (like l key)
                 if !app.showing_help && app.format_mode == FormatMode::View {
