@@ -18,18 +18,14 @@ impl App {
             }
         } else {
             // Open outline - works in View or Edit mode with entries (even when explorer is open)
-            if (self.format_mode == FormatMode::View && !self.relf_entries.is_empty())
-                || self.format_mode == FormatMode::Edit {
-                self.outline_open = true;
-                // Sync outline selection with current entry
-                self.outline_selected_index = self.selected_entry_index;
-                self.outline_scroll = 0;
-                self.outline_has_focus = true; // Focus outline (like :lx)
-                // Remember where outline was opened from
-                self.outline_opened_from_explorer = self.explorer_open && self.explorer_has_focus;
-            } else {
-                self.set_status("No cards to show in outline");
-            }
+            // Always open outline (even if empty)
+            self.outline_open = true;
+            // Sync outline selection with current entry
+            self.outline_selected_index = self.selected_entry_index;
+            self.outline_scroll = 0;
+            self.outline_has_focus = false; // Don't grab focus, user can Ctrl+w l
+            // Remember where outline was opened from
+            self.outline_opened_from_explorer = self.explorer_open && self.explorer_has_focus;
         }
     }
 

@@ -75,13 +75,12 @@ pub fn render_outline(f: &mut Frame, app: &App, area: Rect) {
 
         let style = if is_selected {
             Style::default()
-                .fg(Color::Black)
-                .bg(app.colorscheme.selected)
+                .fg(app.colorscheme.explorer_file_selected)
+                .bg(Color::Rgb(60, 60, 60))
                 .add_modifier(Modifier::BOLD)
         } else {
             Style::default()
                 .fg(app.colorscheme.text)
-                .bg(app.colorscheme.background)
         };
 
         lines.push(Line::styled(display_text, style));
