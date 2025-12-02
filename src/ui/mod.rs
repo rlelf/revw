@@ -27,20 +27,47 @@ pub fn ui(f: &mut Frame, app: &mut App) {
         .constraints([Constraint::Min(0), Constraint::Length(1)])
         .split(f.area());
 
-    // Split horizontally if explorer is open
-    let content_area = if app.explorer_open {
-        let horizontal_chunks = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([Constraint::Percentage(25), Constraint::Percentage(75)])
-            .split(chunks[0]);
+    // Split horizontally based on explorer (left) and outline (right) panels
+    let content_area = match (app.explorer_open, app.outline_open) {
+        (true, true) => {
+            // Both explorer and outline open: [explorer 20%] [content 55%] [outline 25%]
+            let horizontal_chunks = Layout::default()
+                .direction(Direction::Horizontal)
+                .constraints([
+                    Constraint::Percentage(20),
+                    Constraint::Percentage(55),
+                    Constraint::Percentage(25),
+                ])
+                .split(chunks[0]);
 
-        // Render explorer in left panel
-        render_explorer(f, app, horizontal_chunks[0]);
+            render_explorer(f, app, horizontal_chunks[0]);
+            render_outline(f, app, horizontal_chunks[2]);
+            horizontal_chunks[1]
+        }
+        (true, false) => {
+            // Only explorer open: [explorer 25%] [content 75%]
+            let horizontal_chunks = Layout::default()
+                .direction(Direction::Horizontal)
+                .constraints([Constraint::Percentage(25), Constraint::Percentage(75)])
+                .split(chunks[0]);
 
-        // Return right panel for main content
-        horizontal_chunks[1]
-    } else {
-        chunks[0]
+            render_explorer(f, app, horizontal_chunks[0]);
+            horizontal_chunks[1]
+        }
+        (false, true) => {
+            // Only outline open: [content 75%] [outline 25%]
+            let horizontal_chunks = Layout::default()
+                .direction(Direction::Horizontal)
+                .constraints([Constraint::Percentage(75), Constraint::Percentage(25)])
+                .split(chunks[0]);
+
+            render_outline(f, app, horizontal_chunks[1]);
+            horizontal_chunks[0]
+        }
+        (false, false) => {
+            // Neither open: full content area
+            chunks[0]
+        }
     };
 
     // Always render content and status bar (even when overlay is active)
@@ -50,10 +77,5 @@ pub fn ui(f: &mut Frame, app: &mut App) {
     // Render editing overlay on top if active
     if app.editing_entry {
         render_edit_overlay(f, app);
-    }
-
-    // Render outline overlay on top if active
-    if app.outline_open {
-        render_outline(f, app);
     }
 }

@@ -31,8 +31,8 @@ pub fn handle_normal_mode(app: &mut App, key: KeyEvent) -> Result<bool> {
         return handle_explorer_navigation(app, key);
     }
 
-    // Handle outline navigation if outline is open
-    if app.outline_open {
+    // Handle outline navigation if outline has focus
+    if app.outline_open && app.outline_has_focus {
         return handle_outline_navigation(app, key);
     }
 
@@ -230,6 +230,8 @@ pub fn handle_normal_mode(app: &mut App, key: KeyEvent) -> Result<bool> {
                     app.selected_entry_index -= 1;
                     // Reset horizontal scroll when changing cards
                     app.hscroll = 0;
+                    // Sync outline with content selection
+                    app.sync_outline_with_content();
                     // In Visual mode, extend selection
                     if app.visual_mode {
                         app.visual_end_index = app.selected_entry_index;
@@ -251,6 +253,8 @@ pub fn handle_normal_mode(app: &mut App, key: KeyEvent) -> Result<bool> {
                     app.selected_entry_index += 1;
                     // Reset horizontal scroll when changing cards
                     app.hscroll = 0;
+                    // Sync outline with content selection
+                    app.sync_outline_with_content();
                     // In Visual mode, extend selection
                     if app.visual_mode {
                         app.visual_end_index = app.selected_entry_index;
@@ -584,12 +588,33 @@ fn handle_explorer_navigation(app: &mut App, key: KeyEvent) -> Result<bool> {
 
 fn handle_outline_navigation(app: &mut App, key: KeyEvent) -> Result<bool> {
     match key.code {
+        KeyCode::Char(':') => {
+            // Allow command mode from outline
+            app.input_mode = crate::app::InputMode::Command;
+            app.command_buffer = String::new();
+            app.command_history_index = None;
+            app.set_status(":");
+            return Ok(false);
+        }
+        KeyCode::Char('w') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            // Ctrl+w: window switching - handled by common handler
+            return Ok(false);
+        }
         KeyCode::Char('j') | KeyCode::Down => {
             app.outline_move_down();
             return Ok(false);
         }
         KeyCode::Char('k') | KeyCode::Up => {
             app.outline_move_up();
+            return Ok(false);
+        }
+        KeyCode::Char('o') => {
+            // Check if this might be part of 'go'
+            if app.vim_buffer == "g" {
+                // 'go' - preview entry without closing outline
+                app.outline_preview_entry();
+                app.vim_buffer.clear();
+            }
             return Ok(false);
         }
         KeyCode::Char('f') => {
@@ -645,13 +670,19 @@ fn handle_outline_navigation(app: &mut App, key: KeyEvent) -> Result<bool> {
             return Ok(false);
         }
         KeyCode::Enter => {
-            // Jump to selected entry
+            // Jump to selected entry and move focus to content
             app.outline_jump_to_selected();
+            app.outline_has_focus = false;
             return Ok(false);
         }
-        KeyCode::Char('q') | KeyCode::Esc => {
-            // Close outline (use toggle_outline to properly restore focus)
+        KeyCode::Char('q') => {
+            // Close outline
             app.toggle_outline();
+            return Ok(false);
+        }
+        KeyCode::Esc => {
+            // Esc: release focus to content (don't close)
+            app.outline_has_focus = false;
             return Ok(false);
         }
         _ => {}

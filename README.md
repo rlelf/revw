@@ -247,13 +247,17 @@ revw --input data.md --append --outside file.md
 
 **Other:**
 - `r` toggle View/Edit mode
-- `:Lexplore` or `:Lex` or `:lx` toggle file explorer
-- `:outline` or `:ol` toggle card outline view
+- `:Lexplore` or `:Lex` or `:lx` toggle file explorer (left)
+- `:outline` or `:ol` toggle card outline panel (right)
+- `Ctrl+w w` cycle between windows (explorer → content → outline)
+- `Ctrl+w h` move to explorer (left)
+- `Ctrl+w l` move to outline (right)
+- `Ctrl+w j/k` move to file (center)
 - `:x` clear content
 - `:h` or `?` toggle help mode
 - `q` or `Esc` quit
 
-**File Explorer:**
+**File Explorer (left):**
 - `j/k` or `↑/↓` navigate files/directories
 - `h/l` or `←/→` scroll left/right (for long filenames)
 - `gg` jump to first entry
@@ -261,10 +265,17 @@ revw --input data.md --append --outside file.md
 - `/` search files by name
 - `n/N` next/prev search match
 - `Enter` open file (JSON only) or expand/collapse directory
-- `:Lexplore` or `:Lex` or `:lx` close explorer
-- `Ctrl+w w` cycle between explorer and file window
-- `Ctrl+w h` move to explorer window (left)
-- `Ctrl+w l` move to file window (right)
+- `q` close explorer
+
+**Outline Panel (right):**
+- `j/k` or `↑/↓` navigate entries
+- `go` preview entry (jump without closing outline)
+- `Enter` jump to entry and release focus
+- `/` search entries
+- `n/N` next/prev search match
+- `gg/G` jump to first/last entry
+- `q` close outline
+- `Esc` release focus (keep outline open)
 
 **Explorer File Operations (when explorer has focus):**
 - `Enter` or `o` open file or navigate into directory

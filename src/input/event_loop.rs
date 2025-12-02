@@ -125,6 +125,8 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                             app.switch_window_focus();
                                             let focus_msg = if app.explorer_has_focus {
                                                 "Focused explorer"
+                                            } else if app.outline_has_focus {
+                                                "Focused outline"
                                             } else {
                                                 "Focused file window"
                                             };
@@ -138,7 +140,18 @@ pub fn run_app<B: ratatui::backend::Backend>(
                                             break;
                                         }
                                         KeyCode::Char('l') => {
-                                            // Ctrl+w l: move to right window (file)
+                                            // Ctrl+w l: move to right window (outline or file)
+                                            if app.outline_open {
+                                                app.focus_outline();
+                                                app.set_status("Focused outline");
+                                            } else {
+                                                app.focus_file();
+                                                app.set_status("Focused file window");
+                                            }
+                                            break;
+                                        }
+                                        KeyCode::Char('j') | KeyCode::Char('k') => {
+                                            // Ctrl+w j/k: move to center window (file content)
                                             app.focus_file();
                                             app.set_status("Focused file window");
                                             break;

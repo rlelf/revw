@@ -218,20 +218,50 @@ impl App {
         }
     }
 
+    /// Cycle focus between windows: explorer -> content -> outline -> explorer...
     pub fn switch_window_focus(&mut self) {
-        if self.explorer_open {
-            self.explorer_has_focus = !self.explorer_has_focus;
+        // Determine current focus and available windows
+        let has_explorer = self.explorer_open;
+        let has_outline = self.outline_open;
+
+        // Cycle through windows: explorer -> content -> outline -> explorer
+        if self.explorer_has_focus {
+            // Explorer focused -> move to content
+            self.explorer_has_focus = false;
+            self.outline_has_focus = false;
+        } else if self.outline_has_focus {
+            // Outline focused -> move to explorer (or content if no explorer)
+            self.outline_has_focus = false;
+            if has_explorer {
+                self.explorer_has_focus = true;
+            }
+        } else {
+            // Content focused -> move to outline (or explorer if no outline)
+            if has_outline {
+                self.outline_has_focus = true;
+                self.explorer_has_focus = false;
+            } else if has_explorer {
+                self.explorer_has_focus = true;
+            }
         }
     }
 
     pub fn focus_explorer(&mut self) {
         if self.explorer_open {
             self.explorer_has_focus = true;
+            self.outline_has_focus = false;
         }
     }
 
     pub fn focus_file(&mut self) {
-        if self.explorer_open {
+        // Focus content (center panel)
+        self.explorer_has_focus = false;
+        self.outline_has_focus = false;
+    }
+
+    pub fn focus_outline(&mut self) {
+        if self.outline_open {
+            self.outline_has_focus = true;
             self.explorer_has_focus = false;
         }
     }

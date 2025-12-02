@@ -12,28 +12,53 @@ impl App {
             self.outline_search_query.clear();
             self.outline_search_matches.clear();
             self.outline_search_current = 0;
-            // Restore focus based on where outline was opened from
-            // Only restore if explorer is still open
+            // When closing, focus goes to content (not explorer)
             if self.explorer_open {
-                self.explorer_has_focus = self.outline_opened_from_explorer;
+                self.explorer_has_focus = false;
             }
         } else {
             // Open outline - works in View or Edit mode with entries (even when explorer is open)
             if (self.format_mode == FormatMode::View && !self.relf_entries.is_empty())
                 || self.format_mode == FormatMode::Edit {
                 self.outline_open = true;
-                self.outline_selected_index = 0;
+                // Sync outline selection with current entry
+                self.outline_selected_index = self.selected_entry_index;
                 self.outline_scroll = 0;
-                self.outline_has_focus = true; // Set focus to outline
+                self.outline_has_focus = true; // Focus outline (like :lx)
                 // Remember where outline was opened from
                 self.outline_opened_from_explorer = self.explorer_open && self.explorer_has_focus;
-                // When opening outline, take focus away from explorer
-                if self.explorer_open {
-                    self.explorer_has_focus = false;
-                }
             } else {
                 self.set_status("No cards to show in outline");
             }
+        }
+    }
+
+    /// Preview entry from outline without closing (like go in explorer)
+    pub fn outline_preview_entry(&mut self) {
+        if self.format_mode == FormatMode::View && !self.relf_entries.is_empty() {
+            // Jump to selected card in View mode without closing outline
+            if self.outline_selected_index < self.relf_entries.len() {
+                self.selected_entry_index = self.outline_selected_index;
+            }
+        } else if self.format_mode == FormatMode::Edit {
+            // Jump to selected entry in Edit mode without closing outline
+            if let Some(line) = self.get_entry_start_line(self.outline_selected_index) {
+                self.content_cursor_line = line;
+                self.content_cursor_col = 0;
+                self.ensure_cursor_visible();
+            }
+        }
+    }
+
+    /// Sync outline selection with current content selection
+    pub fn sync_outline_with_content(&mut self) {
+        if self.outline_open {
+            if self.format_mode == FormatMode::View {
+                // Sync with selected card
+                self.outline_selected_index = self.selected_entry_index;
+            }
+            // Note: For Edit mode, we could potentially find the entry
+            // containing the cursor, but that's more complex
         }
     }
 
@@ -75,28 +100,18 @@ impl App {
 
     pub fn outline_jump_to_selected(&mut self) {
         if self.format_mode == FormatMode::View && !self.relf_entries.is_empty() {
-            // Jump to selected card in View mode
+            // Jump to selected card in View mode (keep outline open)
             if self.outline_selected_index < self.relf_entries.len() {
                 self.selected_entry_index = self.outline_selected_index;
-                self.outline_open = false;
-                // When jumping to an entry, move focus to file content (not explorer)
-                if self.explorer_open {
-                    self.explorer_has_focus = false;
-                }
-                self.set_status("");
+                // Reset horizontal scroll when jumping to new card
+                self.hscroll = 0;
             }
         } else if self.format_mode == FormatMode::Edit {
-            // Jump to selected entry in Edit mode
+            // Jump to selected entry in Edit mode (keep outline open)
             if let Some(line) = self.get_entry_start_line(self.outline_selected_index) {
                 self.content_cursor_line = line;
                 self.content_cursor_col = 0;
                 self.ensure_cursor_visible();
-                self.outline_open = false;
-                // When jumping to an entry, move focus to file content (not explorer)
-                if self.explorer_open {
-                    self.explorer_has_focus = false;
-                }
-                self.set_status("");
             }
         }
     }
