@@ -896,7 +896,7 @@ fn handle_field_selection_mode(app: &mut App, key: KeyEvent) {
                 app.edit_vscroll = 0;
             }
         }
-        KeyCode::Left | KeyCode::Char('h') => {
+        KeyCode::Left | KeyCode::Char('h') | KeyCode::Char('b') => {
             // Check if this is context field (index 1)
             let is_context_field = (app.edit_buffer.len() == 2 && app.edit_field_index == 1) ||
                                    (app.edit_buffer.len() == 4 && app.edit_field_index == 1);
@@ -909,7 +909,7 @@ fn handle_field_selection_mode(app: &mut App, key: KeyEvent) {
                 app.edit_hscroll = app.edit_hscroll.saturating_sub(4);
             }
         }
-        KeyCode::Right | KeyCode::Char('l') => {
+        KeyCode::Right | KeyCode::Char('l') | KeyCode::Char('f') => {
             // Check if this is context field (index 1)
             let is_context_field = (app.edit_buffer.len() == 2 && app.edit_field_index == 1) ||
                                    (app.edit_buffer.len() == 4 && app.edit_field_index == 1);

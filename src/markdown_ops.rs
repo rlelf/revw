@@ -402,6 +402,32 @@ impl MarkdownOperations {
         Ok((Self::reconstruct_markdown(&outside_entries, &inside_entries), "Ordered by name".to_string()))
     }
 
+    /// Order entries randomly (outside only)
+    pub fn order_random(markdown_input: &str) -> Result<(String, String), String> {
+        use rand::seq::SliceRandom;
+        let mut rng = rand::thread_rng();
+
+        let entries = Self::parse_entries(markdown_input);
+
+        let mut outside_entries: Vec<_> = entries.iter()
+            .filter(|e| matches!(e.section, Section::Outside))
+            .cloned()
+            .collect();
+
+        let mut inside_entries: Vec<_> = entries.iter()
+            .filter(|e| matches!(e.section, Section::Inside))
+            .cloned()
+            .collect();
+
+        // Shuffle outside entries randomly
+        outside_entries.shuffle(&mut rng);
+
+        // Sort inside by date desc
+        inside_entries.sort_by(|a, b| b.title.cmp(&a.title));
+
+        Ok((Self::reconstruct_markdown(&outside_entries, &inside_entries), "Randomized outside entries".to_string()))
+    }
+
     /// Reconstruct markdown from sorted entries
     fn reconstruct_markdown(outside_entries: &[Entry], inside_entries: &[Entry]) -> String {
         let mut lines = Vec::new();
@@ -503,5 +529,9 @@ impl ContentOperations for MarkdownOperations {
 
     fn order_by_name(&self, content: &str) -> Result<(String, String), String> {
         MarkdownOperations::order_by_name(content)
+    }
+
+    fn order_random(&self, content: &str) -> Result<(String, String), String> {
+        MarkdownOperations::order_random(content)
     }
 }

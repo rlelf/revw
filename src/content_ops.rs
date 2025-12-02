@@ -30,4 +30,7 @@ pub trait ContentOperations {
 
     /// Order entries by name only (outside) and date (inside)
     fn order_by_name(&self, content: &str) -> Result<(String, String), String>;
+
+    /// Order entries randomly (outside only, inside by date)
+    fn order_random(&self, content: &str) -> Result<(String, String), String>;
 }

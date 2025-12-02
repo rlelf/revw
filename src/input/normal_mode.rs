@@ -88,8 +88,14 @@ pub fn handle_normal_mode(app: &mut App, key: KeyEvent) -> Result<bool> {
                 app.page_up();
             } else {
                 // Vim-like: move to start of previous word (Edit mode)
-                if !app.showing_help && app.format_mode == FormatMode::Edit {
-                    app.move_to_previous_word_start();
+                // Or scroll card content up in View mode (like h)
+                if !app.showing_help {
+                    if app.format_mode == FormatMode::Edit {
+                        app.move_to_previous_word_start();
+                    } else {
+                        // Scroll card content up (like h key)
+                        app.hscroll = app.hscroll.saturating_sub(1);
+                    }
                 }
             }
         }
@@ -97,6 +103,11 @@ pub fn handle_normal_mode(app: &mut App, key: KeyEvent) -> Result<bool> {
             // Ctrl+f: page down (vim-like)
             if key.modifiers.contains(KeyModifiers::CONTROL) {
                 app.page_down();
+            } else {
+                // Scroll card content down in View mode (like l key)
+                if !app.showing_help && app.format_mode == FormatMode::View {
+                    app.hscroll += 1;
+                }
             }
         }
         KeyCode::Char('r') => {

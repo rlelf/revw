@@ -472,6 +472,53 @@ impl JsonOperations {
 
         Ok((formatted, message.to_string()))
     }
+
+    pub fn order_random(json_input: &str) -> Result<(String, String), String> {
+        use rand::seq::SliceRandom;
+        let mut rng = rand::thread_rng();
+
+        let mut json_value: Value =
+            serde_json::from_str(json_input).map_err(|e| format!("Invalid JSON: {}", e))?;
+
+        let mut messages = Vec::new();
+
+        if let Some(obj) = json_value.as_object_mut() {
+            // Shuffle outside entries randomly
+            if let Some(outside_array) = obj.get_mut("outside").and_then(|v| v.as_array_mut()) {
+                outside_array.shuffle(&mut rng);
+                messages.push("Shuffled outside entries");
+            }
+
+            // Order inside entries by date (newest first) - same as other order commands
+            if let Some(inside_array) = obj.get_mut("inside").and_then(|v| v.as_array_mut()) {
+                inside_array.sort_by(|a, b| {
+                    let a_date = a
+                        .as_object()
+                        .and_then(|o| o.get("date"))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("");
+                    let b_date = b
+                        .as_object()
+                        .and_then(|o| o.get("date"))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("");
+                    b_date.cmp(&a_date) // Descending order (newest first)
+                });
+                messages.push("Ordered inside entries by date");
+            }
+        }
+
+        let formatted = serde_json::to_string_pretty(&json_value)
+            .map_err(|e| format!("Failed to format JSON: {}", e))?;
+
+        let message = if messages.is_empty() {
+            "No entries"
+        } else {
+            "Randomized outside entries"
+        };
+
+        Ok((formatted, message.to_string()))
+    }
 }
 
 // Implement ContentOperations trait for JsonOperations
@@ -512,5 +559,9 @@ impl ContentOperations for JsonOperations {
 
     fn order_by_name(&self, content: &str) -> Result<(String, String), String> {
         JsonOperations::order_by_name(content)
+    }
+
+    fn order_random(&self, content: &str) -> Result<(String, String), String> {
+        JsonOperations::order_random(content)
     }
 }

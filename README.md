@@ -181,6 +181,7 @@ revw --input data.md --append --outside file.md
 ### View Mode
 **Navigation:**
 - `j/k` or `↑/↓` select card (or mouse wheel)
+- `h/l` or `f/b` scroll card content
 - `gg` select first card
 - `G` select last card
 - `:gi` jump to first INSIDE entry
@@ -198,6 +199,7 @@ revw --input data.md --append --outside file.md
 - `:o` order entries (by percentage then name) and auto-save
 - `:op` order by percentage only and auto-save
 - `:on` order by name only and auto-save
+- `:or` order randomly and auto-save
 - `:f pattern` filter entries by pattern
 
 **Visual Mode (multi-card selection):**
@@ -338,6 +340,7 @@ revw --input data.md --append --outside file.md
 - `:o` order entries (by percentage then name)
 - `:op` order by percentage only
 - `:on` order by name only
+- `:or` order randomly
 - `:dd` delete current entry (entire object)
 - `:yy` duplicate current entry (entire object)
 - `:c` copy all content

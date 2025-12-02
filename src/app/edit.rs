@@ -824,6 +824,42 @@ impl App {
         }
     }
 
+    pub fn order_random(&mut self) {
+        let ops = self.get_operations();
+        let content = if self.is_markdown_file() && !self.markdown_input.is_empty() {
+            &self.markdown_input
+        } else {
+            &self.json_input
+        };
+
+        match ops.order_random(content) {
+            Ok((formatted, message)) => {
+                if self.is_markdown_file() {
+                    self.markdown_input = formatted;
+                    match self.parse_markdown(&self.markdown_input) {
+                        Ok(json_content) => {
+                            self.json_input = json_content;
+                        }
+                        Err(_) => {}
+                    }
+                } else {
+                    self.json_input = formatted;
+                }
+
+                self.is_modified = true;
+                self.convert_json();
+
+                // Auto-save in view mode
+                if self.format_mode == FormatMode::View {
+                    self.save_file();
+                }
+
+                self.set_status(&message);
+            }
+            Err(e) => self.set_status(&format!("Error: {}", e)),
+        }
+    }
+
     pub fn ensure_overlay_cursor_visible(&mut self) {
         // Ensure horizontal and vertical scroll follows cursor in overlay field editing
         if !self.edit_field_editing_mode {

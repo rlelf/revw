@@ -156,6 +156,9 @@ impl App {
         } else if cmd == "on" {
             // Order by name only
             self.order_by_name();
+        } else if cmd == "or" {
+            // Order randomly
+            self.order_random();
         } else if cmd == "gi" {
             // Jump to first INSIDE entry
             self.jump_to_first_inside();
