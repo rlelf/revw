@@ -13,10 +13,6 @@ impl App {
             self.outline_search_query.clear();
             self.outline_search_matches.clear();
             self.outline_search_current = 0;
-            // When closing, focus goes to content (not explorer)
-            if self.explorer_open {
-                self.explorer_has_focus = false;
-            }
         } else {
             // Open outline (reset cursor to top)
             self.outline_open = true;
