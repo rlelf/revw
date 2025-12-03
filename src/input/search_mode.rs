@@ -13,7 +13,15 @@ pub fn handle_search_mode(app: &mut App, key: KeyEvent) {
         KeyCode::Enter => {
             // Add to history before executing
             app.add_to_search_history(app.search_buffer.clone());
-            app.execute_search();
+
+            if app.editing_entry {
+                // In overlay: just save to history and jump to first match
+                app.input_mode = crate::app::InputMode::Normal;
+                app.overlay_next_match();
+                app.set_status("");
+            } else {
+                app.execute_search();
+            }
         }
         KeyCode::Up => {
             if let Some(search) = app.get_previous_search() {

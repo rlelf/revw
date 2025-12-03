@@ -170,14 +170,21 @@ pub fn run_app<B: ratatui::backend::Backend>(
                         continue;
                     }
 
+                    // Delegate to mode-specific handlers
+                    use crate::app::InputMode;
+
+                    // Handle Search mode globally (including in overlay)
+                    if app.input_mode == InputMode::Search {
+                        super::search_mode::handle_search_mode(&mut app, key);
+                        continue;
+                    }
+
                     // Handle editing overlay input separately
                     if app.editing_entry {
                         super::overlay_mode::handle_overlay_keyboard(&mut app, key);
                         continue;
                     }
 
-                    // Delegate to mode-specific handlers
-                    use crate::app::InputMode;
                     match app.input_mode {
                         InputMode::Normal => {
                             if super::normal_mode::handle_normal_mode(&mut app, key)? {
