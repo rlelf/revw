@@ -222,4 +222,72 @@ impl App {
         }
     }
 
+    /// Search forward in overlay field using last search query
+    pub fn overlay_next_match(&mut self) {
+        let query = if let Some(last) = self.search_history.last() {
+            last.to_lowercase()
+        } else {
+            return;
+        };
+
+        if query.is_empty() || self.edit_field_index >= self.edit_buffer.len() {
+            return;
+        }
+
+        let field = &self.edit_buffer[self.edit_field_index];
+        let field_lower = field.to_lowercase();
+
+        // Find next match after current cursor position
+        let start_pos = self.edit_cursor_pos + 1;
+        if let Some(rel_pos) = field_lower[field.char_indices().nth(start_pos).map(|(i, _)| i).unwrap_or(field.len())..].find(&query) {
+            // Convert byte position to char position
+            let byte_start = field.char_indices().nth(start_pos).map(|(i, _)| i).unwrap_or(field.len());
+            let match_byte_pos = byte_start + rel_pos;
+            let char_pos = field[..match_byte_pos].chars().count();
+            self.edit_cursor_pos = char_pos;
+            self.ensure_overlay_cursor_visible();
+            return;
+        }
+
+        // Wrap around to beginning
+        if let Some(rel_pos) = field_lower.find(&query) {
+            let char_pos = field[..rel_pos].chars().count();
+            self.edit_cursor_pos = char_pos;
+            self.ensure_overlay_cursor_visible();
+        }
+    }
+
+    /// Search backward in overlay field using last search query
+    pub fn overlay_prev_match(&mut self) {
+        let query = if let Some(last) = self.search_history.last() {
+            last.to_lowercase()
+        } else {
+            return;
+        };
+
+        if query.is_empty() || self.edit_field_index >= self.edit_buffer.len() {
+            return;
+        }
+
+        let field = &self.edit_buffer[self.edit_field_index];
+        let field_lower = field.to_lowercase();
+
+        // Find previous match before current cursor position
+        let search_end = self.edit_cursor_pos;
+        let search_str = &field_lower[..field.char_indices().nth(search_end).map(|(i, _)| i).unwrap_or(0)];
+
+        if let Some(rel_pos) = search_str.rfind(&query) {
+            let char_pos = field[..rel_pos].chars().count();
+            self.edit_cursor_pos = char_pos;
+            self.ensure_overlay_cursor_visible();
+            return;
+        }
+
+        // Wrap around to end
+        if let Some(rel_pos) = field_lower.rfind(&query) {
+            let char_pos = field[..rel_pos].chars().count();
+            self.edit_cursor_pos = char_pos;
+            self.ensure_overlay_cursor_visible();
+        }
+    }
 }

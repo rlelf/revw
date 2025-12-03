@@ -60,19 +60,6 @@ pub fn render_outline(f: &mut Frame, app: &App, area: Rect) {
         let abs_index = start + i;
         let is_selected = abs_index == app.outline_selected_index;
 
-        // Truncate entry if too long for panel width
-        let max_width = inner_area.width.saturating_sub(2) as usize;
-        let display_text = if entry.chars().count() > max_width {
-            let truncate_at = entry.char_indices()
-                .take(max_width.saturating_sub(3))
-                .last()
-                .map(|(i, _)| i)
-                .unwrap_or(0);
-            format!("{}...", &entry[..truncate_at])
-        } else {
-            entry.clone()
-        };
-
         let style = if is_selected {
             Style::default()
                 .fg(app.colorscheme.explorer_file_selected)
@@ -83,9 +70,10 @@ pub fn render_outline(f: &mut Frame, app: &App, area: Rect) {
                 .fg(app.colorscheme.text)
         };
 
-        lines.push(Line::styled(display_text, style));
+        lines.push(Line::styled(entry.clone(), style));
     }
 
-    let content = Paragraph::new(lines);
+    let content = Paragraph::new(lines)
+        .scroll((0, app.outline_horizontal_scroll));
     f.render_widget(content, inner_area);
 }

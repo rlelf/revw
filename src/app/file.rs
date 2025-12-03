@@ -62,6 +62,10 @@ impl App {
                     // Clear undo/redo history when switching files
                     self.undo_stack.clear();
                     self.redo_stack.clear();
+                    // Reset outline cursor
+                    self.outline_selected_index = 0;
+                    self.outline_scroll = 0;
+                    self.outline_horizontal_scroll = 0;
                 }
             }
             Err(e) => {

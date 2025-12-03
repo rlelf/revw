@@ -230,8 +230,6 @@ pub fn handle_normal_mode(app: &mut App, key: KeyEvent) -> Result<bool> {
                     app.selected_entry_index -= 1;
                     // Reset horizontal scroll when changing cards
                     app.hscroll = 0;
-                    // Sync outline with content selection
-                    app.sync_outline_with_content();
                     // In Visual mode, extend selection
                     if app.visual_mode {
                         app.visual_end_index = app.selected_entry_index;
@@ -253,8 +251,6 @@ pub fn handle_normal_mode(app: &mut App, key: KeyEvent) -> Result<bool> {
                     app.selected_entry_index += 1;
                     // Reset horizontal scroll when changing cards
                     app.hscroll = 0;
-                    // Sync outline with content selection
-                    app.sync_outline_with_content();
                     // In Visual mode, extend selection
                     if app.visual_mode {
                         app.visual_end_index = app.selected_entry_index;
@@ -606,6 +602,20 @@ fn handle_outline_navigation(app: &mut App, key: KeyEvent) -> Result<bool> {
         }
         KeyCode::Char('k') | KeyCode::Up => {
             app.outline_move_up();
+            return Ok(false);
+        }
+        KeyCode::Char('h') | KeyCode::Left => {
+            // Scroll left
+            if app.outline_horizontal_scroll > 0 {
+                app.outline_horizontal_scroll -= 1;
+            }
+            return Ok(false);
+        }
+        KeyCode::Char('l') | KeyCode::Right => {
+            // Scroll right
+            if app.outline_horizontal_scroll < 100 {
+                app.outline_horizontal_scroll += 1;
+            }
             return Ok(false);
         }
         KeyCode::Char('o') => {

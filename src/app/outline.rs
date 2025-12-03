@@ -7,6 +7,7 @@ impl App {
             self.outline_open = false;
             self.outline_selected_index = 0;
             self.outline_scroll = 0;
+            self.outline_horizontal_scroll = 0;
             self.outline_has_focus = false;
             // Clear search state
             self.outline_search_query.clear();
@@ -17,14 +18,12 @@ impl App {
                 self.explorer_has_focus = false;
             }
         } else {
-            // Open outline - works in View or Edit mode with entries (even when explorer is open)
-            // Always open outline (even if empty)
+            // Open outline (reset cursor to top)
             self.outline_open = true;
-            // Sync outline selection with current entry
-            self.outline_selected_index = self.selected_entry_index;
+            self.outline_selected_index = 0;
             self.outline_scroll = 0;
-            self.outline_has_focus = false; // Don't grab focus, user can Ctrl+w l
-            // Remember where outline was opened from
+            self.outline_horizontal_scroll = 0;
+            self.outline_has_focus = false;
             self.outline_opened_from_explorer = self.explorer_open && self.explorer_has_focus;
         }
     }
@@ -43,18 +42,6 @@ impl App {
                 self.content_cursor_col = 0;
                 self.ensure_cursor_visible();
             }
-        }
-    }
-
-    /// Sync outline selection with current content selection
-    pub fn sync_outline_with_content(&mut self) {
-        if self.outline_open {
-            if self.format_mode == FormatMode::View {
-                // Sync with selected card
-                self.outline_selected_index = self.selected_entry_index;
-            }
-            // Note: For Edit mode, we could potentially find the entry
-            // containing the cursor, but that's more complex
         }
     }
 

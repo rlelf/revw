@@ -28,15 +28,16 @@ pub fn ui(f: &mut Frame, app: &mut App) {
         .split(f.area());
 
     // Split horizontally based on explorer (left) and outline (right) panels
+    // Side panels are 20% each
     let content_area = match (app.explorer_open, app.outline_open) {
         (true, true) => {
-            // Both explorer and outline open: [explorer 20%] [content 55%] [outline 25%]
+            // Both explorer and outline open: [explorer 20%] [content 60%] [outline 20%]
             let horizontal_chunks = Layout::default()
                 .direction(Direction::Horizontal)
                 .constraints([
                     Constraint::Percentage(20),
-                    Constraint::Percentage(55),
-                    Constraint::Percentage(25),
+                    Constraint::Percentage(60),
+                    Constraint::Percentage(20),
                 ])
                 .split(chunks[0]);
 
@@ -45,20 +46,20 @@ pub fn ui(f: &mut Frame, app: &mut App) {
             horizontal_chunks[1]
         }
         (true, false) => {
-            // Only explorer open: [explorer 25%] [content 75%]
+            // Only explorer open: [explorer 20%] [content 80%]
             let horizontal_chunks = Layout::default()
                 .direction(Direction::Horizontal)
-                .constraints([Constraint::Percentage(25), Constraint::Percentage(75)])
+                .constraints([Constraint::Percentage(20), Constraint::Percentage(80)])
                 .split(chunks[0]);
 
             render_explorer(f, app, horizontal_chunks[0]);
             horizontal_chunks[1]
         }
         (false, true) => {
-            // Only outline open: [content 75%] [outline 25%]
+            // Only outline open: [content 80%] [outline 20%]
             let horizontal_chunks = Layout::default()
                 .direction(Direction::Horizontal)
-                .constraints([Constraint::Percentage(75), Constraint::Percentage(25)])
+                .constraints([Constraint::Percentage(80), Constraint::Percentage(20)])
                 .split(chunks[0]);
 
             render_outline(f, app, horizontal_chunks[1]);

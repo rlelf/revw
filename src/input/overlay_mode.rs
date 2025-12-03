@@ -868,6 +868,14 @@ fn handle_field_editing_mode(app: &mut App, key: KeyEvent) {
             }
             app.ensure_overlay_cursor_visible();
         }
+        KeyCode::Char('n') => {
+            // Next search match in overlay field
+            app.overlay_next_match();
+        }
+        KeyCode::Char('N') => {
+            // Previous search match in overlay field
+            app.overlay_prev_match();
+        }
         _ => {}
     }
 }
