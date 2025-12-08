@@ -29,6 +29,22 @@ Internal notes or thoughts with timestamps:
 - **Date**: Timestamp of the entry, sortable for ordering
 - **Context**: notes or thoughts
 
+### Markdown Format
+
+```markdown
+## OUTSIDE
+### Rust Programming Language
+A systems programming language focused on safety, speed, and concurrency.
+
+**URL:** https://www.rust-lang.org/
+
+**Percentage:** 100%
+
+## INSIDE
+### 2025-01-01 00:00:00
+Finally learned how to use cargo! Running 'cargo new my_project' creates such a clean project structure.
+```
+
 ### JSON Format
 
 ```json
@@ -48,26 +64,6 @@ Internal notes or thoughts with timestamps:
     }
   ]
 }
-```
-
-JSON format is also available in [relf](https://github.com/rlelf/relf)
-
-### Markdown Format
-
-The same data can be represented in Markdown:
-
-```markdown
-## OUTSIDE
-### Rust Programming Language
-A systems programming language focused on safety, speed, and concurrency.
-
-**URL:** https://www.rust-lang.org/
-
-**Percentage:** 100%
-
-## INSIDE
-### 2025-01-01 00:00:00
-Finally learned how to use cargo! Running 'cargo new my_project' creates such a clean project structure.
 ```
 
 ## Install

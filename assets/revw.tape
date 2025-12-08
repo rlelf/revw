@@ -7,7 +7,7 @@ Set FontSize 16
 Set Padding 0
 
 Hide
-Type "revw revw.json" Sleep 500ms Enter
+Type "revw revw.md" Sleep 500ms Enter
 Sleep 1s
 Show
 
@@ -23,6 +23,7 @@ Type "k" Sleep 500ms
 
 # Explorer commands
 Type ":lx" Enter Sleep 500ms
+Type ":ol" Enter Sleep 500ms
 Type "j" Sleep 500ms
 Type "j" Sleep 500ms
 Type "k" Sleep 500ms
@@ -55,5 +56,6 @@ Type "r"
 Sleep 500ms
 
 Type ":lx" Enter Sleep 500ms
+Type ":ol" Enter Sleep 500ms
 
 Hide
