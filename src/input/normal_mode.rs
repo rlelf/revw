@@ -690,11 +690,6 @@ fn handle_outline_navigation(app: &mut App, key: KeyEvent) -> Result<bool> {
             app.toggle_outline();
             return Ok(false);
         }
-        KeyCode::Esc => {
-            // Esc: release focus to content (don't close)
-            app.outline_has_focus = false;
-            return Ok(false);
-        }
         _ => {}
     }
     Ok(false)

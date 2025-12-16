@@ -194,7 +194,6 @@ pub fn get_help_content() -> Vec<String> {
         "  n/N          - next/prev search match".to_string(),
         "  gg/G         - jump to first/last entry".to_string(),
         "  q            - close outline".to_string(),
-        "  Esc          - release focus (keep outline open)".to_string(),
         "".to_string(),
         "Settings:".to_string(),
         "  :set number / :set nu       - enable line numbers".to_string(),

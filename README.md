@@ -15,7 +15,7 @@ A vim-like TUI for managing notes and resources.
 - Clean card-based interface
 - Toggle between View mode and raw Edit mode
 
-## Relf Format
+## Format
 
 ### Outside
 External resources and references:
@@ -271,7 +271,6 @@ revw --input data.md --append --outside file.md
 - `n/N` next/prev search match
 - `gg/G` jump to first/last entry
 - `q` close outline
-- `Esc` release focus (keep outline open)
 
 **Explorer File Operations (when explorer has focus):**
 - `Enter` or `o` open file or navigate into directory
