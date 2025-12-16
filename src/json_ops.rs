@@ -475,7 +475,7 @@ impl JsonOperations {
 
     pub fn order_random(json_input: &str) -> Result<(String, String), String> {
         use rand::seq::SliceRandom;
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         let mut json_value: Value =
             serde_json::from_str(json_input).map_err(|e| format!("Invalid JSON: {}", e))?;

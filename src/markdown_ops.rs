@@ -405,7 +405,7 @@ impl MarkdownOperations {
     /// Order entries randomly (outside only)
     pub fn order_random(markdown_input: &str) -> Result<(String, String), String> {
         use rand::seq::SliceRandom;
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         let entries = Self::parse_entries(markdown_input);
 
