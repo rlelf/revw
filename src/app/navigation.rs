@@ -237,6 +237,10 @@ impl App {
                                         self.markdown_input = Self::json_to_markdown_string(&json_value).unwrap_or_default();
                                     }
                                 }
+                                // If working with a toon file, sync toon_input
+                                else if self.is_toon_file() {
+                                    self.toon_input = self.convert_to_toon().unwrap_or_default();
+                                }
 
                                 self.convert_json();
 

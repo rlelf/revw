@@ -2116,6 +2116,12 @@ impl App {
                                                 self.markdown_input = md;
                                             }
                                         }
+                                        // Update toon_input if this is a toon file
+                                        else if self.is_toon_file() {
+                                            if let Ok(toon) = self.convert_to_toon() {
+                                                self.toon_input = toon;
+                                            }
+                                        }
                                         self.is_modified = true;
                                         self.convert_json();
                                         self.selected_entry_index += 1; // Move to duplicated entry
@@ -2143,6 +2149,12 @@ impl App {
                                         if self.is_markdown_file() {
                                             if let Ok(md) = self.convert_to_markdown() {
                                                 self.markdown_input = md;
+                                            }
+                                        }
+                                        // Update toon_input if this is a toon file
+                                        else if self.is_toon_file() {
+                                            if let Ok(toon) = self.convert_to_toon() {
+                                                self.toon_input = toon;
                                             }
                                         }
                                         self.is_modified = true;

@@ -349,6 +349,15 @@ impl App {
             } else {
                 self.set_status("Format set to Markdown (use :w to save)");
             }
+        } else if cmd == "set toon" {
+            // Set format to Toon (useful for unnamed files)
+            use crate::app::FileMode;
+            self.file_mode = FileMode::Toon;
+            if self.file_path.is_none() {
+                self.set_status("Format set to Toon");
+            } else {
+                self.set_status("Format set to Toon (use :w to save)");
+            }
         } else if cmd == "markdown" {
             // Export current file to Markdown format
             self.export_to_markdown();
