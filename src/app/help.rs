@@ -162,6 +162,7 @@ pub fn get_help_content() -> Vec<String> {
         "  :co          - copy OUTSIDE section (JSON format)".to_string(),
         "  :cj          - copy all content (JSON format)".to_string(),
         "  :cm          - copy all content (Markdown format)".to_string(),
+        "  :ct          - copy all content (Toon format)".to_string(),
         "  :vi          - paste INSIDE from clipboard (overwrite)".to_string(),
         "  :vo          - paste OUTSIDE from clipboard (overwrite)".to_string(),
         "  :va          - paste both INSIDE and OUTSIDE from clipboard (append)".to_string(),

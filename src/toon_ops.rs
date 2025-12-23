@@ -251,7 +251,7 @@ impl ContentOperations for ToonOperations {
         })?;
 
         // For Toon format, cursor position is always at the top of the file
-        Ok((result.0, 0, 0, result.1))
+        Ok((result.0, 0, 0, "Added inside".to_string()))
     }
 
     fn add_outside_entry(&self, content: &str) -> Result<(String, usize, usize, String), String> {
@@ -270,7 +270,7 @@ impl ContentOperations for ToonOperations {
             Ok(json)
         })?;
 
-        Ok((result.0, 0, 0, result.1))
+        Ok((result.0, 0, 0, "Added outside".to_string()))
     }
 
     fn delete_entry_at_cursor(
@@ -295,7 +295,7 @@ impl ContentOperations for ToonOperations {
     }
 
     fn order_entries(&self, content: &str) -> Result<(String, String), String> {
-        Self::modify_via_json(content, |mut json| {
+        let (toon_content, _) = Self::modify_via_json(content, |mut json| {
             // Order outside by percentage desc, then name asc
             if let Some(outside) = json.get_mut("outside").and_then(|v| v.as_array_mut()) {
                 outside.sort_by(|a, b| {
@@ -318,11 +318,13 @@ impl ContentOperations for ToonOperations {
             }
 
             Ok(json)
-        })
+        })?;
+
+        Ok((toon_content, "Ordered".to_string()))
     }
 
     fn order_by_percentage(&self, content: &str) -> Result<(String, String), String> {
-        Self::modify_via_json(content, |mut json| {
+        let (toon_content, _) = Self::modify_via_json(content, |mut json| {
             if let Some(outside) = json.get_mut("outside").and_then(|v| v.as_array_mut()) {
                 outside.sort_by(|a, b| {
                     let a_pct = a.get("percentage").and_then(|v| v.as_i64()).unwrap_or(0);
@@ -340,11 +342,13 @@ impl ContentOperations for ToonOperations {
             }
 
             Ok(json)
-        })
+        })?;
+
+        Ok((toon_content, "Ordered by percentage".to_string()))
     }
 
     fn order_by_name(&self, content: &str) -> Result<(String, String), String> {
-        Self::modify_via_json(content, |mut json| {
+        let (toon_content, _) = Self::modify_via_json(content, |mut json| {
             if let Some(outside) = json.get_mut("outside").and_then(|v| v.as_array_mut()) {
                 outside.sort_by(|a, b| {
                     let a_name = a.get("name").and_then(|v| v.as_str()).unwrap_or("");
@@ -362,14 +366,16 @@ impl ContentOperations for ToonOperations {
             }
 
             Ok(json)
-        })
+        })?;
+
+        Ok((toon_content, "Ordered by name".to_string()))
     }
 
     fn order_random(&self, content: &str) -> Result<(String, String), String> {
         use rand::seq::SliceRandom;
         use rand::rng;
 
-        Self::modify_via_json(content, |mut json| {
+        let (toon_content, _) = Self::modify_via_json(content, |mut json| {
             if let Some(outside) = json.get_mut("outside").and_then(|v| v.as_array_mut()) {
                 let mut rng = rng();
                 outside.shuffle(&mut rng);
@@ -384,6 +390,8 @@ impl ContentOperations for ToonOperations {
             }
 
             Ok(json)
-        })
+        })?;
+
+        Ok((toon_content, "Randomized outside entries".to_string()))
     }
 }

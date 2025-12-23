@@ -91,7 +91,7 @@ impl App {
 
         self.file_op_pending = Some(FileOperation::Create);
         self.file_op_prompt_buffer = String::new();
-        self.set_status("New file name (must end with .json or .md):");
+        self.set_status("New file name (must end with .json, .md, or .toon):");
     }
 
     // Start create new directory operation

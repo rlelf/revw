@@ -143,6 +143,7 @@ impl App {
                         Ok(()) => {
                             match extension.as_deref() {
                                 Some("md") => {
+                                    self.file_mode = super::FileMode::Markdown;
                                     self.markdown_input = default_content.clone();
                                     self.toon_input = String::new();
                                     // Parse Markdown and convert to JSON
@@ -157,6 +158,7 @@ impl App {
                                     }
                                 }
                                 Some("toon") => {
+                                    self.file_mode = super::FileMode::Toon;
                                     self.toon_input = default_content.clone();
                                     self.markdown_input = String::new();
                                     // Parse Toon and convert to JSON
@@ -171,6 +173,7 @@ impl App {
                                     }
                                 }
                                 _ => {
+                                    self.file_mode = super::FileMode::Json;
                                     self.markdown_input = String::new();
                                     self.toon_input = String::new();
                                     self.json_input = default_content;

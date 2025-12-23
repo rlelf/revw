@@ -1,5 +1,6 @@
 use super::{App, FormatMode};
 use arboard::Clipboard;
+use crate::toon_ops::ToonOperations;
 use serde_json::Value;
 use std::path::PathBuf;
 
@@ -348,6 +349,188 @@ impl App {
                         return;
                     }
 
+                    // For Toon files, parse Toon or JSON format
+                    if self.is_toon_file() {
+                        match self.clipboard_text_to_json_value(&clipboard_text) {
+                            Ok(clipboard_json) => {
+                                let new_inside = if let Some(obj) = clipboard_json.as_object() {
+                                    obj.get("inside").cloned()
+                                } else {
+                                    None
+                                };
+
+                                if let Some(new_inside) = new_inside {
+                                    match serde_json::from_str::<Value>(&self.json_input) {
+                                        Ok(mut current_json) => {
+                                            if let Some(obj) = current_json.as_object_mut() {
+                                                obj.insert("inside".to_string(), new_inside);
+
+                                                match serde_json::to_string_pretty(&current_json) {
+                                                    Ok(formatted) => {
+                                                        if let Err(e) = self.set_json_and_sync_toon(formatted) {
+                                                            self.set_status(&e);
+                                                            return;
+                                                        }
+                                                        self.set_status("INSIDE section overwritten from clipboard");
+                                                    }
+                                                    Err(e) => self.set_status(&format!("Format error: {}", e)),
+                                                }
+                                            } else {
+                                                self.set_status("Current JSON is not an object");
+                                            }
+                                        }
+                                        Err(e) => self.set_status(&format!("Invalid current JSON: {}", e)),
+                                    }
+                                } else {
+                                    self.set_status("No 'inside' field in clipboard JSON");
+                                }
+                            }
+                            Err(e) => self.set_status(&e),
+                        }
+                        return;
+                    }
+
+                    // For Toon files, parse Toon or JSON format
+                    if self.is_toon_file() {
+                        match self.clipboard_text_to_json_value(&clipboard_text) {
+                            Ok(clipboard_json) => {
+                                let new_outside = if let Some(obj) = clipboard_json.as_object() {
+                                    obj.get("outside").cloned()
+                                } else {
+                                    None
+                                };
+
+                                if let Some(new_outside) = new_outside {
+                                    match serde_json::from_str::<Value>(&self.json_input) {
+                                        Ok(mut current_json) => {
+                                            if let Some(obj) = current_json.as_object_mut() {
+                                                obj.insert("outside".to_string(), new_outside);
+
+                                                match serde_json::to_string_pretty(&current_json) {
+                                                    Ok(formatted) => {
+                                                        if let Err(e) = self.set_json_and_sync_toon(formatted) {
+                                                            self.set_status(&e);
+                                                            return;
+                                                        }
+                                                        self.set_status("OUTSIDE section overwritten from clipboard");
+                                                    }
+                                                    Err(e) => self.set_status(&format!("Format error: {}", e)),
+                                                }
+                                            } else {
+                                                self.set_status("Current JSON is not an object");
+                                            }
+                                        }
+                                        Err(e) => self.set_status(&format!("Invalid current JSON: {}", e)),
+                                    }
+                                } else {
+                                    self.set_status("No 'outside' field in clipboard JSON");
+                                }
+                            }
+                            Err(e) => self.set_status(&e),
+                        }
+                        return;
+                    }
+
+                    // For Toon files, parse Toon or JSON format
+                    if self.is_toon_file() {
+                        match self.clipboard_text_to_json_value(&clipboard_text) {
+                            Ok(clipboard_json) => {
+                                let new_inside = if let Some(obj) = clipboard_json.as_object() {
+                                    obj.get("inside").and_then(|v| v.as_array()).cloned()
+                                } else {
+                                    None
+                                };
+
+                                if let Some(new_inside_items) = new_inside {
+                                    match serde_json::from_str::<Value>(&self.json_input) {
+                                        Ok(mut current_json) => {
+                                            if let Some(obj) = current_json.as_object_mut() {
+                                                let inside_array = obj.entry("inside".to_string())
+                                                    .or_insert(Value::Array(vec![]));
+
+                                                if let Some(arr) = inside_array.as_array_mut() {
+                                                    for (idx, item) in new_inside_items.into_iter().enumerate() {
+                                                        arr.insert(idx, item);
+                                                    }
+
+                                                    match serde_json::to_string_pretty(&current_json) {
+                                                        Ok(formatted) => {
+                                                            if let Err(e) = self.set_json_and_sync_toon(formatted) {
+                                                                self.set_status(&e);
+                                                                return;
+                                                            }
+                                                            self.set_status("INSIDE entries inserted at top from clipboard");
+                                                        }
+                                                        Err(e) => self.set_status(&format!("Format error: {}", e)),
+                                                    }
+                                                } else {
+                                                    self.set_status("Current 'inside' is not an array");
+                                                }
+                                            } else {
+                                                self.set_status("Current JSON is not an object");
+                                            }
+                                        }
+                                        Err(e) => self.set_status(&format!("Invalid current JSON: {}", e)),
+                                    }
+                                } else {
+                                    self.set_status("No 'inside' array in clipboard JSON");
+                                }
+                            }
+                            Err(e) => self.set_status(&e),
+                        }
+                        return;
+                    }
+
+                    // For Toon files, parse Toon or JSON format
+                    if self.is_toon_file() {
+                        match self.clipboard_text_to_json_value(&clipboard_text) {
+                            Ok(clipboard_json) => {
+                                let new_outside = if let Some(obj) = clipboard_json.as_object() {
+                                    obj.get("outside").and_then(|v| v.as_array()).cloned()
+                                } else {
+                                    None
+                                };
+
+                                if let Some(new_outside_items) = new_outside {
+                                    match serde_json::from_str::<Value>(&self.json_input) {
+                                        Ok(mut current_json) => {
+                                            if let Some(obj) = current_json.as_object_mut() {
+                                                let outside_array = obj.entry("outside".to_string())
+                                                    .or_insert(Value::Array(vec![]));
+
+                                                if let Some(arr) = outside_array.as_array_mut() {
+                                                    for item in new_outside_items {
+                                                        arr.push(item);
+                                                    }
+
+                                                    match serde_json::to_string_pretty(&current_json) {
+                                                        Ok(formatted) => {
+                                                            if let Err(e) = self.set_json_and_sync_toon(formatted) {
+                                                                self.set_status(&e);
+                                                                return;
+                                                            }
+                                                            self.set_status("OUTSIDE entries appended from clipboard");
+                                                        }
+                                                        Err(e) => self.set_status(&format!("Format error: {}", e)),
+                                                    }
+                                                } else {
+                                                    self.set_status("Current 'outside' is not an array");
+                                                }
+                                            } else {
+                                                self.set_status("Current JSON is not an object");
+                                            }
+                                        }
+                                        Err(e) => self.set_status(&format!("Invalid current JSON: {}", e)),
+                                    }
+                                } else {
+                                    self.set_status("No 'outside' array in clipboard JSON");
+                                }
+                            }
+                            Err(e) => self.set_status(&e),
+                        }
+                        return;
+                    }
+
                     // For JSON files, parse JSON format
                     // Try to parse as JSON
                     match serde_json::from_str::<Value>(&clipboard_text) {
@@ -640,6 +823,68 @@ impl App {
         match Clipboard::new() {
             Ok(mut clipboard) => match clipboard.get_text() {
                 Ok(clipboard_text) => {
+                    if self.is_toon_file() {
+                        match self.clipboard_text_to_json_value(&clipboard_text) {
+                            Ok(clipboard_json) => {
+                                if let Some(clipboard_obj) = clipboard_json.as_object() {
+                                    match serde_json::from_str::<Value>(&self.json_input) {
+                                        Ok(mut current_json) => {
+                                            if let Some(current_obj) = current_json.as_object_mut() {
+                                                let mut appended_sections = Vec::new();
+
+                                                if let Some(clipboard_inside) = clipboard_obj.get("inside").and_then(|v| v.as_array()) {
+                                                    let inside_array = current_obj.entry("inside".to_string())
+                                                        .or_insert(Value::Array(vec![]));
+
+                                                    if let Some(arr) = inside_array.as_array_mut() {
+                                                        for item in clipboard_inside {
+                                                            arr.push(item.clone());
+                                                        }
+                                                        appended_sections.push("INSIDE");
+                                                    }
+                                                }
+
+                                                if let Some(clipboard_outside) = clipboard_obj.get("outside").and_then(|v| v.as_array()) {
+                                                    let outside_array = current_obj.entry("outside".to_string())
+                                                        .or_insert(Value::Array(vec![]));
+
+                                                    if let Some(arr) = outside_array.as_array_mut() {
+                                                        for item in clipboard_outside {
+                                                            arr.push(item.clone());
+                                                        }
+                                                        appended_sections.push("OUTSIDE");
+                                                    }
+                                                }
+
+                                                if !appended_sections.is_empty() {
+                                                    match serde_json::to_string_pretty(&current_json) {
+                                                        Ok(formatted) => {
+                                                            if let Err(e) = self.set_json_and_sync_toon(formatted) {
+                                                                self.set_status(&e);
+                                                                return;
+                                                            }
+                                                            self.set_status(&format!("{} appended from clipboard", appended_sections.join(" and ")));
+                                                        }
+                                                        Err(e) => self.set_status(&format!("Format error: {}", e)),
+                                                    }
+                                                } else {
+                                                    self.set_status("No inside/outside arrays in clipboard");
+                                                }
+                                            } else {
+                                                self.set_status("Current JSON is not an object");
+                                            }
+                                        }
+                                        Err(e) => self.set_status(&format!("Invalid current JSON: {}", e)),
+                                    }
+                                } else {
+                                    self.set_status("Clipboard JSON is not an object");
+                                }
+                            }
+                            Err(e) => self.set_status(&e),
+                        }
+                        return;
+                    }
+
                     match serde_json::from_str::<Value>(&clipboard_text) {
                         Ok(clipboard_json) => {
                             if let Some(clipboard_obj) = clipboard_json.as_object() {
@@ -994,6 +1239,22 @@ impl App {
         }
     }
 
+    pub fn copy_toon(&mut self) {
+        // Copy current content as Toon (works in both Edit and View modes)
+        match self.convert_to_toon() {
+            Ok(toon_content) => {
+                match Clipboard::new() {
+                    Ok(mut clipboard) => match clipboard.set_text(toon_content) {
+                        Ok(()) => self.set_status("Copied as Toon"),
+                        Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
+                    },
+                    Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
+                }
+            }
+            Err(e) => self.set_status(&format!("Failed to convert to Toon: {}", e)),
+        }
+    }
+
     pub fn copy_cards_markdown(&mut self) {
         // Copy card(s) as Markdown
         // In Visual mode: copy selected range and exit Visual mode
@@ -1169,6 +1430,99 @@ impl App {
                             Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
                         }
                     }
+                    Err(e) => self.set_status(&format!("JSON error: {}", e)),
+                }
+            }
+        }
+    }
+
+    pub fn copy_cards_toon(&mut self) {
+        // Copy card(s) as Toon
+        // In Visual mode: copy selected range and exit Visual mode
+        // In View mode (non-Visual): copy current card only
+        if self.format_mode != FormatMode::View || self.relf_entries.is_empty() {
+            self.set_status("Not in card view mode");
+            return;
+        }
+
+        if let Ok(json_value) = serde_json::from_str::<Value>(&self.json_input) {
+            if let Some(obj) = json_value.as_object() {
+                let outside_count = obj
+                    .get("outside")
+                    .and_then(|v| v.as_array())
+                    .map(|arr| arr.len())
+                    .unwrap_or(0);
+
+                let (start_idx, end_idx) = if self.visual_mode {
+                    let start = self.visual_start_index.min(self.visual_end_index);
+                    let end = self.visual_start_index.max(self.visual_end_index);
+                    (start, end)
+                } else {
+                    (self.selected_entry_index, self.selected_entry_index)
+                };
+
+                // Collect selected entries from JSON
+                let mut selected_outside = Vec::new();
+                let mut selected_inside = Vec::new();
+
+                for idx in start_idx..=end_idx {
+                    if idx >= self.relf_entries.len() {
+                        break;
+                    }
+                    let original_idx = self.relf_entries[idx].original_index;
+
+                    if original_idx < outside_count {
+                        // Outside entry
+                        if let Some(outside) = obj.get("outside").and_then(|v| v.as_array()) {
+                            if original_idx < outside.len() {
+                                selected_outside.push(outside[original_idx].clone());
+                            }
+                        }
+                    } else {
+                        // Inside entry
+                        let inside_idx = original_idx - outside_count;
+                        if let Some(inside) = obj.get("inside").and_then(|v| v.as_array()) {
+                            if inside_idx < inside.len() {
+                                selected_inside.push(inside[inside_idx].clone());
+                            }
+                        }
+                    }
+                }
+
+                // Build JSON object
+                let mut result_obj = serde_json::Map::new();
+                if !selected_outside.is_empty() {
+                    result_obj.insert("outside".to_string(), Value::Array(selected_outside));
+                }
+                if !selected_inside.is_empty() {
+                    result_obj.insert("inside".to_string(), Value::Array(selected_inside));
+                }
+
+                if result_obj.is_empty() {
+                    self.set_status("No cards to copy");
+                    return;
+                }
+
+                match serde_json::to_string_pretty(&Value::Object(result_obj)) {
+                    Ok(json_str) => match ToonOperations::json_to_toon(&json_str) {
+                        Ok(toon_str) => {
+                            match Clipboard::new() {
+                                Ok(mut clipboard) => match clipboard.set_text(toon_str) {
+                                    Ok(()) => {
+                                        let count = end_idx - start_idx + 1;
+                                        self.set_status(&format!("Copied {} card(s) as Toon", count));
+                                        // Exit Visual mode after copy
+                                        if self.visual_mode {
+                                            self.visual_mode = false;
+                                        }
+                                    }
+                                    Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
+                                },
+                                Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
+                            }
+                        }
+                        Err(e) => self.set_status(&format!("Toon conversion error: {}", e)),
+                    },
                     Err(e) => self.set_status(&format!("JSON error: {}", e)),
                 }
             }
@@ -1355,6 +1709,29 @@ impl App {
         }
 
         Ok(output_lines.join("\n"))
+    }
+
+    fn clipboard_text_to_json_value(&self, clipboard_text: &str) -> Result<Value, String> {
+        if let Ok(json_value) = serde_json::from_str::<Value>(clipboard_text) {
+            return Ok(json_value);
+        }
+
+        let json_str = self
+            .parse_toon(clipboard_text)
+            .map_err(|e| format!("Clipboard is not valid JSON or Toon: {}", e))?;
+        serde_json::from_str::<Value>(&json_str)
+            .map_err(|e| format!("Clipboard is not valid JSON: {}", e))
+    }
+
+    fn set_json_and_sync_toon(&mut self, formatted: String) -> Result<(), String> {
+        self.json_input = formatted;
+        let toon_content = self
+            .convert_to_toon()
+            .map_err(|e| format!("Toon conversion error: {}", e))?;
+        self.toon_input = toon_content;
+        self.is_modified = true;
+        self.convert_json();
+        Ok(())
     }
 
     /// Helper function to paste Markdown section content (INSIDE or OUTSIDE) from clipboard (overwrite)

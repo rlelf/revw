@@ -334,7 +334,15 @@ impl App {
     }
 
     pub fn convert_json(&mut self) {
-        if self.json_input.is_empty() {
+        let active_is_empty = if self.is_markdown_file() {
+            self.markdown_input.is_empty()
+        } else if self.is_toon_file() {
+            self.toon_input.is_empty()
+        } else {
+            self.json_input.is_empty()
+        };
+
+        if active_is_empty {
             self.rendered_content = vec![];
             self.relf_line_styles.clear();
             self.relf_visual_styles.clear();
@@ -391,6 +399,7 @@ impl App {
                         || (self.rendered_content.len() >= 2
                             && self.rendered_content[0].contains("Not valid JSON")))
                     && !self.is_markdown_file()
+                    && !self.is_toon_file()
                 {
                     // Only show error if we have input content, it's not markdown, and parsing failed
                     if !self.status_message.contains("Not a JSON file") {
@@ -468,6 +477,8 @@ impl App {
     pub fn get_content_lines(&self) -> Vec<String> {
         let content = if self.is_markdown_file() && !self.markdown_input.is_empty() {
             &self.markdown_input
+        } else if self.is_toon_file() && !self.toon_input.is_empty() {
+            &self.toon_input
         } else {
             &self.json_input
         };
@@ -497,6 +508,21 @@ impl App {
                 Err(e) => {
                     // Keep the old json_input but set a status message
                     self.set_status(&format!("Markdown parse error: {}", e));
+                }
+            }
+        } else if self.is_toon_file() {
+            self.toon_input = lines.join("\n");
+            // Always add trailing newline for consistency
+            if !self.toon_input.is_empty() {
+                self.toon_input.push('\n');
+            }
+            match self.parse_toon(&self.toon_input) {
+                Ok(json_content) => {
+                    self.json_input = json_content;
+                }
+                Err(e) => {
+                    // Keep the old json_input but set a status message
+                    self.set_status(&format!("Toon parse error: {}", e));
                 }
             }
         } else {

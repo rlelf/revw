@@ -198,6 +198,13 @@ impl App {
                                         }
                                         Err(_) => {}
                                     }
+                                } else if self.is_toon_file() {
+                                    match self.convert_to_toon() {
+                                        Ok(toon_content) => {
+                                            self.toon_input = toon_content;
+                                        }
+                                        Err(_) => {}
+                                    }
                                 }
 
                                 self.is_modified = true;

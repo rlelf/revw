@@ -181,6 +181,9 @@ impl App {
         } else if cmd == "ccj" {
             // Copy card(s) as JSON
             self.copy_cards_json();
+        } else if cmd == "cct" {
+            // Copy card(s) as Toon
+            self.copy_cards_toon();
         } else if cmd == "cj" {
             // Copy JSON (current content in JSON format)
             self.copy_json();
@@ -190,6 +193,9 @@ impl App {
         } else if cmd == "cm" {
             // Copy Markdown (current content in Markdown format)
             self.copy_markdown();
+        } else if cmd == "ct" {
+            // Copy Toon (current content in Toon format)
+            self.copy_toon();
         } else if cmd == "dc" {
             // Delete card(s)
             self.delete_cards();
