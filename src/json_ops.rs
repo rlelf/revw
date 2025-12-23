@@ -18,74 +18,61 @@ impl JsonOperations {
         }
 
         let mut deleted = false;
-        let mut in_array = false;
-        let mut _array_index = 0;
 
-        for i in 0..=cursor_line {
-            if i >= lines.len() {
-                break;
-            }
-            let line = &lines[i];
-
-            if line.contains('[') {
-                in_array = true;
-                _array_index = 0;
-            }
-
-            if in_array && line.trim().starts_with('{') && i < cursor_line {
-                _array_index += 1;
-            }
-
-            if line.contains(']') {
-                in_array = false;
-            }
-        }
-
+        // Single pass: find which array key and item index contains the cursor
         if let Some(obj) = json_value.as_object_mut() {
-            for (key, value) in obj.iter_mut() {
-                if let Some(arr) = value.as_array_mut() {
-                    let key_pattern = format!("\"{}\"", key);
-                    let mut found_key = false;
-                    let mut current_item = 0;
+            let mut current_line = 0;
+            let mut current_key: Option<String> = None;
+            let mut item_index = 0;
+            let mut in_object = false;
+            let mut depth = 0;
 
-                    for i in 0..cursor_line {
-                        if i >= lines.len() {
-                            break;
-                        }
-                        if lines[i].contains(&key_pattern) {
-                            found_key = true;
-                        }
-                        if found_key && lines[i].trim().starts_with('{') {
-                            if i < cursor_line {
-                                let mut depth = 1;
-                                for j in (i + 1)..=cursor_line {
-                                    if j >= lines.len() {
+            // Single scan to find cursor position
+            for i in 0..=cursor_line {
+                if i >= lines.len() {
+                    break;
+                }
+                let line = &lines[i];
+                let trimmed = line.trim();
+
+                // Check if this line starts a new key section
+                for key in obj.keys() {
+                    if line.contains(&format!("\"{}\"", key)) && line.contains('[') {
+                        current_key = Some(key.clone());
+                        item_index = 0;
+                        in_object = false;
+                        depth = 0;
+                        current_line = i;
+                        break;
+                    }
+                }
+
+                // Track object boundaries
+                if trimmed.starts_with('{') {
+                    if !in_object && i > current_line {
+                        in_object = true;
+                        depth = 0;
+                    }
+                    depth += 1;
+                }
+                if trimmed.contains('}') {
+                    depth -= 1;
+                    if depth == 0 && in_object {
+                        if i < cursor_line {
+                            item_index += 1;
+                        } else if i >= cursor_line {
+                            // Cursor is in this object
+                            if let Some(ref key) = current_key {
+                                if let Some(arr) = obj.get_mut(key).and_then(|v| v.as_array_mut()) {
+                                    if item_index < arr.len() {
+                                        arr.remove(item_index);
+                                        deleted = true;
                                         break;
-                                    }
-                                    if lines[j].contains('{') {
-                                        depth += 1;
-                                    }
-                                    if lines[j].contains('}') {
-                                        depth -= 1;
-                                        if depth == 0 {
-                                            if j >= cursor_line {
-                                                if current_item < arr.len() {
-                                                    arr.remove(current_item);
-                                                    deleted = true;
-                                                }
-                                                break;
-                                            } else {
-                                                current_item += 1;
-                                            }
-                                        }
                                     }
                                 }
                             }
                         }
-                    }
-
-                    if deleted {
-                        break;
+                        in_object = false;
                     }
                 }
             }
@@ -206,75 +193,62 @@ impl JsonOperations {
         }
 
         let mut duplicated = false;
-        let mut in_array = false;
-        let mut _array_index = 0;
 
-        for i in 0..=cursor_line {
-            if i >= lines.len() {
-                break;
-            }
-            let line = &lines[i];
-
-            if line.contains('[') {
-                in_array = true;
-                _array_index = 0;
-            }
-
-            if in_array && line.trim().starts_with('{') && i < cursor_line {
-                _array_index += 1;
-            }
-
-            if line.contains(']') {
-                in_array = false;
-            }
-        }
-
+        // Single pass: find which array key and item index contains the cursor
         if let Some(obj) = json_value.as_object_mut() {
-            for (key, value) in obj.iter_mut() {
-                if let Some(arr) = value.as_array_mut() {
-                    let key_pattern = format!("\"{}\"", key);
-                    let mut found_key = false;
-                    let mut current_item = 0;
+            let mut current_line = 0;
+            let mut current_key: Option<String> = None;
+            let mut item_index = 0;
+            let mut in_object = false;
+            let mut depth = 0;
 
-                    for i in 0..cursor_line {
-                        if i >= lines.len() {
-                            break;
-                        }
-                        if lines[i].contains(&key_pattern) {
-                            found_key = true;
-                        }
-                        if found_key && lines[i].trim().starts_with('{') {
-                            if i < cursor_line {
-                                let mut depth = 1;
-                                for j in (i + 1)..=cursor_line {
-                                    if j >= lines.len() {
+            // Single scan to find cursor position
+            for i in 0..=cursor_line {
+                if i >= lines.len() {
+                    break;
+                }
+                let line = &lines[i];
+                let trimmed = line.trim();
+
+                // Check if this line starts a new key section
+                for key in obj.keys() {
+                    if line.contains(&format!("\"{}\"", key)) && line.contains('[') {
+                        current_key = Some(key.clone());
+                        item_index = 0;
+                        in_object = false;
+                        depth = 0;
+                        current_line = i;
+                        break;
+                    }
+                }
+
+                // Track object boundaries
+                if trimmed.starts_with('{') {
+                    if !in_object && i > current_line {
+                        in_object = true;
+                        depth = 0;
+                    }
+                    depth += 1;
+                }
+                if trimmed.contains('}') {
+                    depth -= 1;
+                    if depth == 0 && in_object {
+                        if i < cursor_line {
+                            item_index += 1;
+                        } else if i >= cursor_line {
+                            // Cursor is in this object
+                            if let Some(ref key) = current_key {
+                                if let Some(arr) = obj.get_mut(key).and_then(|v| v.as_array_mut()) {
+                                    if item_index < arr.len() {
+                                        let entry_clone = arr[item_index].clone();
+                                        arr.insert(item_index + 1, entry_clone);
+                                        duplicated = true;
                                         break;
-                                    }
-                                    if lines[j].contains('{') {
-                                        depth += 1;
-                                    }
-                                    if lines[j].contains('}') {
-                                        depth -= 1;
-                                        if depth == 0 {
-                                            if j >= cursor_line {
-                                                if current_item < arr.len() {
-                                                    let entry_clone = arr[current_item].clone();
-                                                    arr.insert(current_item + 1, entry_clone);
-                                                    duplicated = true;
-                                                }
-                                                break;
-                                            } else {
-                                                current_item += 1;
-                                            }
-                                        }
                                     }
                                 }
                             }
                         }
-                    }
-
-                    if duplicated {
-                        break;
+                        in_object = false;
                     }
                 }
             }
