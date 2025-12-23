@@ -43,59 +43,39 @@ fn main() -> Result<()> {
             "EXAMPLES:\n  \
             # Open file in interactive mode\n  \
             revw file.json\n  \
-            revw file.md\n\n  \
+            revw file.md\n  \
+            revw file.toon\n\n  \
             # Output to stdout\n  \
             revw --stdout file.json\n  \
-            revw --stdout file.md\n\n  \
+            revw --stdout file.md\n  \
+            revw --stdout file.toon\n\n  \
             # Output to file\n  \
             revw --output output.txt file.json\n  \
-            revw --output output.txt file.md\n\n  \
-            # Output in Markdown format\n  \
+            revw --output output.txt file.md\n  \
+            revw --output output.txt file.toon\n\n  \
+            # Output in different formats\n  \
             revw --stdout --markdown file.json\n  \
-            revw --stdout --markdown file.md\n\n  \
-            # Output in JSON format\n  \
-            revw --stdout --json file.json\n  \
-            revw --stdout --json file.md\n\n  \
+            revw --stdout --json file.md\n  \
+            revw --stdout --toon file.json\n\n  \
             # Export to PDF\n  \
             revw --pdf file.json\n  \
-            revw --pdf file.md\n\n  \
-            # Input from file\n  \
-            revw --input data.json file.json                      JSON → JSON\n  \
-            revw --input data.json file.md                        JSON → Markdown\n  \
-            revw --input data.md file.json                        Markdown → JSON\n  \
-            revw --input data.md file.md                          Markdown → Markdown\n\n  \
+            revw --pdf file.md\n  \
+            revw --pdf file.toon\n\n  \
+            # Input from file (supports .json, .md, .toon)\n  \
+            revw --input data.json file.json\n  \
+            revw --input data.toon file.md\n  \
+            revw --input data.md file.toon\n\n  \
             # Section-specific operations\n  \
-            revw --input data.json --inside file.json             Overwrite INSIDE section only\n  \
-            revw --input data.json --inside file.md\n  \
-            revw --input data.md --inside file.json\n  \
-            revw --input data.md --inside file.md\n  \
-            revw --input data.json --outside file.json            Overwrite OUTSIDE section only\n  \
-            revw --input data.json --outside file.md\n  \
-            revw --input data.md --outside file.json\n  \
-            revw --input data.md --outside file.md\n  \
-            revw --input data.json --append file.json             Append to both sections\n  \
-            revw --input data.json --append file.md\n  \
-            revw --input data.md --append file.json\n  \
-            revw --input data.md --append file.md\n  \
-            revw --input data.json --append --inside file.json    Append to INSIDE section only\n  \
-            revw --input data.json --append --inside file.md\n  \
-            revw --input data.md --append --inside file.json\n  \
-            revw --input data.md --append --inside file.md\n  \
-            revw --input data.json --append --outside file.json   Append to OUTSIDE section only\n  \
-            revw --input data.json --append --outside file.md\n  \
-            revw --input data.md --append --outside file.json\n  \
-            revw --input data.md --append --outside file.md\n\n\
-            INPUT FILE FORMAT:\n  \
-            JSON (data.json):\n  \
+            revw --input data.json --inside file.json\n  \
+            revw --input data.toon --outside file.md\n  \
+            revw --input data.json --append --inside file.toon\n\n\
+            SUPPORTED FILE FORMATS:\n  \
+            JSON (file.json):\n  \
             {\n    \
-            \"outside\": [\n      \
-            {\"name\": \"Resource\", \"context\": \"Description\", \"url\": \"https://...\", \"percentage\": 100}\n    \
-            ],\n    \
-            \"inside\": [\n      \
-            {\"date\": \"2025-01-01 00:00:00\", \"context\": \"Note content\"}\n    \
-            ]\n  \
+            \"outside\": [{\"name\": \"Resource\", \"context\": \"Description\", \"url\": \"https://...\", \"percentage\": 100}],\n    \
+            \"inside\": [{\"date\": \"2025-01-01 00:00:00\", \"context\": \"Note content\"}]\n  \
             }\n\n  \
-            Markdown (data.md):\n  \
+            Markdown (file.md):\n  \
             ## OUTSIDE\n  \
             ### Resource\n  \
             Description\n  \
@@ -103,10 +83,15 @@ fn main() -> Result<()> {
             **Percentage:** 100%\n  \
             ## INSIDE\n  \
             ### 2025-01-01 00:00:00\n  \
-            Note content\n\n\
+            Note content\n\n  \
+            Toon (file.toon):\n  \
+            outside[1]{name,context,url,percentage}:\n    \
+            Resource,Description,https://...,100\n  \
+            inside[1]{date,context}:\n    \
+            2025-01-01 00:00:00,Note content\n\n\
             For more help, run 'revw' and press :h or ?"
         )
-        .arg(Arg::new("file").help("JSON or Markdown file to view").index(1))
+        .arg(Arg::new("file").help("JSON, Markdown, or Toon file to view").index(1))
         .arg(
             Arg::new("edit")
                 .long("edit")
@@ -150,6 +135,12 @@ fn main() -> Result<()> {
                 .action(clap::ArgAction::SetTrue),
         )
         .arg(
+            Arg::new("toon")
+                .long("toon")
+                .help("Output in Toon format")
+                .action(clap::ArgAction::SetTrue),
+        )
+        .arg(
             Arg::new("pdf")
                 .long("pdf")
                 .help("Export to PDF format")
@@ -181,6 +172,7 @@ fn main() -> Result<()> {
     let outside_only = matches.get_flag("outside");
     let markdown_mode = matches.get_flag("markdown");
     let json_mode = matches.get_flag("json");
+    let toon_mode = matches.get_flag("toon");
     let pdf_mode = matches.get_flag("pdf");
     let input_file = matches.get_one::<String>("input");
     let append_mode = matches.get_flag("append");
@@ -383,6 +375,36 @@ fn main() -> Result<()> {
                         serde_json::to_string_pretty(&json_value).unwrap_or_else(|_| app.json_input.clone())
                     } else {
                         app.json_input.clone()
+                    }
+                }
+            } else if toon_mode {
+                // Toon mode: convert JSON to Toon format
+                let json_to_convert = if inside_only || outside_only {
+                    if let Ok(mut json_value) = serde_json::from_str::<serde_json::Value>(&app.json_input) {
+                        if let Some(obj) = json_value.as_object_mut() {
+                            if inside_only {
+                                obj.remove("outside");
+                            }
+                            if outside_only {
+                                obj.remove("inside");
+                            }
+                            serde_json::to_string(&json_value).unwrap_or_else(|_| app.json_input.clone())
+                        } else {
+                            app.json_input.clone()
+                        }
+                    } else {
+                        app.json_input.clone()
+                    }
+                } else {
+                    app.json_input.clone()
+                };
+
+                // Convert to Toon format
+                match toon_ops::ToonOperations::json_to_toon(&json_to_convert) {
+                    Ok(toon_content) => toon_content,
+                    Err(e) => {
+                        eprintln!("Error converting to Toon: {}", e);
+                        std::process::exit(1);
                     }
                 }
             } else {

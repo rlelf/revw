@@ -141,16 +141,16 @@ impl App {
             } else if selected.path.is_file() {
                 // Open file
                 if let Some(extension) = selected.path.extension() {
-                    if extension == "json" || extension == "md" {
+                    if extension == "json" || extension == "md" || extension == "toon" {
                         // Use load_file to properly reset all cursor positions
                         self.load_file(selected.path.clone());
                         // Move focus to file window
                         self.explorer_has_focus = false;
                     } else {
-                        self.set_status(&format!("Error: Only JSON and Markdown files can be opened ({})", selected.path.display()));
+                        self.set_status(&format!("Error: Only JSON, Markdown, and Toon files can be opened ({})", selected.path.display()));
                     }
                 } else {
-                    self.set_status(&format!("Error: Only JSON and Markdown files can be opened ({})", selected.path.display()));
+                    self.set_status(&format!("Error: Only JSON, Markdown, and Toon files can be opened ({})", selected.path.display()));
                 }
             }
         }
@@ -184,15 +184,15 @@ impl App {
 
             if selected.path.is_file() {
                 if let Some(extension) = selected.path.extension() {
-                    if extension == "json" || extension == "md" {
+                    if extension == "json" || extension == "md" || extension == "toon" {
                         // Use load_file to properly reset all cursor positions
                         self.load_file(selected.path.clone());
                         // Keep focus on explorer (unlike Enter which moves focus)
                     } else {
-                        self.set_status(&format!("Error: Only JSON and Markdown files can be opened ({})", selected.path.display()));
+                        self.set_status(&format!("Error: Only JSON, Markdown, and Toon files can be opened ({})", selected.path.display()));
                     }
                 } else {
-                    self.set_status(&format!("Error: Only JSON and Markdown files can be opened ({})", selected.path.display()));
+                    self.set_status(&format!("Error: Only JSON, Markdown, and Toon files can be opened ({})", selected.path.display()));
                 }
             }
         }

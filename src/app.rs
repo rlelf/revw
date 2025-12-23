@@ -353,6 +353,8 @@ impl App {
                     // Update highlight cache for markdown
                     self.update_markdown_highlight_cache();
                     self.render_markdown()
+                } else if self.is_toon_file() {
+                    self.render_toon()
                 } else {
                     self.render_json()
                 };
@@ -411,6 +413,10 @@ impl App {
 
     fn render_markdown(&self) -> Vec<String> {
         self.markdown_input.lines().map(|line| line.to_string()).collect()
+    }
+
+    fn render_toon(&self) -> Vec<String> {
+        self.toon_input.lines().map(|line| line.to_string()).collect()
     }
 
     pub fn set_status(&mut self, message: &str) {

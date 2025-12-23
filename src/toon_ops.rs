@@ -160,7 +160,7 @@ impl ToonOperations {
     }
 
     /// Convert JSON string to Toon format
-    fn json_to_toon(json_str: &str) -> Result<String, String> {
+    pub fn json_to_toon(json_str: &str) -> Result<String, String> {
         let json_value: Value = serde_json::from_str(json_str)
             .map_err(|e| format!("Invalid JSON: {}", e))?;
 
