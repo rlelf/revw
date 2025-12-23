@@ -711,6 +711,14 @@ impl App {
     pub fn clear_inside(&mut self) {
         // Clear INSIDE section
         self.save_undo_state();
+
+        // For Markdown files
+        if self.is_markdown_file() {
+            self.clear_markdown_section("INSIDE");
+            return;
+        }
+
+        // For JSON files
         match serde_json::from_str::<Value>(&self.json_input) {
             Ok(mut current_json) => {
                 if let Some(obj) = current_json.as_object_mut() {
@@ -742,6 +750,14 @@ impl App {
     pub fn clear_outside(&mut self) {
         // Clear OUTSIDE section
         self.save_undo_state();
+
+        // For Markdown files
+        if self.is_markdown_file() {
+            self.clear_markdown_section("OUTSIDE");
+            return;
+        }
+
+        // For JSON files
         match serde_json::from_str::<Value>(&self.json_input) {
             Ok(mut current_json) => {
                 if let Some(obj) = current_json.as_object_mut() {
@@ -1833,6 +1849,70 @@ impl App {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    fn clear_markdown_section(&mut self, section: &str) {
+        // Clear a section in markdown file by removing all content under that section header
+        let section_header = format!("## {}", section);
+        let current_lines: Vec<&str> = self.markdown_input.lines().collect();
+        let mut result_lines = Vec::new();
+        let mut in_section_to_clear = false;
+        let mut found_section = false;
+
+        for line in current_lines {
+            let trimmed = line.trim();
+
+            // Found target section header
+            if trimmed == section_header.trim() {
+                found_section = true;
+                in_section_to_clear = true;
+                result_lines.push(line.to_string());
+                // Add blank line after header
+                result_lines.push("".to_string());
+                continue;
+            }
+
+            // Check if we're entering a different section (end of section to clear)
+            if in_section_to_clear && trimmed.starts_with("## ") {
+                in_section_to_clear = false;
+                result_lines.push(line.to_string());
+                continue;
+            }
+
+            // Skip lines in section to clear
+            if in_section_to_clear {
+                continue;
+            }
+
+            // Keep all other lines
+            result_lines.push(line.to_string());
+        }
+
+        if !found_section {
+            // If section doesn't exist, add it as empty
+            if !result_lines.is_empty() && !result_lines.last().unwrap().is_empty() {
+                result_lines.push("".to_string());
+            }
+            result_lines.push(section_header);
+            result_lines.push("".to_string());
+        }
+
+        self.markdown_input = result_lines.join("\n");
+        match self.parse_markdown(&self.markdown_input.clone()) {
+            Ok(json_content) => {
+                self.json_input = json_content;
+                self.is_modified = true;
+                self.convert_json();
+                // Reset selection to first entry if current selection is out of bounds
+                if !self.relf_entries.is_empty() && self.selected_entry_index >= self.relf_entries.len() {
+                    self.selected_entry_index = 0;
+                }
+                self.set_status(&format!("{} section cleared", section));
+            }
+            Err(e) => {
+                self.set_status(&format!("Failed to parse Markdown: {}", e));
             }
         }
     }
