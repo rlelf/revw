@@ -205,7 +205,7 @@ fn main() -> Result<()> {
                 app.file_path = Some(path);
                 app.markdown_input = content;
                 // Convert markdown to JSON for processing
-                if let Ok(json) = app.parse_markdown(&app.markdown_input.clone()) {
+                if let Ok(json) = app.parse_markdown(&app.markdown_input) {
                     app.json_input = json;
                 }
                 app.convert_json();
@@ -213,7 +213,7 @@ fn main() -> Result<()> {
                 app.file_path = Some(path);
                 app.toon_input = content;
                 // Convert toon to JSON for processing
-                if let Ok(json) = app.parse_toon(&app.toon_input.clone()) {
+                if let Ok(json) = app.parse_toon(&app.toon_input) {
                     app.json_input = json;
                 }
                 app.convert_json();
@@ -264,7 +264,7 @@ fn main() -> Result<()> {
                 app.file_path = Some(path);
                 app.markdown_input = content;
                 // Convert markdown to JSON for processing
-                if let Ok(json) = app.parse_markdown(&app.markdown_input.clone()) {
+                if let Ok(json) = app.parse_markdown(&app.markdown_input) {
                     app.json_input = json;
                 }
                 app.convert_json();
@@ -272,7 +272,7 @@ fn main() -> Result<()> {
                 app.file_path = Some(path);
                 app.toon_input = content;
                 // Convert toon to JSON for processing
-                if let Ok(json) = app.parse_toon(&app.toon_input.clone()) {
+                if let Ok(json) = app.parse_toon(&app.toon_input) {
                     app.json_input = json;
                 }
                 app.convert_json();
@@ -284,12 +284,21 @@ fn main() -> Result<()> {
             let output = if format_mode == FormatMode::Edit {
                 // In Edit mode, output the JSON as-is
                 app.json_input.clone()
-            } else if markdown_mode {
-                // Markdown mode: format entries as Markdown
-                let mut output_lines = Vec::new();
+            } else {
+                // Parse JSON once for all output modes
+                let json_value = match serde_json::from_str::<serde_json::Value>(&app.json_input) {
+                    Ok(val) => val,
+                    Err(_) => {
+                        eprintln!("Error: Invalid JSON");
+                        std::process::exit(1);
+                    }
+                };
 
-                // Parse JSON to determine which section each entry belongs to
-                if let Ok(json_value) = serde_json::from_str::<serde_json::Value>(&app.json_input) {
+                // Return appropriate output based on mode
+                if markdown_mode {
+                    // Markdown mode: format entries as Markdown
+                    let mut output_lines = Vec::new();
+
                     if let Some(obj) = json_value.as_object() {
                         // OUTSIDE section
                         if !inside_only || outside_only {
@@ -371,83 +380,68 @@ fn main() -> Result<()> {
                             }
                         }
                     }
-                }
 
-                output_lines.join("\n")
-            } else if json_mode {
-                // JSON mode: output as JSON (already in JSON format in app.json_input)
-                // Apply section filtering if needed
-                if inside_only || outside_only {
-                    if let Ok(mut json_value) = serde_json::from_str::<serde_json::Value>(&app.json_input) {
-                        if let Some(obj) = json_value.as_object_mut() {
+                    output_lines.join("\n")
+                } else if json_mode {
+                    // JSON mode: output as JSON
+                    // Apply section filtering if needed
+                    let filtered_json = if inside_only || outside_only {
+                        let mut json_clone = json_value.clone();
+                        if let Some(obj) = json_clone.as_object_mut() {
                             if inside_only {
                                 obj.remove("outside");
                             }
                             if outside_only {
                                 obj.remove("inside");
                             }
-                            serde_json::to_string_pretty(&json_value).unwrap_or_else(|_| app.json_input.clone())
-                        } else {
-                            app.json_input.clone()
                         }
+                        json_clone
                     } else {
-                        app.json_input.clone()
-                    }
-                } else {
-                    // Output full JSON
-                    if let Ok(json_value) = serde_json::from_str::<serde_json::Value>(&app.json_input) {
-                        serde_json::to_string_pretty(&json_value).unwrap_or_else(|_| app.json_input.clone())
-                    } else {
-                        app.json_input.clone()
-                    }
-                }
-            } else if toon_mode {
-                // Toon mode: convert JSON to Toon format
-                let json_to_convert = if inside_only || outside_only {
-                    if let Ok(mut json_value) = serde_json::from_str::<serde_json::Value>(&app.json_input) {
-                        if let Some(obj) = json_value.as_object_mut() {
+                        json_value.clone()
+                    };
+
+                    serde_json::to_string_pretty(&filtered_json).unwrap_or_else(|_| app.json_input.clone())
+                } else if toon_mode {
+                    // Toon mode: convert JSON to Toon format
+                    let json_to_convert = if inside_only || outside_only {
+                        let mut json_clone = json_value.clone();
+                        if let Some(obj) = json_clone.as_object_mut() {
                             if inside_only {
                                 obj.remove("outside");
                             }
                             if outside_only {
                                 obj.remove("inside");
                             }
-                            serde_json::to_string(&json_value).unwrap_or_else(|_| app.json_input.clone())
+                        }
+                        serde_json::to_string(&json_clone).unwrap_or_else(|_| app.json_input.clone())
+                    } else {
+                        app.json_input.clone()
+                    };
+
+                    // Convert to Toon format
+                    match toon_ops::ToonOperations::json_to_toon(&json_to_convert) {
+                        Ok(toon_content) => toon_content,
+                        Err(e) => {
+                            eprintln!("Error converting to Toon: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                } else {
+                    // In View mode, format the entries for text output
+                    if app.relf_entries.is_empty() {
+                        // No entries parsed, output raw content or rendered lines
+                        if !app.rendered_content.is_empty() {
+                            app.rendered_content.join("\n")
                         } else {
                             app.json_input.clone()
                         }
                     } else {
-                        app.json_input.clone()
-                    }
-                } else {
-                    app.json_input.clone()
-                };
+                        // Format entries as text
+                        let mut output_lines = Vec::new();
+                        let mut outside_entries: Vec<String> = Vec::new();
+                        let mut inside_entries: Vec<String> = Vec::new();
 
-                // Convert to Toon format
-                match toon_ops::ToonOperations::json_to_toon(&json_to_convert) {
-                    Ok(toon_content) => toon_content,
-                    Err(e) => {
-                        eprintln!("Error converting to Toon: {}", e);
-                        std::process::exit(1);
-                    }
-                }
-            } else {
-                // In View mode, format the entries for text output
-                if app.relf_entries.is_empty() {
-                    // No entries parsed, output raw content or rendered lines
-                    if !app.rendered_content.is_empty() {
-                        app.rendered_content.join("\n")
-                    } else {
-                        app.json_input.clone()
-                    }
-                } else {
-                    // Format entries as text
-                    let mut output_lines = Vec::new();
-                    let mut outside_entries: Vec<String> = Vec::new();
-                    let mut inside_entries: Vec<String> = Vec::new();
-
-                    // Parse JSON to determine which section each entry belongs to
-                    if let Ok(json_value) = serde_json::from_str::<serde_json::Value>(&app.json_input) {
+                        // Use already parsed JSON
                         if let Some(obj) = json_value.as_object() {
                             if let Some(outside) = obj.get("outside").and_then(|v| v.as_array()) {
                                 for item in outside {
@@ -494,51 +488,51 @@ fn main() -> Result<()> {
                                 }
                             }
                         }
+
+                        // Filter based on --inside or --outside flags
+                        if inside_only && !outside_only {
+                            // Only INSIDE section
+                            if !inside_entries.is_empty() {
+                                output_lines.push("INSIDE".to_string());
+                                output_lines.push("".to_string());
+                                for entry in inside_entries {
+                                    output_lines.push(entry);
+                                    output_lines.push("".to_string());
+                                }
+                            }
+                        } else if outside_only && !inside_only {
+                            // Only OUTSIDE section
+                            if !outside_entries.is_empty() {
+                                output_lines.push("OUTSIDE".to_string());
+                                output_lines.push("".to_string());
+                                for entry in outside_entries {
+                                    output_lines.push(entry);
+                                    output_lines.push("".to_string());
+                                }
+                            }
+                        } else {
+                            // Both sections (default behavior)
+                            if !outside_entries.is_empty() {
+                                output_lines.push("OUTSIDE".to_string());
+                                output_lines.push("".to_string());
+                                for entry in outside_entries {
+                                    output_lines.push(entry);
+                                    output_lines.push("".to_string());
+                                }
+                            }
+
+                            if !inside_entries.is_empty() {
+                                output_lines.push("INSIDE".to_string());
+                                output_lines.push("".to_string());
+                                for entry in inside_entries {
+                                    output_lines.push(entry);
+                                    output_lines.push("".to_string());
+                                }
+                            }
+                        }
+
+                        output_lines.join("\n")
                     }
-
-                    // Filter based on --inside or --outside flags
-                    if inside_only && !outside_only {
-                        // Only INSIDE section
-                        if !inside_entries.is_empty() {
-                            output_lines.push("INSIDE".to_string());
-                            output_lines.push("".to_string());
-                            for entry in inside_entries {
-                                output_lines.push(entry);
-                                output_lines.push("".to_string());
-                            }
-                        }
-                    } else if outside_only && !inside_only {
-                        // Only OUTSIDE section
-                        if !outside_entries.is_empty() {
-                            output_lines.push("OUTSIDE".to_string());
-                            output_lines.push("".to_string());
-                            for entry in outside_entries {
-                                output_lines.push(entry);
-                                output_lines.push("".to_string());
-                            }
-                        }
-                    } else {
-                        // Both sections (default behavior)
-                        if !outside_entries.is_empty() {
-                            output_lines.push("OUTSIDE".to_string());
-                            output_lines.push("".to_string());
-                            for entry in outside_entries {
-                                output_lines.push(entry);
-                                output_lines.push("".to_string());
-                            }
-                        }
-
-                        if !inside_entries.is_empty() {
-                            output_lines.push("INSIDE".to_string());
-                            output_lines.push("".to_string());
-                            for entry in inside_entries {
-                                output_lines.push(entry);
-                                output_lines.push("".to_string());
-                            }
-                        }
-                    }
-
-                    output_lines.join("\n")
                 }
             };
 

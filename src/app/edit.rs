@@ -196,14 +196,18 @@ impl App {
                                         Ok(md_content) => {
                                             self.markdown_input = md_content;
                                         }
-                                        Err(_) => {}
+                                        Err(e) => {
+                                            eprintln!("Warning: Failed to convert to markdown: {}", e);
+                                        }
                                     }
                                 } else if self.is_toon_file() {
                                     match self.convert_to_toon() {
                                         Ok(toon_content) => {
                                             self.toon_input = toon_content;
                                         }
-                                        Err(_) => {}
+                                        Err(e) => {
+                                            eprintln!("Warning: Failed to convert to toon: {}", e);
+                                        }
                                     }
                                 }
 
@@ -549,7 +553,9 @@ impl App {
                         Ok(json_content) => {
                             self.json_input = json_content;
                         }
-                        Err(_) => {}
+                        Err(e) => {
+                            eprintln!("Warning: Parse error: {}", e);
+                        }
                     }
                 } else if self.is_toon_file() {
                     self.toon_input = formatted.clone();
@@ -558,7 +564,9 @@ impl App {
                         Ok(json_content) => {
                             self.json_input = json_content;
                         }
-                        Err(_) => {}
+                        Err(e) => {
+                            eprintln!("Warning: Parse error: {}", e);
+                        }
                     }
                 } else {
                     self.json_input = formatted;
@@ -613,7 +621,9 @@ impl App {
                         Ok(json_content) => {
                             self.json_input = json_content;
                         }
-                        Err(_) => {}
+                        Err(e) => {
+                            eprintln!("Warning: Parse error: {}", e);
+                        }
                     }
                 } else if self.is_toon_file() {
                     self.toon_input = formatted.clone();
@@ -622,7 +632,9 @@ impl App {
                         Ok(json_content) => {
                             self.json_input = json_content;
                         }
-                        Err(_) => {}
+                        Err(e) => {
+                            eprintln!("Warning: Parse error: {}", e);
+                        }
                     }
                 } else {
                     self.json_input = formatted;
@@ -763,7 +775,9 @@ impl App {
                         Ok(json_content) => {
                             self.json_input = json_content;
                         }
-                        Err(_) => {}
+                        Err(e) => {
+                            eprintln!("Warning: Parse error: {}", e);
+                        }
                     }
                 } else if self.is_toon_file() {
                     self.toon_input = formatted.clone();
@@ -771,7 +785,9 @@ impl App {
                         Ok(json_content) => {
                             self.json_input = json_content;
                         }
-                        Err(_) => {}
+                        Err(e) => {
+                            eprintln!("Warning: Parse error: {}", e);
+                        }
                     }
                 } else {
                     self.json_input = formatted;
@@ -809,7 +825,9 @@ impl App {
                         Ok(json_content) => {
                             self.json_input = json_content;
                         }
-                        Err(_) => {}
+                        Err(e) => {
+                            eprintln!("Warning: Parse error: {}", e);
+                        }
                     }
                 } else if self.is_toon_file() {
                     self.toon_input = formatted.clone();
@@ -817,7 +835,9 @@ impl App {
                         Ok(json_content) => {
                             self.json_input = json_content;
                         }
-                        Err(_) => {}
+                        Err(e) => {
+                            eprintln!("Warning: Parse error: {}", e);
+                        }
                     }
                 } else {
                     self.json_input = formatted;
@@ -855,7 +875,9 @@ impl App {
                         Ok(json_content) => {
                             self.json_input = json_content;
                         }
-                        Err(_) => {}
+                        Err(e) => {
+                            eprintln!("Warning: Parse error: {}", e);
+                        }
                     }
                 } else if self.is_toon_file() {
                     self.toon_input = formatted.clone();
@@ -863,7 +885,9 @@ impl App {
                         Ok(json_content) => {
                             self.json_input = json_content;
                         }
-                        Err(_) => {}
+                        Err(e) => {
+                            eprintln!("Warning: Parse error: {}", e);
+                        }
                     }
                 } else {
                     self.json_input = formatted;
@@ -901,7 +925,9 @@ impl App {
                         Ok(json_content) => {
                             self.json_input = json_content;
                         }
-                        Err(_) => {}
+                        Err(e) => {
+                            eprintln!("Warning: Parse error: {}", e);
+                        }
                     }
                 } else if self.is_toon_file() {
                     self.toon_input = formatted.clone();
@@ -909,7 +935,9 @@ impl App {
                         Ok(json_content) => {
                             self.json_input = json_content;
                         }
-                        Err(_) => {}
+                        Err(e) => {
+                            eprintln!("Warning: Parse error: {}", e);
+                        }
                     }
                 } else {
                     self.json_input = formatted;

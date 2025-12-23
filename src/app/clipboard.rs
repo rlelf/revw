@@ -2194,7 +2194,9 @@ impl App {
                             Ok(json_content) => {
                                 self.json_input = json_content;
                             }
-                            Err(_) => {}
+                            Err(e) => {
+                                eprintln!("Warning: Failed to parse markdown: {}", e);
+                            }
                         }
                     } else {
                         self.json_input = formatted;

@@ -157,7 +157,9 @@ impl App {
                 self.set_status(&format!(":{}", self.command_buffer));
             }
             }
-            Err(_) => {}
+            Err(e) => {
+                eprintln!("Warning: Regex error in command completion: {}", e);
+            }
         }
     }
 }

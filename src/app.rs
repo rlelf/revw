@@ -630,13 +630,12 @@ impl App {
             return;
         }
 
-        self.filter_pattern = pattern.clone();
-
         // Re-render with filter applied
         self.convert_json();
 
         let filtered_count = self.relf_entries.len();
         self.set_status(&format!("Filter: {} ({} entries)", pattern, filtered_count));
+        self.filter_pattern = pattern;
     }
 
     pub fn clear_filter(&mut self) {
