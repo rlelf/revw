@@ -76,6 +76,7 @@ pub fn get_help_content() -> Vec<String> {
         "  :cc          - copy selected cards (rendered)".to_string(),
         "  :ccj         - copy selected cards (JSON)".to_string(),
         "  :ccm         - copy selected cards (Markdown)".to_string(),
+        "  :cct         - copy selected cards (Toon)".to_string(),
         "  :dc          - delete selected cards".to_string(),
         "  Esc/Ctrl+[   - exit Visual mode".to_string(),
         "".to_string(),

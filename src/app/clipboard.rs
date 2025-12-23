@@ -329,7 +329,7 @@ impl App {
         match Clipboard::new() {
             Ok(mut clipboard) => match clipboard.get_text() {
                 Ok(clipboard_text) => {
-                    // For Markdown files, check if clipboard contains JSON or Markdown
+                    // For Markdown files, check if clipboard contains JSON, Toon, or Markdown
                     if self.is_markdown_file() {
                         let trimmed = clipboard_text.trim();
 
@@ -341,6 +341,19 @@ impl App {
                                     self.paste_markdown_section_overwrite(&md_text, "INSIDE");
                                     return;
                                 }
+                            }
+                        }
+
+                        if clipboard_text.contains("## OUTSIDE") || clipboard_text.contains("## INSIDE") {
+                            self.paste_markdown_section_overwrite(&clipboard_text, "INSIDE");
+                            return;
+                        }
+
+                        // Try to parse as Toon
+                        if let Ok(clipboard_json) = self.clipboard_text_to_json_value(&clipboard_text) {
+                            if let Ok(md_text) = Self::json_to_markdown_string(&clipboard_json) {
+                                self.paste_markdown_section_overwrite(&md_text, "INSIDE");
+                                return;
                             }
                         }
 
@@ -533,7 +546,7 @@ impl App {
 
                     // For JSON files, parse JSON format
                     // Try to parse as JSON
-                    match serde_json::from_str::<Value>(&clipboard_text) {
+                    match self.clipboard_text_to_json_value(&clipboard_text) {
                         Ok(clipboard_json) => {
                             // Extract "inside" array from clipboard
                             let new_inside = if let Some(obj) = clipboard_json.as_object() {
@@ -570,7 +583,7 @@ impl App {
                                 self.set_status("No 'inside' field in clipboard JSON");
                             }
                         }
-                        Err(e) => self.set_status(&format!("Clipboard is not valid JSON: {}", e)),
+                        Err(e) => self.set_status(&e),
                     }
                 }
                 Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
@@ -584,7 +597,7 @@ impl App {
         match Clipboard::new() {
             Ok(mut clipboard) => match clipboard.get_text() {
                 Ok(clipboard_text) => {
-                    // For Markdown files, check if clipboard contains JSON or Markdown
+                    // For Markdown files, check if clipboard contains JSON, Toon, or Markdown
                     if self.is_markdown_file() {
                         let trimmed = clipboard_text.trim();
 
@@ -599,6 +612,19 @@ impl App {
                             }
                         }
 
+                        if clipboard_text.contains("## OUTSIDE") || clipboard_text.contains("## INSIDE") {
+                            self.paste_markdown_section_overwrite(&clipboard_text, "OUTSIDE");
+                            return;
+                        }
+
+                        // Try to parse as Toon
+                        if let Ok(clipboard_json) = self.clipboard_text_to_json_value(&clipboard_text) {
+                            if let Ok(md_text) = Self::json_to_markdown_string(&clipboard_json) {
+                                self.paste_markdown_section_overwrite(&md_text, "OUTSIDE");
+                                return;
+                            }
+                        }
+
                         // Otherwise treat as Markdown
                         self.paste_markdown_section_overwrite(&clipboard_text, "OUTSIDE");
                         return;
@@ -606,7 +632,7 @@ impl App {
 
                     // For JSON files, parse JSON format
                     // Try to parse as JSON
-                    match serde_json::from_str::<Value>(&clipboard_text) {
+                    match self.clipboard_text_to_json_value(&clipboard_text) {
                         Ok(clipboard_json) => {
                             // Extract "outside" array from clipboard
                             let new_outside = if let Some(obj) = clipboard_json.as_object() {
@@ -643,7 +669,7 @@ impl App {
                                 self.set_status("No 'outside' field in clipboard JSON");
                             }
                         }
-                        Err(e) => self.set_status(&format!("Clipboard is not valid JSON: {}", e)),
+                        Err(e) => self.set_status(&e),
                     }
                 }
                 Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
@@ -657,7 +683,7 @@ impl App {
         match Clipboard::new() {
             Ok(mut clipboard) => match clipboard.get_text() {
                 Ok(clipboard_text) => {
-                    // For Markdown files, check if clipboard contains JSON or Markdown
+                    // For Markdown files, check if clipboard contains JSON, Toon, or Markdown
                     if self.is_markdown_file() {
                         let trimmed = clipboard_text.trim();
 
@@ -672,6 +698,19 @@ impl App {
                             }
                         }
 
+                        if clipboard_text.contains("## OUTSIDE") || clipboard_text.contains("## INSIDE") {
+                            self.paste_markdown_section_append(&clipboard_text, "INSIDE");
+                            return;
+                        }
+
+                        // Try to parse as Toon
+                        if let Ok(clipboard_json) = self.clipboard_text_to_json_value(&clipboard_text) {
+                            if let Ok(md_text) = Self::json_to_markdown_string(&clipboard_json) {
+                                self.paste_markdown_section_append(&md_text, "INSIDE");
+                                return;
+                            }
+                        }
+
                         // Otherwise treat as Markdown
                         self.paste_markdown_section_append(&clipboard_text, "INSIDE");
                         return;
@@ -679,7 +718,7 @@ impl App {
 
                     // For JSON files, parse JSON format
                     // Try to parse as JSON
-                    match serde_json::from_str::<Value>(&clipboard_text) {
+                    match self.clipboard_text_to_json_value(&clipboard_text) {
                         Ok(clipboard_json) => {
                             // Extract "inside" array from clipboard
                             let new_inside = if let Some(obj) = clipboard_json.as_object() {
@@ -726,7 +765,7 @@ impl App {
                                 self.set_status("No 'inside' array in clipboard JSON");
                             }
                         }
-                        Err(e) => self.set_status(&format!("Clipboard is not valid JSON: {}", e)),
+                        Err(e) => self.set_status(&e),
                     }
                 }
                 Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
@@ -740,7 +779,7 @@ impl App {
         match Clipboard::new() {
             Ok(mut clipboard) => match clipboard.get_text() {
                 Ok(clipboard_text) => {
-                    // For Markdown files, check if clipboard contains JSON or Markdown
+                    // For Markdown files, check if clipboard contains JSON, Toon, or Markdown
                     if self.is_markdown_file() {
                         let trimmed = clipboard_text.trim();
 
@@ -755,6 +794,19 @@ impl App {
                             }
                         }
 
+                        if clipboard_text.contains("## OUTSIDE") || clipboard_text.contains("## INSIDE") {
+                            self.paste_markdown_section_append(&clipboard_text, "OUTSIDE");
+                            return;
+                        }
+
+                        // Try to parse as Toon
+                        if let Ok(clipboard_json) = self.clipboard_text_to_json_value(&clipboard_text) {
+                            if let Ok(md_text) = Self::json_to_markdown_string(&clipboard_json) {
+                                self.paste_markdown_section_append(&md_text, "OUTSIDE");
+                                return;
+                            }
+                        }
+
                         // Otherwise treat as Markdown
                         self.paste_markdown_section_append(&clipboard_text, "OUTSIDE");
                         return;
@@ -762,7 +814,7 @@ impl App {
 
                     // For JSON files, parse JSON format
                     // Try to parse as JSON
-                    match serde_json::from_str::<Value>(&clipboard_text) {
+                    match self.clipboard_text_to_json_value(&clipboard_text) {
                         Ok(clipboard_json) => {
                             // Extract "outside" array from clipboard
                             let new_outside = if let Some(obj) = clipboard_json.as_object() {
@@ -809,7 +861,7 @@ impl App {
                                 self.set_status("No 'outside' array in clipboard JSON");
                             }
                         }
-                        Err(e) => self.set_status(&format!("Clipboard is not valid JSON: {}", e)),
+                        Err(e) => self.set_status(&e),
                     }
                 }
                 Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
@@ -823,6 +875,34 @@ impl App {
         match Clipboard::new() {
             Ok(mut clipboard) => match clipboard.get_text() {
                 Ok(clipboard_text) => {
+                    if self.is_markdown_file() {
+                        let trimmed = clipboard_text.trim();
+
+                        if trimmed.starts_with('{') || trimmed.starts_with('[') {
+                            if let Ok(clipboard_json) = serde_json::from_str::<Value>(&clipboard_text) {
+                                if let Ok(md_text) = Self::json_to_markdown_string(&clipboard_json) {
+                                    self.paste_markdown_section_append(&md_text, "OUTSIDE");
+                                    self.paste_markdown_section_append(&md_text, "INSIDE");
+                                    return;
+                                }
+                            }
+                        }
+
+                        if clipboard_text.contains("## OUTSIDE") || clipboard_text.contains("## INSIDE") {
+                            self.paste_markdown_section_append(&clipboard_text, "OUTSIDE");
+                            self.paste_markdown_section_append(&clipboard_text, "INSIDE");
+                            return;
+                        }
+
+                        if let Ok(clipboard_json) = self.clipboard_text_to_json_value(&clipboard_text) {
+                            if let Ok(md_text) = Self::json_to_markdown_string(&clipboard_json) {
+                                self.paste_markdown_section_append(&md_text, "OUTSIDE");
+                                self.paste_markdown_section_append(&md_text, "INSIDE");
+                                return;
+                            }
+                        }
+                    }
+
                     if self.is_toon_file() {
                         match self.clipboard_text_to_json_value(&clipboard_text) {
                             Ok(clipboard_json) => {
@@ -885,7 +965,7 @@ impl App {
                         return;
                     }
 
-                    match serde_json::from_str::<Value>(&clipboard_text) {
+                    match self.clipboard_text_to_json_value(&clipboard_text) {
                         Ok(clipboard_json) => {
                             if let Some(clipboard_obj) = clipboard_json.as_object() {
                                 // Parse current JSON
@@ -944,7 +1024,7 @@ impl App {
                                 self.set_status("Clipboard JSON is not an object");
                             }
                         }
-                        Err(e) => self.set_status(&format!("Clipboard is not valid JSON: {}", e)),
+                        Err(e) => self.set_status(&e),
                     }
                 }
                 Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
@@ -1716,9 +1796,17 @@ impl App {
             return Ok(json_value);
         }
 
+        if clipboard_text.contains("## OUTSIDE") || clipboard_text.contains("## INSIDE") {
+            let json_str = self
+                .parse_markdown(clipboard_text)
+                .map_err(|e| format!("Clipboard is not valid Markdown: {}", e))?;
+            return serde_json::from_str::<Value>(&json_str)
+                .map_err(|e| format!("Clipboard is not valid JSON: {}", e));
+        }
+
         let json_str = self
             .parse_toon(clipboard_text)
-            .map_err(|e| format!("Clipboard is not valid JSON or Toon: {}", e))?;
+            .map_err(|e| format!("Clipboard is not valid JSON, Markdown, or Toon: {}", e))?;
         serde_json::from_str::<Value>(&json_str)
             .map_err(|e| format!("Clipboard is not valid JSON: {}", e))
     }
