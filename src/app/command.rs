@@ -352,6 +352,9 @@ impl App {
         } else if cmd == "markdown" {
             // Export current file to Markdown format
             self.export_to_markdown();
+        } else if cmd == "toon" {
+            // Export current file to Toon format
+            self.export_to_toon();
         } else if cmd == "json" {
             // Export current file to JSON format
             self.export_to_json();

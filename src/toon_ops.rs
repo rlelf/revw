@@ -270,13 +270,29 @@ impl ContentOperations for ToonOperations {
             });
 
             if let Some(outside) = json.get_mut("outside").and_then(|v| v.as_array_mut()) {
-                outside.insert(0, new_entry);
+                outside.push(new_entry);
             }
 
             Ok(json)
         })?;
 
-        Ok((result.0, 0, 0, "Added outside".to_string()))
+        let mut outside_line = 0;
+        let mut in_outside = false;
+        for (idx, line) in result.0.lines().enumerate() {
+            let trimmed = line.trim();
+            if trimmed.starts_with("outside[") && trimmed.ends_with(':') {
+                in_outside = true;
+                continue;
+            }
+            if in_outside {
+                if trimmed.is_empty() {
+                    break;
+                }
+                outside_line = idx;
+            }
+        }
+
+        Ok((result.0, outside_line, 0, "Added outside".to_string()))
     }
 
     fn delete_entry_at_cursor(

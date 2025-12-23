@@ -561,4 +561,34 @@ impl App {
         }
     }
 
+    pub fn export_to_toon(&mut self) {
+        // Check if a file is currently open
+        if self.file_path.is_none() {
+            self.set_status("Error: No file open");
+            return;
+        }
+
+        let json_path = self.file_path.as_ref().unwrap();
+
+        // Create toon filename (same name, different extension)
+        let toon_path = json_path.with_extension("toon");
+
+        match self.convert_to_toon() {
+            Ok(toon_content) => {
+                match fs::write(&toon_path, toon_content) {
+                    Ok(()) => {
+                        self.set_status(&format!("Exported to: {}", toon_path.display()));
+                        if self.explorer_open {
+                            self.reload_explorer_entries();
+                        }
+                    }
+                    Err(e) => {
+                        self.set_status(&format!("Error exporting Toon: {}", e));
+                    }
+                }
+            }
+            Err(e) => self.set_status(&format!("Error converting to Toon: {}", e)),
+        }
+    }
+
 }

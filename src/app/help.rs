@@ -177,6 +177,7 @@ pub fn get_help_content() -> Vec<String> {
         "  :e           - reload file".to_string(),
         "  :ar          - toggle auto-reload (default: on)".to_string(),
         "  :markdown    - export to Markdown (same folder, .md extension)".to_string(),
+        "  :toon        - export to Toon (same folder, .toon extension)".to_string(),
         "  :pdf         - export to PDF (same folder, .pdf extension)".to_string(),
         "  :f pattern   - filter entries".to_string(),
         "  :nof         - clear filter".to_string(),

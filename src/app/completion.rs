@@ -67,9 +67,9 @@ impl App {
         else {
             let commands = vec![
                 "w", "wq", "q", "e", "ai", "ao", "o", "op", "on", "dd", "yy",
-                "c", "ci", "co", "cj", "cm", "cu", "v", "vu", "vi", "vo", "va", "vai", "vao",
-                "xi", "xo", "gi", "go", "noh", "nof", "f", "cc", "ccj", "ccm", "dc",
-                "set", "colorscheme", "ar", "h", "a", "d", "m", "markdown", "json",
+                "c", "ci", "co", "cj", "cm", "ct", "cu", "v", "vu", "vi", "vo", "va", "vai", "vao",
+                "xi", "xo", "gi", "go", "noh", "nof", "f", "cc", "ccj", "ccm", "cct", "dc",
+                "set", "colorscheme", "ar", "h", "a", "d", "m", "markdown", "json", "toon",
                 "Lexplore", "Lex", "lx", "outline", "ol",
             ];
 
