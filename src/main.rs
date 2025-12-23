@@ -191,10 +191,14 @@ fn main() -> Result<()> {
                 })
                 .unwrap();
 
-            // Check if file is Markdown
+            // Check if file is Markdown or Toon
             let is_markdown = path.extension()
                 .and_then(|ext| ext.to_str())
                 .map(|ext| ext.eq_ignore_ascii_case("md"))
+                .unwrap_or(false);
+            let is_toon = path.extension()
+                .and_then(|ext| ext.to_str())
+                .map(|ext| ext.eq_ignore_ascii_case("toon"))
                 .unwrap_or(false);
 
             if is_markdown {
@@ -202,6 +206,14 @@ fn main() -> Result<()> {
                 app.markdown_input = content;
                 // Convert markdown to JSON for processing
                 if let Ok(json) = app.parse_markdown(&app.markdown_input.clone()) {
+                    app.json_input = json;
+                }
+                app.convert_json();
+            } else if is_toon {
+                app.file_path = Some(path);
+                app.toon_input = content;
+                // Convert toon to JSON for processing
+                if let Ok(json) = app.parse_toon(&app.toon_input.clone()) {
                     app.json_input = json;
                 }
                 app.convert_json();
@@ -238,10 +250,14 @@ fn main() -> Result<()> {
                 })
                 .unwrap();
 
-            // Check if file is Markdown
+            // Check if file is Markdown or Toon
             let is_markdown = path.extension()
                 .and_then(|ext| ext.to_str())
                 .map(|ext| ext.eq_ignore_ascii_case("md"))
+                .unwrap_or(false);
+            let is_toon = path.extension()
+                .and_then(|ext| ext.to_str())
+                .map(|ext| ext.eq_ignore_ascii_case("toon"))
                 .unwrap_or(false);
 
             if is_markdown {
@@ -249,6 +265,14 @@ fn main() -> Result<()> {
                 app.markdown_input = content;
                 // Convert markdown to JSON for processing
                 if let Ok(json) = app.parse_markdown(&app.markdown_input.clone()) {
+                    app.json_input = json;
+                }
+                app.convert_json();
+            } else if is_toon {
+                app.file_path = Some(path);
+                app.toon_input = content;
+                // Convert toon to JSON for processing
+                if let Ok(json) = app.parse_toon(&app.toon_input.clone()) {
                     app.json_input = json;
                 }
                 app.convert_json();
