@@ -66,6 +66,16 @@ Finally learned how to use cargo! Running 'cargo new my_project' creates such a 
 }
 ```
 
+### Toon Format
+
+```toon
+outside[1]{name,context,url,percentage}:
+  "Rust Programming Language","A systems programming language focused on safety, speed, and concurrency.",https://www.rust-lang.org/,100
+
+inside[1]{date,context}:
+  "2025-01-01 00:00:00","Finally learned how to use cargo! Running 'cargo new my_project' creates such a clean project structure."
+```
+
 ## Install
 
 ```bash
@@ -116,10 +126,12 @@ revw
 # View mode
 revw file.json
 revw file.md
+revw file.toon
 
 # Edit mode
 revw --edit file.json
 revw --edit file.md
+revw --edit file.toon
 ```
 
 **File Operations:**
@@ -128,48 +140,88 @@ revw --edit file.md
 # Output
 revw --stdout file.json                     # Output to stdout
 revw --stdout file.md
+revw --stdout file.toon
 revw --output output.txt file.json          # Output to file
 revw --output output.txt file.md
+revw --output output.txt file.toon
 revw --stdout --inside file.json            # Output only INSIDE section
 revw --stdout --inside file.md
+revw --stdout --inside file.toon
 revw --stdout --outside file.json           # Output only OUTSIDE section
 revw --stdout --outside file.md
+revw --stdout --outside file.toon
 revw --stdout --markdown file.json          # Output in Markdown format
 revw --stdout --markdown file.md
+revw --stdout --markdown file.toon
 revw --stdout --json file.json              # Output in JSON format
 revw --stdout --json file.md
+revw --stdout --json file.toon
+revw --stdout --toon file.json              # Output in Toon format
+revw --stdout --toon file.md
+revw --stdout --toon file.toon
 
 # Export to PDF
 revw --pdf file.json                        # Export JSON to PDF
 revw --pdf file.md                          # Export Markdown to PDF
+revw --pdf file.toon                        # Export Toon to PDF
 
 # Input (overwrite)
 revw --input data.json file.json            # Overwrite entire content
 revw --input data.json file.md
+revw --input data.json file.toon
 revw --input data.md file.json
 revw --input data.md file.md
+revw --input data.md file.toon
+revw --input data.toon file.json
+revw --input data.toon file.md
+revw --input data.toon file.toon
 revw --input data.json --inside file.json   # Overwrite only INSIDE section
 revw --input data.json --inside file.md
+revw --input data.json --inside file.toon
 revw --input data.md --inside file.json
 revw --input data.md --inside file.md
+revw --input data.md --inside file.toon
+revw --input data.toon --inside file.json
+revw --input data.toon --inside file.md
+revw --input data.toon --inside file.toon
 revw --input data.json --outside file.json  # Overwrite only OUTSIDE section
 revw --input data.json --outside file.md
+revw --input data.json --outside file.toon
 revw --input data.md --outside file.json
 revw --input data.md --outside file.md
+revw --input data.md --outside file.toon
+revw --input data.toon --outside file.json
+revw --input data.toon --outside file.md
+revw --input data.toon --outside file.toon
 
 # Input (append)
 revw --input data.json --append file.json             # Append entire content
 revw --input data.json --append file.md
+revw --input data.json --append file.toon
 revw --input data.md --append file.json
 revw --input data.md --append file.md
+revw --input data.md --append file.toon
+revw --input data.toon --append file.json
+revw --input data.toon --append file.md
+revw --input data.toon --append file.toon
 revw --input data.json --append --inside file.json    # Append to INSIDE only
 revw --input data.json --append --inside file.md
+revw --input data.json --append --inside file.toon
 revw --input data.md --append --inside file.json
 revw --input data.md --append --inside file.md
+revw --input data.md --append --inside file.toon
+revw --input data.toon --append --inside file.json
+revw --input data.toon --append --inside file.md
+revw --input data.toon --append --inside file.toon
 revw --input data.json --append --outside file.json   # Append to OUTSIDE only
 revw --input data.json --append --outside file.md
+revw --input data.json --append --outside file.toon
 revw --input data.md --append --outside file.json
 revw --input data.md --append --outside file.md
+revw --input data.md --append --outside file.toon
+revw --input data.toon --append --outside file.json
+revw --input data.toon --append --outside file.md
+revw --input data.toon --append --outside file.toon
 ```
 
 ## Controls
@@ -240,6 +292,7 @@ revw --input data.md --append --outside file.md
 - `:set noextension` hide file extensions in explorer
 - `:set json` set format to JSON (for unnamed files)
 - `:set markdown` set format to Markdown (for unnamed files)
+- `:set toon` set format to Toon (for unnamed files)
 
 **Other:**
 - `r` toggle View/Edit mode
@@ -275,7 +328,7 @@ revw --input data.md --append --outside file.md
 
 **Explorer File Operations (when explorer has focus):**
 - `Enter` or `o` open file or navigate into directory
-- `:a` create new JSON file in current directory
+- `:a` create new file in current directory (supports .json, .md, .toon)
 - `:d` create new directory
 - `:m` rename/move selected file/directory (supports relative paths like `./folder/file.json`, or just `newname.json`)
 - `:dd` delete selected file (confirms with yes/no)
@@ -371,6 +424,8 @@ revw --input data.md --append --outside file.md
 - `:e` reload file
 - `:ar` toggle auto-reload (default: on)
 - `:markdown` export current file to Markdown format (same folder, .md extension)
+- `:json` export current file to JSON format (same folder, .json extension)
+- `:toon` export current file to Toon format (same folder, .toon extension)
 - `:pdf` export current file to PDF format (same folder, .pdf extension)
 - `:Lexplore` or `:Lex` or `:lx` toggle file explorer
 - `:outline` or `:ol` toggle card outline view
@@ -391,6 +446,7 @@ revw --input data.md --append --outside file.md
 - `:set noextension` hide file extensions in explorer
 - `:set json` set format to JSON (for unnamed files)
 - `:set markdown` set format to Markdown (for unnamed files)
+- `:set toon` set format to Toon (for unnamed files)
 
 **Substitute:**
 - `:s/foo/bar/` substitute first occurrence in current line

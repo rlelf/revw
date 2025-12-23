@@ -7,4 +7,5 @@ pub mod markdown_ops;
 pub mod navigation;
 pub mod rendering;
 pub mod syntax_highlight;
+pub mod toon_ops;
 pub mod ui;

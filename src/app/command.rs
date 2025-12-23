@@ -95,15 +95,15 @@ impl App {
             }
         } else if cmd.starts_with("w ") {
             let filename = cmd.strip_prefix("w ").unwrap().trim().to_string();
-            if !filename.ends_with(".json") && !filename.ends_with(".md") {
-                self.set_status("Error: Filename must end with .json or .md");
+            if !filename.ends_with(".json") && !filename.ends_with(".md") && !filename.ends_with(".toon") {
+                self.set_status("Error: Filename must end with .json, .md, or .toon");
             } else {
                 self.save_file_as(&filename);
             }
         } else if cmd.starts_with("wq ") {
             let filename = cmd.strip_prefix("wq ").unwrap().trim().to_string();
-            if !filename.ends_with(".json") && !filename.ends_with(".md") {
-                self.set_status("Error: Filename must end with .json or .md");
+            if !filename.ends_with(".json") && !filename.ends_with(".md") && !filename.ends_with(".toon") {
+                self.set_status("Error: Filename must end with .json, .md, or .toon");
                 return false; // Don't quit on error
             } else {
                 self.save_file_as(&filename);
@@ -115,8 +115,8 @@ impl App {
         } else if cmd.starts_with("e ") {
             // Open a different file
             let filename = cmd.strip_prefix("e ").unwrap().trim().to_string();
-            if !filename.ends_with(".json") && !filename.ends_with(".md") {
-                self.set_status("Error: Filename must end with .json or .md");
+            if !filename.ends_with(".json") && !filename.ends_with(".md") && !filename.ends_with(".toon") {
+                self.set_status("Error: Filename must end with .json, .md, or .toon");
             } else {
                 let path = PathBuf::from(filename);
                 self.load_file(path);
@@ -125,6 +125,7 @@ impl App {
             // Clear file window (like vim :enew)
             self.json_input = String::new();
             self.markdown_input = String::new();
+            self.toon_input = String::new();
             self.file_path = None;
             self.file_path_changed = false;
             self.is_modified = false;

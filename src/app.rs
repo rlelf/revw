@@ -13,6 +13,7 @@ mod outline;
 mod pdf;
 mod search;
 mod substitute;
+mod toon;
 mod undo;
 
 use crate::config::{BorderStyle, ColorScheme, RcConfig};
@@ -20,6 +21,7 @@ use crate::content_ops::ContentOperations;
 use crate::json_ops::JsonOperations;
 use crate::markdown_ops::MarkdownOperations;
 use crate::navigation::Navigator;
+use crate::toon_ops::ToonOperations;
 use crate::rendering::{RelfEntry, RelfLineStyle, RelfRenderResult, Renderer};
 use crate::syntax_highlight::SyntaxHighlighter;
 use crate::ui::markdown_highlight::highlight_markdown_with_code_blocks;
@@ -48,6 +50,7 @@ pub enum FormatMode {
 pub enum FileMode {
     Json,
     Markdown,
+    Toon,
 }
 
 #[derive(Clone)]
@@ -62,6 +65,7 @@ pub struct App {
     pub input_mode: InputMode,
     pub json_input: String,
     pub markdown_input: String,
+    pub toon_input: String,
     pub rendered_content: Vec<String>,
     pub relf_line_styles: Vec<RelfLineStyle>,
     pub relf_visual_styles: Vec<RelfLineStyle>,
@@ -217,6 +221,7 @@ impl App {
             input_mode: InputMode::Normal,
             json_input: String::new(),
             markdown_input: String::new(),
+            toon_input: String::new(),
             rendered_content: vec![],
             relf_line_styles: Vec::new(),
             relf_visual_styles: Vec::new(),
@@ -436,10 +441,10 @@ impl App {
 
     /// Get the appropriate content operations handler based on file type
     fn get_operations(&self) -> Box<dyn ContentOperations> {
-        if self.is_markdown_file() {
-            Box::new(MarkdownOperations)
-        } else {
-            Box::new(JsonOperations)
+        match self.file_mode {
+            FileMode::Markdown => Box::new(MarkdownOperations),
+            FileMode::Toon => Box::new(ToonOperations),
+            FileMode::Json => Box::new(JsonOperations),
         }
     }
 

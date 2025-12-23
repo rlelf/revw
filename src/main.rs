@@ -7,6 +7,7 @@ mod markdown_ops;
 mod navigation;
 mod rendering;
 mod syntax_highlight;
+mod toon_ops;
 mod ui;
 
 use anyhow::Result;

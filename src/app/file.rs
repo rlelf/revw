@@ -19,27 +19,48 @@ impl App {
         match fs::read_to_string(&fixed_path) {
             Ok(content) => {
                 // Check file extension to determine format
-                let is_markdown = fixed_path.extension()
+                let extension = fixed_path.extension()
                     .and_then(|ext| ext.to_str())
-                    .map(|ext| ext.eq_ignore_ascii_case("md"))
-                    .unwrap_or(false);
+                    .map(|s| s.to_lowercase());
 
-                if is_markdown {
-                    self.markdown_input = content.clone();
-                    // Parse Markdown and convert to JSON
-                    match self.parse_markdown(&content) {
-                        Ok(json_content) => {
-                            self.json_input = json_content;
-                        }
-                        Err(e) => {
-                            self.set_status(&format!("Error parsing markdown: {}", e));
-                            return;
+                match extension.as_deref() {
+                    Some("md") => {
+                        self.file_mode = super::FileMode::Markdown;
+                        self.markdown_input = content.clone();
+                        self.toon_input = String::new();
+                        // Parse Markdown and convert to JSON
+                        match self.parse_markdown(&content) {
+                            Ok(json_content) => {
+                                self.json_input = json_content;
+                            }
+                            Err(e) => {
+                                self.set_status(&format!("Error parsing markdown: {}", e));
+                                return;
+                            }
                         }
                     }
-                } else {
-                    self.markdown_input = String::new();
-                    // Load as JSON directly
-                    self.json_input = content;
+                    Some("toon") => {
+                        self.file_mode = super::FileMode::Toon;
+                        self.toon_input = content.clone();
+                        self.markdown_input = String::new();
+                        // Parse Toon and convert to JSON
+                        match self.parse_toon(&content) {
+                            Ok(json_content) => {
+                                self.json_input = json_content;
+                            }
+                            Err(e) => {
+                                self.set_status(&format!("Error parsing toon: {}", e));
+                                return;
+                            }
+                        }
+                    }
+                    _ => {
+                        self.file_mode = super::FileMode::Json;
+                        self.markdown_input = String::new();
+                        self.toon_input = String::new();
+                        // Load as JSON directly
+                        self.json_input = content;
+                    }
                 }
 
                 let path_changed = self.file_path.as_ref() != Some(&fixed_path);
@@ -72,59 +93,88 @@ impl App {
                 // If file doesn't exist, create it with default entries
                 if e.kind() == std::io::ErrorKind::NotFound {
                     // Check file extension to determine format
-                    let is_markdown = fixed_path.extension()
+                    let extension = fixed_path.extension()
                         .and_then(|ext| ext.to_str())
-                        .map(|ext| ext.eq_ignore_ascii_case("md"))
-                        .unwrap_or(false);
+                        .map(|s| s.to_lowercase());
 
                     // Get current timestamp
                     let now = chrono::Local::now();
                     let timestamp = now.format("%Y-%m-%d %H:%M:%S").to_string();
 
-                    let default_content = if is_markdown {
-                        // Create Markdown format
-                        format!(
-                            "## OUTSIDE\n### \n\n**URL:** \n\n**Percentage:** \n\n## INSIDE\n### {}\n",
-                            timestamp
-                        )
-                    } else {
-                        // Create formatted JSON with proper indentation
-                        let default_value = json!({
-                            "outside": [
-                                {
-                                    "name": "",
-                                    "context": "",
-                                    "url": "",
-                                    "percentage": null
-                                }
-                            ],
-                            "inside": [
-                                {
-                                    "date": timestamp,
-                                    "context": ""
-                                }
-                            ]
-                        });
-                        serde_json::to_string_pretty(&default_value)
-                            .unwrap_or_else(|_| String::from(r#"{"outside":[],"inside":[]}"#))
+                    let default_content = match extension.as_deref() {
+                        Some("md") => {
+                            // Create Markdown format
+                            format!(
+                                "## OUTSIDE\n### \n\n**URL:** \n\n**Percentage:** \n\n## INSIDE\n### {}\n",
+                                timestamp
+                            )
+                        }
+                        Some("toon") => {
+                            // Create Toon format
+                            format!(
+                                "outside[1]{{name,context,url,percentage}}:\n  ,,,\n\ninside[1]{{date,context}}:\n  {},\n",
+                                timestamp
+                            )
+                        }
+                        _ => {
+                            // Create formatted JSON with proper indentation
+                            let default_value = json!({
+                                "outside": [
+                                    {
+                                        "name": "",
+                                        "context": "",
+                                        "url": "",
+                                        "percentage": null
+                                    }
+                                ],
+                                "inside": [
+                                    {
+                                        "date": timestamp,
+                                        "context": ""
+                                    }
+                                ]
+                            });
+                            serde_json::to_string_pretty(&default_value)
+                                .unwrap_or_else(|_| String::from(r#"{"outside":[],"inside":[]}"#))
+                        }
                     };
 
                     match fs::write(&fixed_path, &default_content) {
                         Ok(()) => {
-                            if is_markdown {
-                                self.markdown_input = default_content.clone();
-                                // Parse Markdown and convert to JSON
-                                match self.parse_markdown(&default_content) {
-                                    Ok(json_content) => {
-                                        self.json_input = json_content;
-                                    }
-                                    Err(e) => {
-                                        self.set_status(&format!("Error parsing markdown: {}", e));
-                                        return;
+                            match extension.as_deref() {
+                                Some("md") => {
+                                    self.markdown_input = default_content.clone();
+                                    self.toon_input = String::new();
+                                    // Parse Markdown and convert to JSON
+                                    match self.parse_markdown(&default_content) {
+                                        Ok(json_content) => {
+                                            self.json_input = json_content;
+                                        }
+                                        Err(e) => {
+                                            self.set_status(&format!("Error parsing markdown: {}", e));
+                                            return;
+                                        }
                                     }
                                 }
-                            } else {
-                                self.json_input = default_content;
+                                Some("toon") => {
+                                    self.toon_input = default_content.clone();
+                                    self.markdown_input = String::new();
+                                    // Parse Toon and convert to JSON
+                                    match self.parse_toon(&default_content) {
+                                        Ok(json_content) => {
+                                            self.json_input = json_content;
+                                        }
+                                        Err(e) => {
+                                            self.set_status(&format!("Error parsing toon: {}", e));
+                                            return;
+                                        }
+                                    }
+                                }
+                                _ => {
+                                    self.markdown_input = String::new();
+                                    self.toon_input = String::new();
+                                    self.json_input = default_content;
+                                }
                             }
                             let path_changed = self.file_path.as_ref() != Some(&fixed_path);
                             self.file_path = Some(fixed_path.clone());
@@ -161,31 +211,50 @@ impl App {
     }
     pub fn save_file(&mut self) {
         if let Some(ref path) = self.file_path {
-            // Check if this is a Markdown file
-            let is_markdown = path.extension()
+            // Check file extension to determine format
+            let extension = path.extension()
                 .and_then(|ext| ext.to_str())
-                .map(|ext| ext.eq_ignore_ascii_case("md"))
-                .unwrap_or(false);
+                .map(|s| s.to_lowercase());
 
-            let content_to_save = if is_markdown {
-                // Convert to markdown if we don't have markdown content yet
-                if self.markdown_input.is_empty() {
-                    match self.convert_to_markdown() {
-                        Ok(md_content) => {
-                            self.markdown_input = md_content.clone();
-                            md_content
+            let content_to_save = match extension.as_deref() {
+                Some("md") => {
+                    // Convert to markdown if we don't have markdown content yet
+                    if self.markdown_input.is_empty() {
+                        match self.convert_to_markdown() {
+                            Ok(md_content) => {
+                                self.markdown_input = md_content.clone();
+                                md_content
+                            }
+                            Err(e) => {
+                                self.set_status(&format!("Error converting to markdown: {}", e));
+                                return;
+                            }
                         }
-                        Err(e) => {
-                            self.set_status(&format!("Error converting to markdown: {}", e));
-                            return;
-                        }
+                    } else {
+                        self.markdown_input.clone()
                     }
-                } else {
-                    self.markdown_input.clone()
                 }
-            } else {
-                // Save as JSON
-                self.json_input.clone()
+                Some("toon") => {
+                    // Convert to toon if we don't have toon content yet
+                    if self.toon_input.is_empty() {
+                        match self.convert_to_toon() {
+                            Ok(toon_content) => {
+                                self.toon_input = toon_content.clone();
+                                toon_content
+                            }
+                            Err(e) => {
+                                self.set_status(&format!("Error converting to toon: {}", e));
+                                return;
+                            }
+                        }
+                    } else {
+                        self.toon_input.clone()
+                    }
+                }
+                _ => {
+                    // Save as JSON
+                    self.json_input.clone()
+                }
             };
 
             match fs::write(path, &content_to_save) {
@@ -210,33 +279,54 @@ impl App {
     pub fn save_file_as(&mut self, filename: &str) {
         let path = PathBuf::from(filename);
 
-        // Check if this is a Markdown file
-        let is_markdown = path.extension()
+        // Check file extension to determine format
+        let extension = path.extension()
             .and_then(|ext| ext.to_str())
-            .map(|ext| ext.eq_ignore_ascii_case("md"))
-            .unwrap_or(false);
+            .map(|s| s.to_lowercase());
 
-        let content_to_save = if is_markdown {
-            // If we already have Markdown content, use it directly
-            // Otherwise, convert JSON to Markdown
-            if self.is_markdown_file() && !self.markdown_input.is_empty() {
-                self.markdown_input.clone()
-            } else {
-                match self.convert_to_markdown() {
-                    Ok(md_content) => {
-                        // Store the converted markdown
-                        self.markdown_input = md_content.clone();
-                        md_content
-                    }
-                    Err(e) => {
-                        self.set_status(&format!("Error converting to markdown: {}", e));
-                        return;
+        let content_to_save = match extension.as_deref() {
+            Some("md") => {
+                // If we already have Markdown content, use it directly
+                // Otherwise, convert JSON to Markdown
+                if self.is_markdown_file() && !self.markdown_input.is_empty() {
+                    self.markdown_input.clone()
+                } else {
+                    match self.convert_to_markdown() {
+                        Ok(md_content) => {
+                            // Store the converted markdown
+                            self.markdown_input = md_content.clone();
+                            md_content
+                        }
+                        Err(e) => {
+                            self.set_status(&format!("Error converting to markdown: {}", e));
+                            return;
+                        }
                     }
                 }
             }
-        } else {
-            // Save as JSON
-            self.json_input.clone()
+            Some("toon") => {
+                // If we already have Toon content, use it directly
+                // Otherwise, convert JSON to Toon
+                if self.is_toon_file() && !self.toon_input.is_empty() {
+                    self.toon_input.clone()
+                } else {
+                    match self.convert_to_toon() {
+                        Ok(toon_content) => {
+                            // Store the converted toon
+                            self.toon_input = toon_content.clone();
+                            toon_content
+                        }
+                        Err(e) => {
+                            self.set_status(&format!("Error converting to toon: {}", e));
+                            return;
+                        }
+                    }
+                }
+            }
+            _ => {
+                // Save as JSON
+                self.json_input.clone()
+            }
         };
 
         match fs::write(&path, &content_to_save) {
@@ -264,27 +354,45 @@ impl App {
         if let Some(path) = self.file_path.clone() {
             match fs::read_to_string(&path) {
                 Ok(content) => {
-                    // Check if this is a Markdown file
-                    let is_markdown = path.extension()
+                    // Check file extension to determine format
+                    let extension = path.extension()
                         .and_then(|ext| ext.to_str())
-                        .map(|ext| ext.eq_ignore_ascii_case("md"))
-                        .unwrap_or(false);
+                        .map(|s| s.to_lowercase());
 
-                    if is_markdown {
-                        self.markdown_input = content.clone();
-                        // Parse Markdown and convert to JSON
-                        match self.parse_markdown(&content) {
-                            Ok(json_content) => {
-                                self.json_input = json_content;
-                            }
-                            Err(e) => {
-                                self.set_status(&format!("Error parsing markdown: {}", e));
-                                return;
+                    match extension.as_deref() {
+                        Some("md") => {
+                            self.markdown_input = content.clone();
+                            self.toon_input = String::new();
+                            // Parse Markdown and convert to JSON
+                            match self.parse_markdown(&content) {
+                                Ok(json_content) => {
+                                    self.json_input = json_content;
+                                }
+                                Err(e) => {
+                                    self.set_status(&format!("Error parsing markdown: {}", e));
+                                    return;
+                                }
                             }
                         }
-                    } else {
-                        self.markdown_input = String::new();
-                        self.json_input = content;
+                        Some("toon") => {
+                            self.toon_input = content.clone();
+                            self.markdown_input = String::new();
+                            // Parse Toon and convert to JSON
+                            match self.parse_toon(&content) {
+                                Ok(json_content) => {
+                                    self.json_input = json_content;
+                                }
+                                Err(e) => {
+                                    self.set_status(&format!("Error parsing toon: {}", e));
+                                    return;
+                                }
+                            }
+                        }
+                        _ => {
+                            self.markdown_input = String::new();
+                            self.toon_input = String::new();
+                            self.json_input = content;
+                        }
                     }
 
                     self.is_modified = false;
