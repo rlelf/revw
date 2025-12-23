@@ -253,23 +253,24 @@ revw --input data.md --append --outside file.md
 - `:h` or `?` toggle help mode
 - `q` or `Esc` quit
 
-**File Explorer (left):**
+**File Explorer:**
 - `j/k` or `↑/↓` navigate files/directories
 - `h/l` or `←/→` scroll left/right (for long filenames)
-- `gg` jump to first entry
-- `G` jump to last entry
+- `gg/G` jump to first/last entry
 - `/` search files by name
 - `n/N` next/prev search match
+- `go` preview entry
 - `Enter` open file (JSON only) or expand/collapse directory
 - `q` close explorer
 
-**Outline Panel (right):**
+**Outline Panel:**
 - `j/k` or `↑/↓` navigate entries
-- `go` preview entry (jump without closing outline)
-- `Enter` jump to entry and release focus
+- `h/l` or `←/→` scroll left/right (for long entry names)
 - `/` search entries
 - `n/N` next/prev search match
 - `gg/G` jump to first/last entry
+- `go` preview entry
+- `Enter` jump to entry and release focus
 - `q` close outline
 
 **Explorer File Operations (when explorer has focus):**
