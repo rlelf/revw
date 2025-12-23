@@ -86,9 +86,9 @@ fn main() -> Result<()> {
             Note content\n\n  \
             Toon (file.toon):\n  \
             outside[1]{name,context,url,percentage}:\n    \
-            Resource,Description,https://...,100\n  \
+            \"Resource\",\"Description\",https://...,100\n  \
             inside[1]{date,context}:\n    \
-            2025-01-01 00:00:00,Note content\n\n\
+            \"2025-01-01 00:00:00\",\"Note content\"\n\n\
             For more help, run 'revw' and press :h or ?"
         )
         .arg(Arg::new("file").help("JSON, Markdown, or Toon file to view").index(1))
