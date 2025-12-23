@@ -208,11 +208,17 @@ impl ToonOperations {
         let mut values = Vec::new();
 
         for field in fields {
-            let value = entry.get(field)
-                .ok_or_else(|| format!("Missing field: {}", field))?;
+            let value = match entry.get(field) {
+                Some(value) => value,
+                None if *field == "percentage" => {
+                    values.push("null".to_string());
+                    continue;
+                }
+                None => return Err(format!("Missing field: {}", field)),
+            };
 
             let value_str = match value {
-                Value::Null => String::new(), // null is represented as empty string in Toon
+                Value::Null => "null".to_string(),
                 Value::String(s) => {
                     if s.contains(',') || s.contains('"') || s.contains('\n') {
                         format!("\"{}\"", s.replace('"', "\\\""))
