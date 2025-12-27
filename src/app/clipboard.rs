@@ -53,9 +53,19 @@ impl App {
                         self.set_status("Pasted JSON content");
                         self.convert_json();
                     }
+                    // Try to parse as Toon format
+                    else if let Ok(json_content) = self.parse_toon(&text) {
+                        if self.is_toon_file() {
+                            self.toon_input = text;
+                        }
+                        self.json_input = json_content;
+                        self.is_modified = true;
+                        self.set_status("Pasted Toon content");
+                        self.convert_json();
+                    }
                     // Ignore status messages and other non-JSON text
                     else {
-                        self.set_status("Clipboard doesn't contain JSON, Markdown, or file path");
+                        self.set_status("Clipboard doesn't contain JSON, Markdown, Toon, or file path");
                     }
                 }
                 Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
