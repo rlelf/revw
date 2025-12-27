@@ -266,4 +266,16 @@ impl App {
 
         Ok(output_lines.join("\n"))
     }
+
+    /// Sync markdown_input from json_input if this is a Markdown file
+    /// Returns true if sync occurred, false otherwise
+    pub fn sync_markdown_from_json(&mut self) -> bool {
+        if self.is_markdown_file() {
+            if let Ok(md_str) = self.convert_to_markdown() {
+                self.markdown_input = md_str;
+                return true;
+            }
+        }
+        false
+    }
 }

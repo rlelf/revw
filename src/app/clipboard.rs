@@ -568,6 +568,8 @@ impl App {
                                                 Ok(formatted) => {
                                                     self.json_input = formatted;
                                                     self.is_modified = true;
+                                                    self.sync_toon_from_json();
+                                                    self.sync_markdown_from_json();
                                                     self.convert_json();
                                                     self.set_status("INSIDE section overwritten from clipboard");
                                                 }
@@ -654,6 +656,8 @@ impl App {
                                                 Ok(formatted) => {
                                                     self.json_input = formatted;
                                                     self.is_modified = true;
+                                                    self.sync_toon_from_json();
+                                                    self.sync_markdown_from_json();
                                                     self.convert_json();
                                                     self.set_status("OUTSIDE section overwritten from clipboard");
                                                 }
@@ -747,8 +751,9 @@ impl App {
                                                     Ok(formatted) => {
                                                         self.json_input = formatted;
                                                         self.is_modified = true;
-                                                        self.convert_json();
                                                         self.sync_toon_from_json();
+                                                        self.sync_markdown_from_json();
+                                                        self.convert_json();
                                                         self.set_status("INSIDE entries inserted at top from clipboard");
                                                     }
                                                     Err(e) => self.set_status(&format!("Format error: {}", e)),
@@ -844,8 +849,9 @@ impl App {
                                                     Ok(formatted) => {
                                                         self.json_input = formatted;
                                                         self.is_modified = true;
-                                                        self.convert_json();
                                                         self.sync_toon_from_json();
+                                                        self.sync_markdown_from_json();
+                                                        self.convert_json();
                                                         self.set_status("OUTSIDE entries appended from clipboard");
                                                     }
                                                     Err(e) => self.set_status(&format!("Format error: {}", e)),
@@ -1008,6 +1014,8 @@ impl App {
                                                     Ok(formatted) => {
                                                         self.json_input = formatted;
                                                         self.is_modified = true;
+                                                        self.sync_toon_from_json();
+                                                        self.sync_markdown_from_json();
                                                         self.convert_json();
                                                         self.set_status(&format!("{} appended from clipboard", appended_sections.join(" and ")));
                                                     }
@@ -1055,18 +1063,13 @@ impl App {
                         match serde_json::to_string_pretty(&current_json) {
                             Ok(formatted) => {
                                 self.json_input = formatted;
-                                match self.convert_to_toon() {
-                                    Ok(toon_content) => {
-                                        self.toon_input = toon_content;
-                                        self.is_modified = true;
-                                        self.convert_json();
-                                        if !self.relf_entries.is_empty() && self.selected_entry_index >= self.relf_entries.len() {
-                                            self.selected_entry_index = 0;
-                                        }
-                                        self.set_status("INSIDE section cleared");
-                                    }
-                                    Err(e) => self.set_status(&format!("Toon conversion error: {}", e)),
+                                self.is_modified = true;
+                                self.sync_toon_from_json();
+                                self.convert_json();
+                                if !self.relf_entries.is_empty() && self.selected_entry_index >= self.relf_entries.len() {
+                                    self.selected_entry_index = 0;
                                 }
+                                self.set_status("INSIDE section cleared");
                             }
                             Err(e) => self.set_status(&format!("Format error: {}", e)),
                         }
@@ -1091,6 +1094,7 @@ impl App {
                         Ok(formatted) => {
                             self.json_input = formatted;
                             self.is_modified = true;
+                            self.sync_markdown_from_json();
                             self.convert_json();
                             // Reset selection to first entry if current selection is out of bounds
                             if !self.relf_entries.is_empty() && self.selected_entry_index >= self.relf_entries.len() {
@@ -1128,18 +1132,13 @@ impl App {
                         match serde_json::to_string_pretty(&current_json) {
                             Ok(formatted) => {
                                 self.json_input = formatted;
-                                match self.convert_to_toon() {
-                                    Ok(toon_content) => {
-                                        self.toon_input = toon_content;
-                                        self.is_modified = true;
-                                        self.convert_json();
-                                        if !self.relf_entries.is_empty() && self.selected_entry_index >= self.relf_entries.len() {
-                                            self.selected_entry_index = 0;
-                                        }
-                                        self.set_status("OUTSIDE section cleared");
-                                    }
-                                    Err(e) => self.set_status(&format!("Toon conversion error: {}", e)),
+                                self.is_modified = true;
+                                self.sync_toon_from_json();
+                                self.convert_json();
+                                if !self.relf_entries.is_empty() && self.selected_entry_index >= self.relf_entries.len() {
+                                    self.selected_entry_index = 0;
                                 }
+                                self.set_status("OUTSIDE section cleared");
                             }
                             Err(e) => self.set_status(&format!("Format error: {}", e)),
                         }
@@ -1164,6 +1163,7 @@ impl App {
                         Ok(formatted) => {
                             self.json_input = formatted;
                             self.is_modified = true;
+                            self.sync_markdown_from_json();
                             self.convert_json();
                             // Reset selection to first entry if current selection is out of bounds
                             if !self.relf_entries.is_empty() && self.selected_entry_index >= self.relf_entries.len() {
@@ -1758,8 +1758,9 @@ impl App {
                         self.save_undo_state();
                         self.json_input = formatted;
                         self.is_modified = true;
-                        self.convert_json();
                         self.sync_toon_from_json();
+                        self.sync_markdown_from_json();
+                        self.convert_json();
 
                         // Adjust selected index
                         if self.selected_entry_index >= self.relf_entries.len() && !self.relf_entries.is_empty() {
@@ -2113,19 +2114,9 @@ impl App {
                                     Ok(formatted) => {
                                         self.save_undo_state();
                                         self.json_input = formatted;
-                                        // Update markdown_input if this is a markdown file
-                                        if self.is_markdown_file() {
-                                            if let Ok(md) = self.convert_to_markdown() {
-                                                self.markdown_input = md;
-                                            }
-                                        }
-                                        // Update toon_input if this is a toon file
-                                        else if self.is_toon_file() {
-                                            if let Ok(toon) = self.convert_to_toon() {
-                                                self.toon_input = toon;
-                                            }
-                                        }
                                         self.is_modified = true;
+                                        self.sync_toon_from_json();
+                                        self.sync_markdown_from_json();
                                         self.convert_json();
                                         self.selected_entry_index += 1; // Move to duplicated entry
                                         self.set_status("Entry duplicated");
@@ -2148,19 +2139,9 @@ impl App {
                                     Ok(formatted) => {
                                         self.save_undo_state();
                                         self.json_input = formatted;
-                                        // Update markdown_input if this is a markdown file
-                                        if self.is_markdown_file() {
-                                            if let Ok(md) = self.convert_to_markdown() {
-                                                self.markdown_input = md;
-                                            }
-                                        }
-                                        // Update toon_input if this is a toon file
-                                        else if self.is_toon_file() {
-                                            if let Ok(toon) = self.convert_to_toon() {
-                                                self.toon_input = toon;
-                                            }
-                                        }
                                         self.is_modified = true;
+                                        self.sync_toon_from_json();
+                                        self.sync_markdown_from_json();
                                         self.convert_json();
                                         self.selected_entry_index += 1; // Move to duplicated entry
                                         self.set_status("Entry duplicated");
@@ -2226,6 +2207,7 @@ impl App {
                 Ok(json_content) => {
                     self.json_input = json_content;
                     self.is_modified = true;
+                    self.sync_toon_from_json();
                     self.convert_json();
                     self.set_status("Pasted Markdown content");
                 }
@@ -2238,8 +2220,10 @@ impl App {
         else if trimmed.starts_with('{') || trimmed.starts_with('[') {
             self.json_input = text.to_string();
             self.is_modified = true;
-            self.set_status("Pasted JSON content");
+            self.sync_toon_from_json();
+            self.sync_markdown_from_json();
             self.convert_json();
+            self.set_status("Pasted JSON content");
         }
         else {
             self.set_status("Content doesn't contain JSON or Markdown");
