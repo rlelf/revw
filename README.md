@@ -68,7 +68,7 @@ Finally learned how to use cargo! Running 'cargo new my_project' creates such a 
 
 ### Toon Format
 
-```toon
+```yaml
 outside[1]{name,context,url,percentage}:
   "Rust Programming Language","A systems programming language focused on safety, speed, and concurrency.",https://www.rust-lang.org/,100
 

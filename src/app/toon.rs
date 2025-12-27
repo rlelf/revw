@@ -229,4 +229,16 @@ impl App {
     pub fn is_toon_file(&self) -> bool {
         self.file_mode == super::FileMode::Toon
     }
+
+    /// Sync toon_input from json_input if this is a Toon file
+    /// Returns true if sync occurred, false otherwise
+    pub fn sync_toon_from_json(&mut self) -> bool {
+        if self.is_toon_file() {
+            if let Ok(toon_str) = self.convert_to_toon() {
+                self.toon_input = toon_str;
+                return true;
+            }
+        }
+        false
+    }
 }

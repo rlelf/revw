@@ -748,6 +748,7 @@ impl App {
                                                         self.json_input = formatted;
                                                         self.is_modified = true;
                                                         self.convert_json();
+                                                        self.sync_toon_from_json();
                                                         self.set_status("INSIDE entries inserted at top from clipboard");
                                                     }
                                                     Err(e) => self.set_status(&format!("Format error: {}", e)),
@@ -844,6 +845,7 @@ impl App {
                                                         self.json_input = formatted;
                                                         self.is_modified = true;
                                                         self.convert_json();
+                                                        self.sync_toon_from_json();
                                                         self.set_status("OUTSIDE entries appended from clipboard");
                                                     }
                                                     Err(e) => self.set_status(&format!("Format error: {}", e)),
@@ -1757,6 +1759,7 @@ impl App {
                         self.json_input = formatted;
                         self.is_modified = true;
                         self.convert_json();
+                        self.sync_toon_from_json();
 
                         // Adjust selected index
                         if self.selected_entry_index >= self.relf_entries.len() && !self.relf_entries.is_empty() {
