@@ -3,7 +3,7 @@ use revw::app::{App, FileMode, FormatMode};
 #[test]
 fn test_order_entries_by_percentage_and_name() {
     let mut app = App::new(FormatMode::View);
-    app.file_mode = FileMode::Json;
+    app.file_mode = FileMode::Json; // Explicitly set to JSON mode for this test
     app.json_input = r#"{
   "outside": [
     {
@@ -62,7 +62,7 @@ fn test_order_entries_by_percentage_and_name() {
 #[test]
 fn test_order_by_percentage_only() {
     let mut app = App::new(FormatMode::View);
-    app.file_mode = FileMode::Json;
+    app.file_mode = FileMode::Json; // Explicitly set to JSON mode for this test
     app.json_input = r#"{
   "outside": [
     {
@@ -119,7 +119,7 @@ fn test_order_by_percentage_only() {
 #[test]
 fn test_order_by_name_only() {
     let mut app = App::new(FormatMode::View);
-    app.file_mode = FileMode::Json;
+    app.file_mode = FileMode::Json; // Explicitly set to JSON mode for this test
     app.json_input = r#"{
   "outside": [
     {
@@ -177,7 +177,7 @@ fn test_order_by_name_only() {
 #[test]
 fn test_order_by_percentage_with_null_values() {
     let mut app = App::new(FormatMode::View);
-    app.file_mode = FileMode::Json;
+    app.file_mode = FileMode::Json; // Explicitly set to JSON mode for this test
     app.json_input = r#"{
   "outside": [
     {
@@ -209,7 +209,7 @@ fn test_order_by_percentage_with_null_values() {
 #[test]
 fn test_order_by_name_case_sensitive() {
     let mut app = App::new(FormatMode::View);
-    app.file_mode = FileMode::Json;
+    app.file_mode = FileMode::Json; // Explicitly set to JSON mode for this test
     app.json_input = r#"{
   "outside": [
     {
@@ -242,7 +242,7 @@ fn test_order_by_name_case_sensitive() {
 #[test]
 fn test_order_empty_arrays() {
     let mut app = App::new(FormatMode::View);
-    app.file_mode = FileMode::Json;
+    app.file_mode = FileMode::Json; // Explicitly set to JSON mode for this test
     app.json_input = r#"{
   "outside": [],
   "inside": []
@@ -260,7 +260,7 @@ fn test_order_empty_arrays() {
 #[test]
 fn test_order_by_percentage_descending() {
     let mut app = App::new(FormatMode::View);
-    app.file_mode = FileMode::Json;
+    app.file_mode = FileMode::Json; // Explicitly set to JSON mode for this test
     app.json_input = r#"{
   "outside": [
     {
@@ -293,7 +293,7 @@ fn test_order_by_percentage_descending() {
 #[test]
 fn test_order_preserves_other_fields() {
     let mut app = App::new(FormatMode::View);
-    app.file_mode = FileMode::Json;
+    app.file_mode = FileMode::Json; // Explicitly set to JSON mode for this test
     app.json_input = r#"{
   "outside": [
     {

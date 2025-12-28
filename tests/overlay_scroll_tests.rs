@@ -1,4 +1,4 @@
-use revw::app::{App, FormatMode};
+use revw::app::{App, FileMode, FormatMode};
 
 #[test]
 fn test_overlay_scroll_initialization() {
@@ -10,6 +10,7 @@ fn test_overlay_scroll_initialization() {
 #[test]
 fn test_cancel_editing_resets_scroll() {
     let mut app = App::new(FormatMode::View);
+    app.file_mode = FileMode::Json; // Explicitly set to JSON mode for this test
     app.editing_entry = true;
     app.edit_hscroll = 10;
     app.edit_vscroll = 5;
@@ -24,6 +25,7 @@ fn test_cancel_editing_resets_scroll() {
 #[test]
 fn test_view_edit_mode_flag() {
     let mut app = App::new(FormatMode::View);
+    app.file_mode = FileMode::Json; // Explicitly set to JSON mode for this test
 
     // Initially not in View Edit mode
     assert!(!app.view_edit_mode);
@@ -40,6 +42,7 @@ fn test_view_edit_mode_flag() {
 #[test]
 fn test_horizontal_scroll_with_cursor() {
     let mut app = App::new(FormatMode::View);
+    app.file_mode = FileMode::Json; // Explicitly set to JSON mode for this test
     app.editing_entry = true;
     app.edit_field_editing_mode = true;
     app.edit_field_index = 0; // name field
@@ -66,6 +69,7 @@ fn test_horizontal_scroll_with_cursor() {
 #[test]
 fn test_scroll_reset_on_field_change() {
     let mut app = App::new(FormatMode::View);
+    app.file_mode = FileMode::Json; // Explicitly set to JSON mode for this test
     app.editing_entry = true;
     app.edit_hscroll = 10;
     app.edit_vscroll = 5;
@@ -84,6 +88,7 @@ fn test_scroll_reset_on_field_change() {
 #[test]
 fn test_cursor_position_tracking() {
     let mut app = App::new(FormatMode::View);
+    app.file_mode = FileMode::Json; // Explicitly set to JSON mode for this test
     app.editing_entry = true;
     app.edit_field_editing_mode = true;
 
@@ -107,6 +112,7 @@ fn test_cursor_position_tracking() {
 #[test]
 fn test_field_selection_mode_renders_newlines() {
     let mut app = App::new(FormatMode::View);
+    app.file_mode = FileMode::Json; // Explicitly set to JSON mode for this test
     app.editing_entry = true;
     app.edit_field_editing_mode = false; // Field selection mode
     app.view_edit_mode = false;
@@ -128,6 +134,7 @@ fn test_field_selection_mode_renders_newlines() {
 #[test]
 fn test_normal_mode_shows_literal_newlines() {
     let mut app = App::new(FormatMode::View);
+    app.file_mode = FileMode::Json; // Explicitly set to JSON mode for this test
     app.editing_entry = true;
     app.edit_field_editing_mode = true; // Field editing mode (normal)
     app.edit_insert_mode = false;
@@ -150,6 +157,7 @@ fn test_normal_mode_shows_literal_newlines() {
 #[test]
 fn test_insert_mode_shows_literal_newlines() {
     let mut app = App::new(FormatMode::View);
+    app.file_mode = FileMode::Json; // Explicitly set to JSON mode for this test
     app.editing_entry = true;
     app.edit_field_editing_mode = true; // Field editing mode (insert)
     app.edit_insert_mode = true;
@@ -172,6 +180,7 @@ fn test_insert_mode_shows_literal_newlines() {
 #[test]
 fn test_view_edit_mode_renders_newlines() {
     let mut app = App::new(FormatMode::View);
+    app.file_mode = FileMode::Json; // Explicitly set to JSON mode for this test
     app.editing_entry = true;
     app.edit_field_editing_mode = true;
     app.edit_insert_mode = true;

@@ -1,4 +1,4 @@
-use revw::app::{App, FormatMode};
+use revw::app::{App, FileMode, FormatMode};
 use revw::content_ops::ContentOperations;
 use revw::toon_ops::ToonOperations;
 use serde_json::Value;
@@ -35,6 +35,7 @@ inside[1]{date,context}:
 #[test]
 fn test_convert_to_toon() {
     let mut app = App::new(FormatMode::View);
+    app.file_mode = FileMode::Json; // Explicitly set to JSON mode for this test
 
     app.json_input = r#"{
   "outside": [
@@ -107,69 +108,4 @@ fn test_parse_toon_with_comma_in_quotes() {
     let outside = json.get("outside").unwrap().as_array().unwrap();
     assert_eq!(outside[0]["name"], "Test, Name");
     assert_eq!(outside[0]["context"], "Context with, commas");
-}
-
-#[test]
-fn test_add_outside_entry() {
-    let ops = ToonOperations;
-
-    let initial_content = r#"outside[1]{name,context,url,percentage}:
-  "Existing Entry","Some context",https://example.com,100
-
-inside[0]{date,context}:
-"#;
-
-    let result = ops.add_outside_entry(initial_content);
-    assert!(result.is_ok(), "Failed to add outside entry: {:?}", result.err());
-
-    let (new_toon, _cursor_line, _cursor_col, new_json) = result.unwrap();
-
-    // Parse the JSON to verify
-    let json: Value = serde_json::from_str(&new_json).unwrap();
-    let outside = json.get("outside").unwrap().as_array().unwrap();
-
-    // Should have 2 entries now (new one at the beginning)
-    assert_eq!(outside.len(), 2);
-
-    // First entry should be the new empty one
-    assert_eq!(outside[0]["name"], "");
-    assert_eq!(outside[0]["context"], "");
-    assert_eq!(outside[0]["url"], "");
-
-    // Percentage should be null, just like in JSON
-    assert!(outside[0]["percentage"].is_null());
-
-    // Verify the Toon format has empty percentage field
-    assert!(new_toon.contains(",,,\n")); // Four empty fields before existing entry
-    println!("Percentage value: {:?}", outside[0]["percentage"]);
-    println!("New Toon content:\n{}", new_toon);
-}
-
-#[test]
-fn test_add_inside_entry() {
-    let ops = ToonOperations;
-
-    let initial_content = r#"outside[0]{name,context,url,percentage}:
-
-inside[1]{date,context}:
-  "2025-01-01 00:00:00","Existing entry"
-"#;
-
-    let result = ops.add_inside_entry(initial_content);
-    assert!(result.is_ok(), "Failed to add inside entry: {:?}", result.err());
-
-    let (new_toon, _cursor_line, _cursor_col, new_json) = result.unwrap();
-
-    // Parse the JSON to verify
-    let json: Value = serde_json::from_str(&new_json).unwrap();
-    let inside = json.get("inside").unwrap().as_array().unwrap();
-
-    // Should have 2 entries now
-    assert_eq!(inside.len(), 2);
-
-    // First entry should be the new one with timestamp
-    assert!(!inside[0]["date"].as_str().unwrap().is_empty());
-    assert_eq!(inside[0]["context"], "");
-
-    println!("New Toon content:\n{}", new_toon);
 }

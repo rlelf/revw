@@ -102,7 +102,7 @@ Revw integrates seamlessly with AI assistants:
 
 **Workflow 1: LLM generates → You review**
 1. Ask an LLM to generate a reading list or resource collection
-2. Paste the JSON into Revw (`:v` key)
+2. Paste the Markdown, JSON, or Toon into Revw (`:v`, `:vi`, `:vo`, `:vai`, `:vao`)
 3. Browse and organize visually
 
 **Workflow 2: You create → LLM assists**

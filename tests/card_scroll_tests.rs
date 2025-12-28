@@ -1,4 +1,4 @@
-use revw::app::{App, FormatMode};
+use revw::app::{App, FileMode, FormatMode};
 
 #[test]
 fn test_card_vertical_scroll() {
@@ -15,6 +15,7 @@ fn test_card_vertical_scroll() {
 }"#;
 
     let mut app = App::new(FormatMode::View);
+    app.file_mode = FileMode::Json; // Explicitly set to JSON mode for this test
     app.json_input = json_input.to_string();
     app.format_mode = FormatMode::View;
     app.convert_json();
@@ -55,6 +56,7 @@ fn test_card_scroll_reset_on_navigation() {
 }"#;
 
     let mut app = App::new(FormatMode::View);
+    app.file_mode = FileMode::Json; // Explicitly set to JSON mode for this test
     app.json_input = json_input.to_string();
     app.format_mode = FormatMode::View;
     app.convert_json();
@@ -98,6 +100,7 @@ fn test_card_scroll_reset_on_move_up() {
 }"#;
 
     let mut app = App::new(FormatMode::View);
+    app.file_mode = FileMode::Json; // Explicitly set to JSON mode for this test
     app.json_input = json_input.to_string();
     app.format_mode = FormatMode::View;
     app.convert_json();
@@ -134,6 +137,7 @@ fn test_multiple_cards_independent_scroll() {
 }"#;
 
     let mut app = App::new(FormatMode::View);
+    app.file_mode = FileMode::Json; // Explicitly set to JSON mode for this test
     app.json_input = json_input.to_string();
     app.format_mode = FormatMode::View;
     app.convert_json();
@@ -174,6 +178,7 @@ fn test_hscroll_bounds() {
 }"#;
 
     let mut app = App::new(FormatMode::View);
+    app.file_mode = FileMode::Json; // Explicitly set to JSON mode for this test
     app.json_input = json_input.to_string();
     app.format_mode = FormatMode::View;
     app.convert_json();
@@ -203,6 +208,7 @@ fn test_card_full_height_display() {
 }"#;
 
     let mut app = App::new(FormatMode::View);
+    app.file_mode = FileMode::Json; // Explicitly set to JSON mode for this test
     app.json_input = json_input.to_string();
     app.format_mode = FormatMode::View;
     app.convert_json();
@@ -258,6 +264,7 @@ fn test_card_scroll_with_newlines() {
 }"#;
 
     let mut app = App::new(FormatMode::View);
+    app.file_mode = FileMode::Json; // Explicitly set to JSON mode for this test
     app.json_input = json_input.to_string();
     app.format_mode = FormatMode::View;
     app.convert_json();

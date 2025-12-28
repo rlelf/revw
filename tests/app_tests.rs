@@ -19,6 +19,7 @@ fn test_app_creation_view() {
 #[test]
 fn test_simple_json_conversion() {
     let mut app = App::new(FormatMode::View);
+    app.file_mode = FileMode::Json; // Explicitly set to JSON mode for this test
     app.json_input = r#"{"outside": [], "inside": []}"#.to_string();
     app.convert_json();
 
@@ -29,6 +30,7 @@ fn test_simple_json_conversion() {
 #[test]
 fn test_relf_format_conversion() {
     let mut app = App::new(FormatMode::View);
+    app.file_mode = FileMode::Json; // Explicitly set to JSON mode for this test
     app.json_input =
         r#"{"outside": [{"field1": "value1"}], "inside": [{"field2": "value2"}]}"#.to_string();
     app.convert_json();
@@ -40,6 +42,7 @@ fn test_relf_format_conversion() {
 #[test]
 fn test_empty_json_handling() {
     let mut app = App::new(FormatMode::View);
+    app.file_mode = FileMode::Json; // Explicitly set to JSON mode for this test
     app.json_input = "".to_string();
     app.convert_json();
 
@@ -49,6 +52,7 @@ fn test_empty_json_handling() {
 #[test]
 fn test_scroll_functionality() {
     let mut app = App::new(FormatMode::View);
+    app.file_mode = FileMode::Json; // Explicitly set to JSON mode for this test
     app.max_scroll = 10;
 
     app.scroll_down();
@@ -67,6 +71,7 @@ fn test_scroll_functionality() {
 #[test]
 fn test_status_message_handling() {
     let mut app = App::new(FormatMode::View);
+    app.file_mode = FileMode::Json; // Explicitly set to JSON mode for this test
 
     app.set_status("Test message");
     assert_eq!(app.status_message, "Test message");
@@ -76,6 +81,7 @@ fn test_status_message_handling() {
 #[test]
 fn test_clear_content() {
     let mut app = App::new(FormatMode::View);
+    app.file_mode = FileMode::Json; // Explicitly set to JSON mode for this test
     app.json_input = r#"{"outside": [{"name": "test"}], "inside": []}"#.to_string();
     app.convert_json();
     app.scroll = 5;
@@ -98,6 +104,7 @@ fn test_clear_content() {
 #[test]
 fn test_clear_inside() {
     let mut app = App::new(FormatMode::View);
+    app.file_mode = FileMode::Json; // Explicitly set to JSON mode for this test
     app.json_input = r#"{
   "outside": [
     {
@@ -135,6 +142,7 @@ fn test_clear_inside() {
 #[test]
 fn test_clear_outside() {
     let mut app = App::new(FormatMode::View);
+    app.file_mode = FileMode::Json; // Explicitly set to JSON mode for this test
     app.json_input = r#"{
   "outside": [
     {
@@ -265,7 +273,7 @@ fn test_substitute_invalid_syntax() {
 #[test]
 fn test_substitute_only_in_edit_mode() {
     let mut app = App::new(FormatMode::View);
-    app.file_mode = FileMode::Json;
+    app.file_mode = FileMode::Json; // Explicitly set to JSON mode for this test
     app.json_input = "foo bar\nbaz qux".to_string();
 
     app.execute_substitute("s/foo/replaced/");
@@ -612,6 +620,7 @@ fn test_substitute_confirmation_selective() {
 #[test]
 fn test_view_mode_parsing() {
     let mut app = App::new(FormatMode::View);
+    app.file_mode = FileMode::Json; // Explicitly set to JSON mode for this test
     app.json_input = r#"{
         "outside": [
             {
@@ -658,6 +667,7 @@ fn test_edit_mode_json_output() {
 #[test]
 fn test_empty_outside_section() {
     let mut app = App::new(FormatMode::View);
+    app.file_mode = FileMode::Json; // Explicitly set to JSON mode for this test
     app.json_input = r#"{
         "outside": [],
         "inside": [
@@ -677,6 +687,7 @@ fn test_empty_outside_section() {
 #[test]
 fn test_empty_inside_section() {
     let mut app = App::new(FormatMode::View);
+    app.file_mode = FileMode::Json; // Explicitly set to JSON mode for this test
     app.json_input = r#"{
         "outside": [
             {
@@ -696,6 +707,7 @@ fn test_empty_inside_section() {
 #[test]
 fn test_outside_entry_missing_fields() {
     let mut app = App::new(FormatMode::View);
+    app.file_mode = FileMode::Json; // Explicitly set to JSON mode for this test
     app.json_input = r#"{
         "outside": [
             {

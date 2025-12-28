@@ -616,9 +616,12 @@ impl App {
     pub fn clear_content(&mut self) {
         self.save_undo_state();
         self.json_input = String::new();
+        self.markdown_input = String::new();
+        self.toon_input = String::new();
         self.content_cursor_line = 0;
         self.content_cursor_col = 0;
         self.scroll = 0;
+        self.view_edit_mode = false;
         self.is_modified = true;
         self.convert_json();
         self.set_status("Content cleared");

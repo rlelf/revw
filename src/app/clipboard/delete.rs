@@ -6,6 +6,7 @@ impl App {
     pub fn clear_inside(&mut self) {
         // Clear INSIDE section
         self.save_undo_state();
+        self.view_edit_mode = false;
 
         // For Markdown files
         if self.is_markdown_file() {
@@ -76,6 +77,7 @@ impl App {
     pub fn clear_outside(&mut self) {
         // Clear OUTSIDE section
         self.save_undo_state();
+        self.view_edit_mode = false;
 
         // For Markdown files
         if self.is_markdown_file() {
