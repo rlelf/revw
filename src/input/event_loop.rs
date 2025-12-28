@@ -1,5 +1,7 @@
 use anyhow::Result;
-use crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
+use crossterm::event::{self, Event, KeyCode, KeyModifiers};
+#[cfg(target_os = "windows")]
+use crossterm::event::KeyEventKind;
 use notify::{Event as NotifyEvent, RecursiveMode, Watcher};
 use std::sync::mpsc::{self, Receiver, TryRecvError};
 use std::time::Duration;
@@ -9,7 +11,10 @@ use crate::app::App;
 pub fn run_app<B: ratatui::backend::Backend>(
     terminal: &mut ratatui::Terminal<B>,
     mut app: App,
-) -> Result<()> {
+) -> Result<()>
+where
+    <B as ratatui::backend::Backend>::Error: Send + Sync + 'static,
+{
     // Setup file watcher
     let (tx, mut rx): (std::sync::mpsc::Sender<NotifyEvent>, Receiver<NotifyEvent>) = mpsc::channel();
     let mut watcher =
