@@ -132,6 +132,7 @@ impl App {
             self.content_cursor_line = 0;
             self.content_cursor_col = 0;
             self.scroll = 0;
+            self.view_edit_mode = false;
             self.convert_json();
             self.set_status("New empty buffer");
         } else if cmd == "ar" {
