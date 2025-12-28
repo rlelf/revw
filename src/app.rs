@@ -622,6 +622,7 @@ impl App {
         self.content_cursor_col = 0;
         self.scroll = 0;
         self.view_edit_mode = false;
+        self.markdown_highlight_cache.clear();
         self.is_modified = true;
         self.convert_json();
         self.set_status("Content cleared");

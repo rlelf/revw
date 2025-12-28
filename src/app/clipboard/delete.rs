@@ -7,6 +7,7 @@ impl App {
         // Clear INSIDE section
         self.save_undo_state();
         self.view_edit_mode = false;
+        self.markdown_highlight_cache.clear();
 
         // For Markdown files
         if self.is_markdown_file() {
@@ -78,6 +79,7 @@ impl App {
         // Clear OUTSIDE section
         self.save_undo_state();
         self.view_edit_mode = false;
+        self.markdown_highlight_cache.clear();
 
         // For Markdown files
         if self.is_markdown_file() {

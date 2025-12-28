@@ -133,6 +133,7 @@ impl App {
             self.content_cursor_col = 0;
             self.scroll = 0;
             self.view_edit_mode = false;
+            self.markdown_highlight_cache.clear();
             self.convert_json();
             self.set_status("New empty buffer");
         } else if cmd == "ar" {
