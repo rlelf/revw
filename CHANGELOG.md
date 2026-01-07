@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.9
+
+- Added Toon format support with complete cross-format compatibility
+- Fixed `:v` paste command to sync correctly across JSON/Markdown/Toon formats
+- Fixed `:dd` and `:yy` commands in Edit mode for Toon files
+- Fixed cross-format paste operations (9 format combinations now work correctly)
+- Refactored clipboard module into organized submodules
+- Improved format sync functions for better maintainability
+
 ## 0.2.8
 
 - Fixed markdown syntax colors to match between view mode and raw edit mode
