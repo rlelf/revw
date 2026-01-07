@@ -170,6 +170,47 @@ impl App {
                         return;
                     }
 
+                    // For Toon files, parse Toon or JSON format
+                    if self.is_toon_file() {
+                        match self.clipboard_text_to_json_value(&clipboard_text) {
+                            Ok(clipboard_json) => {
+                                let new_outside = if let Some(obj) = clipboard_json.as_object() {
+                                    obj.get("outside").cloned()
+                                } else {
+                                    None
+                                };
+
+                                if let Some(new_outside) = new_outside {
+                                    match serde_json::from_str::<Value>(&self.json_input) {
+                                        Ok(mut current_json) => {
+                                            if let Some(obj) = current_json.as_object_mut() {
+                                                obj.insert("outside".to_string(), new_outside);
+
+                                                match serde_json::to_string_pretty(&current_json) {
+                                                    Ok(formatted) => {
+                                                        if let Err(e) = self.set_json_and_sync_toon(formatted) {
+                                                            self.set_status(&e);
+                                                            return;
+                                                        }
+                                                        self.set_status("OUTSIDE section overwritten from clipboard");
+                                                    }
+                                                    Err(e) => self.set_status(&format!("Format error: {}", e)),
+                                                }
+                                            } else {
+                                                self.set_status("Current JSON is not an object");
+                                            }
+                                        }
+                                        Err(e) => self.set_status(&format!("Invalid current JSON: {}", e)),
+                                    }
+                                } else {
+                                    self.set_status("No 'outside' field in clipboard JSON");
+                                }
+                            }
+                            Err(e) => self.set_status(&e),
+                        }
+                        return;
+                    }
+
                     // For JSON files, parse JSON format
                     // Try to parse as JSON
                     match self.clipboard_text_to_json_value(&clipboard_text) {

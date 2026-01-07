@@ -41,6 +41,56 @@ impl App {
                         return;
                     }
 
+                    // For Toon files, parse Toon or JSON format
+                    if self.is_toon_file() {
+                        match self.clipboard_text_to_json_value(&clipboard_text) {
+                            Ok(clipboard_json) => {
+                                let new_inside = if let Some(obj) = clipboard_json.as_object() {
+                                    obj.get("inside").and_then(|v| v.as_array()).cloned()
+                                } else {
+                                    None
+                                };
+
+                                if let Some(new_inside_items) = new_inside {
+                                    match serde_json::from_str::<Value>(&self.json_input) {
+                                        Ok(mut current_json) => {
+                                            if let Some(obj) = current_json.as_object_mut() {
+                                                let inside_array = obj.entry("inside".to_string())
+                                                    .or_insert(Value::Array(vec![]));
+
+                                                if let Some(arr) = inside_array.as_array_mut() {
+                                                    for (idx, item) in new_inside_items.into_iter().enumerate() {
+                                                        arr.insert(idx, item);
+                                                    }
+
+                                                    match serde_json::to_string_pretty(&current_json) {
+                                                        Ok(formatted) => {
+                                                            if let Err(e) = self.set_json_and_sync_toon(formatted) {
+                                                                self.set_status(&e);
+                                                                return;
+                                                            }
+                                                            self.set_status("INSIDE entries inserted at top from clipboard");
+                                                        }
+                                                        Err(e) => self.set_status(&format!("Format error: {}", e)),
+                                                    }
+                                                } else {
+                                                    self.set_status("Current 'inside' is not an array");
+                                                }
+                                            } else {
+                                                self.set_status("Current JSON is not an object");
+                                            }
+                                        }
+                                        Err(e) => self.set_status(&format!("Invalid current JSON: {}", e)),
+                                    }
+                                } else {
+                                    self.set_status("No 'inside' array in clipboard JSON");
+                                }
+                            }
+                            Err(e) => self.set_status(&e),
+                        }
+                        return;
+                    }
+
                     // For JSON files, parse JSON format
                     // Try to parse as JSON
                     match self.clipboard_text_to_json_value(&clipboard_text) {
@@ -136,6 +186,56 @@ impl App {
 
                         // Otherwise treat as Markdown
                         self.paste_markdown_section_append(&clipboard_text, "OUTSIDE");
+                        return;
+                    }
+
+                    // For Toon files, parse Toon or JSON format
+                    if self.is_toon_file() {
+                        match self.clipboard_text_to_json_value(&clipboard_text) {
+                            Ok(clipboard_json) => {
+                                let new_outside = if let Some(obj) = clipboard_json.as_object() {
+                                    obj.get("outside").and_then(|v| v.as_array()).cloned()
+                                } else {
+                                    None
+                                };
+
+                                if let Some(new_outside_items) = new_outside {
+                                    match serde_json::from_str::<Value>(&self.json_input) {
+                                        Ok(mut current_json) => {
+                                            if let Some(obj) = current_json.as_object_mut() {
+                                                let outside_array = obj.entry("outside".to_string())
+                                                    .or_insert(Value::Array(vec![]));
+
+                                                if let Some(arr) = outside_array.as_array_mut() {
+                                                    for item in new_outside_items {
+                                                        arr.push(item);
+                                                    }
+
+                                                    match serde_json::to_string_pretty(&current_json) {
+                                                        Ok(formatted) => {
+                                                            if let Err(e) = self.set_json_and_sync_toon(formatted) {
+                                                                self.set_status(&e);
+                                                                return;
+                                                            }
+                                                            self.set_status("OUTSIDE entries appended from clipboard");
+                                                        }
+                                                        Err(e) => self.set_status(&format!("Format error: {}", e)),
+                                                    }
+                                                } else {
+                                                    self.set_status("Current 'outside' is not an array");
+                                                }
+                                            } else {
+                                                self.set_status("Current JSON is not an object");
+                                            }
+                                        }
+                                        Err(e) => self.set_status(&format!("Invalid current JSON: {}", e)),
+                                    }
+                                } else {
+                                    self.set_status("No 'outside' array in clipboard JSON");
+                                }
+                            }
+                            Err(e) => self.set_status(&e),
+                        }
                         return;
                     }
 
