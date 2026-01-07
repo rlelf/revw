@@ -48,6 +48,8 @@ impl App {
                     else if trimmed.starts_with('{') || trimmed.starts_with('[') {
                         self.json_input = text;
                         self.is_modified = true;
+                        self.sync_markdown_from_json();
+                        self.sync_toon_from_json();
                         self.set_status("Pasted JSON content");
                         self.convert_json();
                     }
@@ -58,6 +60,8 @@ impl App {
                         }
                         self.json_input = json_content;
                         self.is_modified = true;
+                        self.sync_markdown_from_json();
+                        self.sync_toon_from_json();
                         self.set_status("Pasted Toon content");
                         self.convert_json();
                     }
