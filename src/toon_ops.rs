@@ -4,7 +4,56 @@ use serde_json::{json, Value};
 
 pub struct ToonOperations;
 
+struct EntryInfo {
+    section: String,
+    entry_index: usize,
+}
+
 impl ToonOperations {
+    /// Find which entry the cursor is on
+    fn find_entry_at_line(content: &str, cursor_line: usize) -> Result<EntryInfo, String> {
+        let lines: Vec<&str> = content.lines().collect();
+        if cursor_line >= lines.len() {
+            return Err("Cursor line out of bounds".to_string());
+        }
+
+        let mut current_section = String::new();
+        let mut entry_index = 0;
+        let mut in_entry = false;
+
+        for (idx, line) in lines.iter().enumerate() {
+            let trimmed = line.trim();
+
+            // Check if this is a section header
+            if trimmed.contains('[') && trimmed.contains('{') && trimmed.ends_with(':') {
+                if let Ok((section, _)) = Self::parse_toon_header(trimmed) {
+                    current_section = section;
+                    entry_index = 0;
+                    in_entry = false;
+                    continue;
+                }
+            }
+
+            // Check if this is an entry line (has data)
+            if !trimmed.is_empty() && !current_section.is_empty() {
+                if idx == cursor_line {
+                    return Ok(EntryInfo {
+                        section: current_section.clone(),
+                        entry_index,
+                    });
+                }
+                if in_entry {
+                    entry_index += 1;
+                }
+                in_entry = true;
+            } else if trimmed.is_empty() {
+                in_entry = false;
+            }
+        }
+
+        Err("Could not find entry at cursor position".to_string())
+    }
+
     /// Parse Toon content and convert to JSON, then perform operation, then convert back
     fn modify_via_json<F>(content: &str, f: F) -> Result<(String, String), String>
     where
@@ -297,23 +346,60 @@ impl ContentOperations for ToonOperations {
 
     fn delete_entry_at_cursor(
         &self,
-        _content: &str,
-        _cursor_line: usize,
+        content: &str,
+        cursor_line: usize,
         _lines: &[String],
     ) -> Result<(String, String), String> {
-        // For Toon format in edit mode, we don't support entry-based deletion
-        // This would require more complex parsing
-        Err("Entry deletion in Toon format is not yet supported in Edit mode".to_string())
+        let entry_info = Self::find_entry_at_line(content, cursor_line)?;
+
+        let result = Self::modify_via_json(content, |mut json| {
+            if entry_info.section == "outside" {
+                if let Some(outside) = json.get_mut("outside").and_then(|v| v.as_array_mut()) {
+                    if entry_info.entry_index < outside.len() {
+                        outside.remove(entry_info.entry_index);
+                    }
+                }
+            } else if entry_info.section == "inside" {
+                if let Some(inside) = json.get_mut("inside").and_then(|v| v.as_array_mut()) {
+                    if entry_info.entry_index < inside.len() {
+                        inside.remove(entry_info.entry_index);
+                    }
+                }
+            }
+            Ok(json)
+        })?;
+
+        Ok((result.0, "Entry deleted".to_string()))
     }
 
     fn duplicate_entry_at_cursor(
         &self,
-        _content: &str,
-        _cursor_line: usize,
+        content: &str,
+        cursor_line: usize,
         _lines: &[String],
     ) -> Result<(String, String), String> {
-        // For Toon format in edit mode, we don't support entry-based duplication
-        Err("Entry duplication in Toon format is not yet supported in Edit mode".to_string())
+        let entry_info = Self::find_entry_at_line(content, cursor_line)?;
+
+        let result = Self::modify_via_json(content, |mut json| {
+            if entry_info.section == "outside" {
+                if let Some(outside) = json.get_mut("outside").and_then(|v| v.as_array_mut()) {
+                    if entry_info.entry_index < outside.len() {
+                        let entry_clone = outside[entry_info.entry_index].clone();
+                        outside.insert(entry_info.entry_index + 1, entry_clone);
+                    }
+                }
+            } else if entry_info.section == "inside" {
+                if let Some(inside) = json.get_mut("inside").and_then(|v| v.as_array_mut()) {
+                    if entry_info.entry_index < inside.len() {
+                        let entry_clone = inside[entry_info.entry_index].clone();
+                        inside.insert(entry_info.entry_index + 1, entry_clone);
+                    }
+                }
+            }
+            Ok(json)
+        })?;
+
+        Ok((result.0, "Entry duplicated".to_string()))
     }
 
     fn order_entries(&self, content: &str) -> Result<(String, String), String> {
