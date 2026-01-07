@@ -52,11 +52,11 @@ impl App {
 
         let mut parts = Vec::new();
 
-        if let Some(count) = json_count {
-            parts.push(format!("JSON: {}", count));
-        }
         if let Some(count) = markdown_count {
             parts.push(format!("Markdown: {}", count));
+        }
+        if let Some(count) = json_count {
+            parts.push(format!("JSON: {}", count));
         }
         if let Some(count) = toon_count {
             parts.push(format!("Toon: {}", count));
@@ -76,11 +76,11 @@ impl App {
         let toon_count = self.count_tokens_toon().ok();
 
         println!("Token counts:");
-        if let Some(count) = json_count {
-            println!("  JSON:     {}", count);
-        }
         if let Some(count) = markdown_count {
             println!("  Markdown: {}", count);
+        }
+        if let Some(count) = json_count {
+            println!("  JSON:     {}", count);
         }
         if let Some(count) = toon_count {
             println!("  Toon:     {}", count);
