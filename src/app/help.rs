@@ -179,6 +179,7 @@ pub fn get_help_content() -> Vec<String> {
         "  :markdown    - export to Markdown (same folder, .md extension)".to_string(),
         "  :toon        - export to Toon (same folder, .toon extension)".to_string(),
         "  :pdf         - export to PDF (same folder, .pdf extension)".to_string(),
+        "  :token       - show token counts for all formats (JSON/Markdown/Toon)".to_string(),
         "  :f pattern   - filter entries".to_string(),
         "  :nof         - clear filter".to_string(),
         "  :Lexplore / :Lex / :lx - toggle file explorer (left)".to_string(),

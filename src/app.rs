@@ -13,6 +13,7 @@ mod outline;
 mod pdf;
 mod search;
 mod substitute;
+mod token;
 mod toon;
 mod undo;
 

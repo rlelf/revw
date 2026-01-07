@@ -158,6 +158,12 @@ fn main() -> Result<()> {
                 .help("Append mode - append input instead of overwriting")
                 .action(clap::ArgAction::SetTrue),
         )
+        .arg(
+            Arg::new("token")
+                .long("token")
+                .help("Show token counts for all formats and exit")
+                .action(clap::ArgAction::SetTrue),
+        )
         .get_matches();
 
     let format_mode = if matches.get_flag("edit") {
@@ -176,6 +182,24 @@ fn main() -> Result<()> {
     let pdf_mode = matches.get_flag("pdf");
     let input_file = matches.get_one::<String>("input");
     let append_mode = matches.get_flag("append");
+    let token_mode = matches.get_flag("token");
+
+    // If token mode, show token counts and exit
+    if token_mode {
+        let mut app = App::new(format_mode);
+
+        // Load file if provided
+        if let Some(file_path) = matches.get_one::<String>("file") {
+            let path = PathBuf::from(file_path);
+            app.load_file(path);
+        } else {
+            eprintln!("Error: No file specified for token count");
+            std::process::exit(1);
+        }
+
+        app.print_token_count();
+        return Ok(());
+    }
 
     // If PDF mode, export to PDF and exit
     if pdf_mode {

@@ -375,6 +375,9 @@ impl App {
                 Ok(path) => self.set_status(&format!("PDF exported to: {}", path)),
                 Err(e) => self.set_status(&format!("PDF export failed: {}", e)),
             }
+        } else if cmd == "token" {
+            // Show token count for all formats
+            self.show_token_count();
         } else {
             self.set_status(&format!("Unknown command: {}", cmd));
         }

@@ -165,6 +165,11 @@ revw --pdf file.json                        # Export JSON to PDF
 revw --pdf file.md                          # Export Markdown to PDF
 revw --pdf file.toon                        # Export Toon to PDF
 
+# Token count
+revw --token file.json                      # Show token counts for all formats
+revw --token file.md
+revw --token file.toon
+
 # Input (overwrite)
 revw --input data.json file.json            # Overwrite entire content
 revw --input data.json file.md
