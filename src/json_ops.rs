@@ -493,6 +493,53 @@ impl JsonOperations {
 
         Ok((formatted, message.to_string()))
     }
+    pub fn filter_entries(json_value: &Value, pattern: &str) -> Value {
+        if pattern.is_empty() {
+            return json_value.clone();
+        }
+
+        let pattern_lower = pattern.to_lowercase();
+        let mut result = json_value.clone();
+
+        if let Some(obj) = result.as_object_mut() {
+            if let Some(outside) = obj.get_mut("outside").and_then(|v| v.as_array_mut()) {
+                outside.retain(|item| {
+                    if let Some(item_obj) = item.as_object() {
+                        let name = item_obj.get("name").and_then(|v| v.as_str()).unwrap_or("");
+                        let context = item_obj.get("context").and_then(|v| v.as_str()).unwrap_or("");
+                        let url = item_obj.get("url").and_then(|v| v.as_str()).unwrap_or("");
+                        let percentage = item_obj.get("percentage")
+                            .and_then(|v| v.as_i64())
+                            .map(|p| format!("{}%", p))
+                            .unwrap_or_default();
+
+                        name.to_lowercase().contains(&pattern_lower)
+                            || context.to_lowercase().contains(&pattern_lower)
+                            || url.to_lowercase().contains(&pattern_lower)
+                            || percentage.to_lowercase().contains(&pattern_lower)
+                    } else {
+                        false
+                    }
+                });
+            }
+
+            if let Some(inside) = obj.get_mut("inside").and_then(|v| v.as_array_mut()) {
+                inside.retain(|item| {
+                    if let Some(item_obj) = item.as_object() {
+                        let date = item_obj.get("date").and_then(|v| v.as_str()).unwrap_or("");
+                        let context = item_obj.get("context").and_then(|v| v.as_str()).unwrap_or("");
+
+                        date.to_lowercase().contains(&pattern_lower)
+                            || context.to_lowercase().contains(&pattern_lower)
+                    } else {
+                        false
+                    }
+                });
+            }
+        }
+
+        result
+    }
 }
 
 // Implement ContentOperations trait for JsonOperations

@@ -16,7 +16,7 @@ use ratatui::{
 use crate::app::App;
 
 use content::render_content;
-use edit_overlay::render_edit_overlay;
+use edit_overlay::{overlay_layout, render_edit_overlay};
 use explorer::render_explorer;
 use outline::render_outline;
 use status_bar::render_status_bar;
@@ -77,6 +77,12 @@ pub fn ui(f: &mut Frame, app: &mut App) {
 
     // Render editing overlay on top if active
     if app.editing_entry {
+        let (popup_area, _, inner_area) = overlay_layout(f.area());
+        app.set_overlay_viewport(
+            inner_area.height,
+            inner_area.width,
+            popup_area.width.saturating_sub(4),
+        );
         render_edit_overlay(f, app);
     }
 }

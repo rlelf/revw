@@ -1,7 +1,14 @@
 use super::{App, FormatMode};
+use crate::overlay_context::layout_wrapped_text;
 use serde_json::Value;
 
 impl App {
+    pub fn set_overlay_viewport(&mut self, context_height: u16, context_width: u16, field_width: u16) {
+        self.overlay_context_height = context_height.max(1);
+        self.overlay_context_width = context_width.max(1);
+        self.overlay_field_width = field_width.max(1);
+    }
+
     pub fn open_entry_overlay(&mut self) {
         self.start_editing_entry();
     }
@@ -975,55 +982,62 @@ impl App {
                                (self.edit_buffer.len() == 4 && self.edit_field_index == 1);
 
         if is_context_field && self.view_edit_mode {
-            // Context field in View Edit mode: calculate line and column from cursor position
-            let lines: Vec<&str> = field.split('\n').collect();
-
-            // Find which line the cursor is on
-            let mut char_count = 0;
-            let mut current_line = 0;
-
-            for (line_idx, line) in lines.iter().enumerate() {
-                let line_len = line.chars().count();
-                let separator_len = if line_idx < lines.len() - 1 { 1 } else { 0 }; // newline = 1 char
-
-                if cursor_pos <= char_count + line_len {
-                    current_line = line_idx;
-                    break;
-                }
-
-                char_count += line_len + separator_len;
-            }
-
-            // Vertical scroll: ensure current line is visible
-            // Use a fixed window height that matches the overlay rendering
-            // The actual visible height is determined by inner_area in render_context_field
-            // We use a conservative estimate here (the overlay uses 70% of screen height)
-            let window_height = 20u16; // Fixed reasonable height
+            let layout = layout_wrapped_text(field, cursor_pos, self.overlay_context_width as usize);
+            let window_height = self.overlay_context_height.max(1);
             let margin_v = 1u16;
+            let current_row = layout.cursor.visual_row as u16;
+            let num_rows = layout.rows.len() as u16;
 
-            // Only scroll if content is taller than window
-            let num_lines = lines.len() as u16;
-            if num_lines > window_height {
-                if (current_line as u16) < self.edit_vscroll + margin_v {
-                    // Cursor near top edge - scroll up
-                    self.edit_vscroll = (current_line as u16).saturating_sub(margin_v);
-                } else if (current_line as u16) >= self.edit_vscroll + window_height.saturating_sub(margin_v) {
-                    // Cursor near bottom edge - scroll down
-                    self.edit_vscroll = (current_line as u16) + margin_v - window_height + 1;
+            if num_rows > window_height {
+                if current_row < self.edit_vscroll + margin_v {
+                    self.edit_vscroll = current_row.saturating_sub(margin_v);
+                } else if current_row >= self.edit_vscroll + window_height.saturating_sub(margin_v) {
+                    self.edit_vscroll = current_row + margin_v - window_height + 1;
                 }
             } else {
-                // Content fits in window, no scrolling needed
                 self.edit_vscroll = 0;
             }
+            self.edit_hscroll = 0;
+        } else if is_context_field {
+            // Context field in Normal/Insert mode is rendered as a single escaped line.
+            let mut display_text = String::new();
+            let mut display_cursor_pos = 0usize;
+            for (idx, ch) in field.chars().enumerate() {
+                if idx == cursor_pos {
+                    display_cursor_pos = display_text.chars().count();
+                }
+                if ch == '\n' {
+                    display_text.push('\\');
+                    display_text.push('n');
+                } else {
+                    display_text.push(ch);
+                }
+            }
+            if cursor_pos >= field.chars().count() {
+                display_cursor_pos = display_text.chars().count();
+            }
 
-            // Context field doesn't use horizontal scrolling
-            // Reset horizontal scroll to 0 for context field
+            let layout = layout_wrapped_text(&display_text, display_cursor_pos, self.overlay_context_width as usize);
+            let window_height = self.overlay_context_height.max(1);
+            let margin_v = 1u16;
+            let current_row = layout.cursor.visual_row as u16;
+            let num_rows = layout.rows.len() as u16;
+
+            if num_rows > window_height {
+                if current_row < self.edit_vscroll + margin_v {
+                    self.edit_vscroll = current_row.saturating_sub(margin_v);
+                } else if current_row >= self.edit_vscroll + window_height.saturating_sub(margin_v) {
+                    self.edit_vscroll = current_row + margin_v - window_height + 1;
+                }
+            } else {
+                self.edit_vscroll = 0;
+            }
             self.edit_hscroll = 0;
         } else {
             // Non-context field: simple horizontal scroll
             let cursor_display_col = self.prefix_display_width(field, cursor_pos) as u16;
 
-            let window_width = 70u16;
+            let window_width = self.overlay_field_width.max(1);
             let margin = 4u16;
 
             if cursor_display_col < self.edit_hscroll + margin {

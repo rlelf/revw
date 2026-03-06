@@ -2,23 +2,19 @@ use ratatui::{
     layout::{Alignment, Rect},
     style::{Color, Modifier, Style},
     text::Line,
-    widgets::{Block, Borders, Clear, Paragraph, Wrap},
+    widgets::{Block, Borders, Clear, Paragraph},
     Frame,
 };
 
 use crate::app::App;
+use crate::overlay_context::layout_wrapped_text;
 
-pub fn render_edit_overlay(f: &mut Frame, app: &App) {
-    // Create a centered popup area
-    let area = f.area();
-
+pub fn overlay_layout(area: Rect) -> (Rect, Rect, Rect) {
     let popup_width = area.width.min(80);
-    // Use 70% of screen height
     let popup_height = ((area.height * 7) / 10).max(10).min(area.height - 4);
 
-    // Align x to even column to prevent wide-char (CJK) rendering issues with borders
     let x_centered = (area.width.saturating_sub(popup_width)) / 2;
-    let x_aligned = x_centered & !1; // Force to even number
+    let x_aligned = x_centered & !1;
 
     let popup_area = Rect {
         x: x_aligned,
@@ -27,13 +23,29 @@ pub fn render_edit_overlay(f: &mut Frame, app: &App) {
         height: popup_height,
     };
 
-    // Create a slightly wider clear area to avoid cutting wide characters at boundaries
     let clear_area = Rect {
         x: x_aligned.saturating_sub(1),
         y: popup_area.y,
-        width: popup_width.saturating_add(2).min(area.width.saturating_sub(x_aligned.saturating_sub(1))),
+        width: popup_width
+            .saturating_add(2)
+            .min(area.width.saturating_sub(x_aligned.saturating_sub(1))),
         height: popup_height,
     };
+
+    let inner_area = Rect {
+        x: popup_area.x + 1,
+        y: popup_area.y + 1,
+        width: popup_area.width.saturating_sub(2),
+        height: popup_area.height.saturating_sub(2),
+    };
+
+    (popup_area, clear_area, inner_area)
+}
+
+pub fn render_edit_overlay(f: &mut Frame, app: &App) {
+    // Create a centered popup area
+    let area = f.area();
+    let (popup_area, clear_area, inner_area) = overlay_layout(area);
 
     // Clear the wider area to fully erase any wide characters
     f.render_widget(Clear, clear_area);
@@ -58,8 +70,6 @@ pub fn render_edit_overlay(f: &mut Frame, app: &App) {
         .style(Style::default().bg(app.colorscheme.background).fg(Color::White));
 
     f.render_widget(block.clone(), popup_area);
-
-    let inner_area = block.inner(popup_area);
 
     // Render fields on borders and content
     if is_inside {
@@ -211,54 +221,34 @@ fn render_context_field(f: &mut Frame, app: &App, inner_area: Rect, field_index:
     let should_render_newlines = !is_selected || app.view_edit_mode || !app.edit_field_editing_mode;
 
     if should_render_newlines {
-        // View Edit mode: render with actual newlines
-        // Use split('\n') instead of lines() to preserve trailing newlines
-        let field_lines: Vec<&str> = field.split('\n').collect();
+        let cursor_pos = if is_selected && (app.edit_insert_mode || app.edit_field_editing_mode) {
+            app.edit_cursor_pos
+        } else {
+            0
+        };
+        let layout = layout_wrapped_text(field, cursor_pos, inner_area.width as usize);
         let visible_height = inner_area.height as usize;
         let vscroll = app.edit_vscroll as usize;
 
-        // Calculate cursor position if editing THIS field
-        let (cursor_line, cursor_col) = if is_selected && (app.edit_insert_mode || app.edit_field_editing_mode) {
-            let mut char_count = 0;
-            let mut cursor_line_idx = 0;
-            let mut cursor_col_in_line = 0;
-
-            for (line_idx, line) in field_lines.iter().enumerate() {
-                let line_len = line.chars().count();
-                let separator_len = if line_idx < field_lines.len() - 1 { 1 } else { 0 }; // newline = 1 char
-
-                if app.edit_cursor_pos <= char_count + line_len {
-                    cursor_line_idx = line_idx;
-                    cursor_col_in_line = app.edit_cursor_pos - char_count;
-                    break;
-                }
-
-                char_count += line_len + separator_len;
-            }
-
-            (cursor_line_idx, cursor_col_in_line)
-        } else {
-            (0, 0)
-        };
-
-        // Render visible lines
-        let visible_lines: Vec<&str> = field_lines
+        let visible_lines = layout
+            .rows
             .iter()
             .skip(vscroll)
             .take(visible_height)
-            .copied()
-            .collect();
+            .collect::<Vec<_>>();
 
         let mut content_lines: Vec<Line> = Vec::new();
 
-        for (visible_idx, line_text) in visible_lines.iter().enumerate() {
-            let actual_line_idx = vscroll + visible_idx;
-            let mut display_line = line_text.to_string();
+        for (visible_idx, row) in visible_lines.iter().enumerate() {
+            let actual_row_idx = vscroll + visible_idx;
+            let mut display_line = row.text.clone();
 
-            // Add cursor if this is the line with the cursor AND this field is selected
-            if is_selected && (app.edit_insert_mode || app.edit_field_editing_mode) && actual_line_idx == cursor_line {
+            if is_selected
+                && (app.edit_insert_mode || app.edit_field_editing_mode)
+                && actual_row_idx == layout.cursor.visual_row
+            {
                 let char_count = display_line.chars().count();
-                let cursor_char_pos = cursor_col.min(char_count);
+                let cursor_char_pos = layout.cursor.row_char_offset.min(char_count);
                 let byte_pos = if cursor_char_pos == 0 {
                     0
                 } else if cursor_char_pos >= char_count {
@@ -277,45 +267,72 @@ fn render_context_field(f: &mut Frame, app: &App, inner_area: Rect, field_index:
             content_lines.push(Line::styled(String::new(), style));
         }
 
-        let context_para = Paragraph::new(content_lines).wrap(Wrap { trim: false });
+        let context_para = Paragraph::new(content_lines);
         f.render_widget(context_para, inner_area);
     } else {
-        // Normal/Insert mode: show raw \n (replace with \\n for display)
-        let mut display_text = field.replace('\n', "\\n");
+        let mut display_text = String::new();
+        let mut display_cursor_pos = 0usize;
+        let actual_cursor = if is_selected && (app.edit_insert_mode || app.edit_field_editing_mode) {
+            Some(app.edit_cursor_pos)
+        } else {
+            None
+        };
 
-        // Add cursor if editing this field
-        if is_selected && (app.edit_insert_mode || app.edit_field_editing_mode) {
-            // Calculate cursor position in display_text
-            // Each actual '\n' becomes "\\n" (2 chars), so we need to adjust the position
-            let mut actual_pos = 0;
-            let mut display_pos = 0;
-            for ch in field.chars() {
-                if actual_pos == app.edit_cursor_pos {
-                    break;
-                }
-                if ch == '\n' {
-                    display_pos += 2; // '\n' becomes "\\n" (2 characters)
-                } else {
-                    display_pos += 1;
-                }
-                actual_pos += 1;
+        for (idx, ch) in field.chars().enumerate() {
+            if actual_cursor == Some(idx) {
+                display_cursor_pos = display_text.chars().count();
             }
-
-            // Insert cursor at the correct display position
-            let byte_pos = if display_pos == 0 {
-                0
-            } else if display_pos >= display_text.chars().count() {
-                display_text.len()
+            if ch == '\n' {
+                display_text.push('\\');
+                display_text.push('n');
             } else {
-                display_text.char_indices().nth(display_pos).map(|(i, _)| i).unwrap_or(display_text.len())
-            };
-            display_text.insert(byte_pos, '|');
+                display_text.push(ch);
+            }
+        }
+        if actual_cursor == Some(field.chars().count()) {
+            display_cursor_pos = display_text.chars().count();
         }
 
-        // Render as single wrapped text
-        let content_para = Paragraph::new(display_text)
-            .style(style)
-            .wrap(Wrap { trim: false });
+        let layout = layout_wrapped_text(&display_text, display_cursor_pos, inner_area.width as usize);
+        let visible_height = inner_area.height as usize;
+        let vscroll = app.edit_vscroll as usize;
+        let visible_rows = layout
+            .rows
+            .iter()
+            .skip(vscroll)
+            .take(visible_height)
+            .collect::<Vec<_>>();
+
+        let mut content_lines: Vec<Line> = Vec::new();
+        for (visible_idx, row) in visible_rows.iter().enumerate() {
+            let actual_row_idx = vscroll + visible_idx;
+            let mut display_line = row.text.clone();
+
+            if actual_cursor.is_some() && actual_row_idx == layout.cursor.visual_row {
+                let char_count = display_line.chars().count();
+                let cursor_char_pos = layout.cursor.row_char_offset.min(char_count);
+                let byte_pos = if cursor_char_pos == 0 {
+                    0
+                } else if cursor_char_pos >= char_count {
+                    display_line.len()
+                } else {
+                    display_line
+                        .char_indices()
+                        .nth(cursor_char_pos)
+                        .map(|(i, _)| i)
+                        .unwrap_or(display_line.len())
+                };
+                display_line.insert(byte_pos, '|');
+            }
+
+            content_lines.push(Line::styled(display_line, style));
+        }
+
+        for _ in content_lines.len()..visible_height {
+            content_lines.push(Line::styled(String::new(), style));
+        }
+
+        let content_para = Paragraph::new(content_lines).style(style);
         f.render_widget(content_para, inner_area);
     }
 }

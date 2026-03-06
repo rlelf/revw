@@ -1,4 +1,5 @@
 use revw::app::{App, FileMode, FormatMode};
+use revw::overlay_context::{layout_wrapped_text, move_cursor_vertical};
 
 #[test]
 fn test_overlay_scroll_initialization() {
@@ -197,4 +198,43 @@ fn test_view_edit_mode_renders_newlines() {
     // In view edit mode, context should render newlines
     assert!(app.edit_field_editing_mode);
     assert!(app.view_edit_mode);
+}
+
+#[test]
+fn test_context_scroll_uses_rendered_overlay_height() {
+    let mut app = App::new(FormatMode::View);
+    app.file_mode = FileMode::Json;
+    app.editing_entry = true;
+    app.edit_field_editing_mode = true;
+    app.view_edit_mode = true;
+    app.edit_field_index = 1;
+    app.set_overlay_viewport(3, 40, 40);
+
+    app.edit_buffer = vec![
+        "date".to_string(),
+        "l1\nl2\nl3\nl4\nl5\nl6".to_string(),
+    ];
+
+    app.edit_cursor_pos = app.edit_buffer[1]
+        .chars()
+        .position(|c| c == '5')
+        .unwrap();
+
+    app.ensure_overlay_cursor_visible();
+
+    assert_eq!(app.edit_vscroll, 3);
+}
+
+#[test]
+fn test_wrapped_layout_tracks_cursor_visual_row() {
+    let layout = layout_wrapped_text("abcdef\ngh", 4, 3);
+
+    assert_eq!(layout.cursor.visual_row, 1);
+    assert_eq!(layout.cursor.row_char_offset, 1);
+}
+
+#[test]
+fn test_wrapped_vertical_move_stays_in_visual_column() {
+    let next = move_cursor_vertical("abcdef\nghijkl", 2, 3, 1);
+    assert_eq!(next, 5);
 }

@@ -10,7 +10,6 @@ mod history;
 mod markdown;
 mod navigation;
 mod outline;
-mod pdf;
 mod search;
 mod substitute;
 mod token;
@@ -82,6 +81,9 @@ pub struct App {
     pub edit_cursor_pos: usize, // Cursor position within current field
     pub edit_hscroll: u16, // Horizontal scroll offset for overlay fields
     pub edit_vscroll: u16, // Vertical scroll offset for context field
+    pub overlay_context_height: u16, // Last rendered visible height for overlay context field
+    pub overlay_context_width: u16, // Last rendered visible width for overlay context field
+    pub overlay_field_width: u16, // Last rendered visible width for single-line overlay fields
     pub edit_yank_buffer: String, // Yank buffer for overlay context field
     pub showing_help: bool, // Track if help is being shown
     pub scroll: u16,
@@ -239,6 +241,9 @@ impl App {
             edit_cursor_pos: 0,
             edit_hscroll: 0,
             edit_vscroll: 0,
+            overlay_context_height: 20,
+            overlay_context_width: 78,
+            overlay_field_width: 70,
             edit_yank_buffer: String::new(),
             showing_help: false,
             scroll: 0,

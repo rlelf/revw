@@ -5,13 +5,14 @@ mod input;
 mod json_ops;
 mod markdown_ops;
 mod navigation;
+mod overlay_context;
 mod rendering;
 mod syntax_highlight;
 mod toon_ops;
 mod ui;
 
 use anyhow::Result;
-use clap::{Arg, Command};
+use clap::{Arg, ArgGroup, Command};
 use crossterm::{
     cursor,
     event::{DisableMouseCapture, EnableMouseCapture},
@@ -57,14 +58,16 @@ fn main() -> Result<()> {
             revw --stdout --markdown file.json\n  \
             revw --stdout --json file.md\n  \
             revw --stdout --toon file.json\n\n  \
-            # Export to PDF\n  \
-            revw --pdf file.json\n  \
-            revw --pdf file.md\n  \
-            revw --pdf file.toon\n\n  \
-            # Input from file (supports .json, .md, .toon)\n  \
+# Input from file (supports .json, .md, .toon)\n  \
             revw --input data.json file.json\n  \
             revw --input data.toon file.md\n  \
             revw --input data.md file.toon\n\n  \
+            # Filter entries\n  \
+            revw --stdout --filter pattern file.json\n  \
+            revw --stdout --filter pattern file.md\n  \
+            revw --stdout --filter pattern file.toon\n  \
+            revw --stdout --filter pattern --inside file.json\n  \
+            revw --stdout --filter pattern --markdown file.json\n\n  \
             # Section-specific operations\n  \
             revw --input data.json --inside file.json\n  \
             revw --input data.toon --outside file.md\n  \
@@ -89,7 +92,7 @@ fn main() -> Result<()> {
             \"Resource\",\"Description\",https://...,100\n  \
             inside[1]{date,context}:\n    \
             \"2025-01-01 00:00:00\",\"Note content\"\n\n\
-            For more help, run 'revw' and press :h or ?"
+            For interactive help, run 'revw' and press :h or ?"
         )
         .arg(Arg::new("file").help("JSON, Markdown, or Toon file to view").index(1))
         .arg(
@@ -102,24 +105,30 @@ fn main() -> Result<()> {
             Arg::new("stdout")
                 .long("stdout")
                 .help("Output to stdout instead of interactive mode")
+                .conflicts_with("output")
+                .conflicts_with("input")
                 .action(clap::ArgAction::SetTrue),
         )
         .arg(
             Arg::new("output")
                 .long("output")
                 .help("Output to file (use '-' for stdout)")
+                .conflicts_with("stdout")
+                .conflicts_with("input")
                 .value_name("FILE"),
         )
         .arg(
             Arg::new("inside")
                 .long("inside")
                 .help("Output only INSIDE section")
+                .conflicts_with("outside")
                 .action(clap::ArgAction::SetTrue),
         )
         .arg(
             Arg::new("outside")
                 .long("outside")
                 .help("Output only OUTSIDE section")
+                .conflicts_with("inside")
                 .action(clap::ArgAction::SetTrue),
         )
         .arg(
@@ -141,28 +150,39 @@ fn main() -> Result<()> {
                 .action(clap::ArgAction::SetTrue),
         )
         .arg(
-            Arg::new("pdf")
-                .long("pdf")
-                .help("Export to PDF format")
-                .action(clap::ArgAction::SetTrue),
-        )
-        .arg(
             Arg::new("input")
                 .long("input")
                 .help("Input from file")
+                .conflicts_with("stdout")
+                .conflicts_with("output")
+                .conflicts_with("token")
+                .requires("file")
                 .value_name("FILE"),
         )
         .arg(
             Arg::new("append")
                 .long("append")
                 .help("Append mode - append input instead of overwriting")
+                .requires("input")
                 .action(clap::ArgAction::SetTrue),
+        )
+        .group(
+            ArgGroup::new("output_format")
+                .args(["markdown", "json", "toon"])
+                .multiple(false),
         )
         .arg(
             Arg::new("token")
                 .long("token")
                 .help("Show token counts for all formats and exit")
+                .conflicts_with("input")
                 .action(clap::ArgAction::SetTrue),
+        )
+        .arg(
+            Arg::new("filter")
+                .long("filter")
+                .help("Filter entries by pattern")
+                .value_name("PATTERN"),
         )
         .get_matches();
 
@@ -179,10 +199,10 @@ fn main() -> Result<()> {
     let markdown_mode = matches.get_flag("markdown");
     let json_mode = matches.get_flag("json");
     let toon_mode = matches.get_flag("toon");
-    let pdf_mode = matches.get_flag("pdf");
     let input_file = matches.get_one::<String>("input");
     let append_mode = matches.get_flag("append");
     let token_mode = matches.get_flag("token");
+    let filter_pattern = matches.get_one::<String>("filter");
 
     // If token mode, show token counts and exit
     if token_mode {
@@ -201,8 +221,7 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    // If PDF mode, export to PDF and exit
-    if pdf_mode {
+    if stdout_mode || output_file.is_some() {
         let mut app = App::new(format_mode);
 
         // Load file if provided
@@ -216,11 +235,13 @@ fn main() -> Result<()> {
                 .unwrap();
 
             // Check if file is Markdown or Toon
-            let is_markdown = path.extension()
+            let is_markdown = path
+                .extension()
                 .and_then(|ext| ext.to_str())
                 .map(|ext| ext.eq_ignore_ascii_case("md"))
                 .unwrap_or(false);
-            let is_toon = path.extension()
+            let is_toon = path
+                .extension()
                 .and_then(|ext| ext.to_str())
                 .map(|ext| ext.eq_ignore_ascii_case("toon"))
                 .unwrap_or(false);
@@ -246,65 +267,6 @@ fn main() -> Result<()> {
                 app.json_input = content;
                 app.convert_json();
             }
-
-            // Export to PDF
-            match app.export_to_pdf() {
-                Ok(pdf_path) => {
-                    println!("PDF exported to: {}", pdf_path);
-                }
-                Err(e) => {
-                    eprintln!("Error: Failed to export PDF: {}", e);
-                    std::process::exit(1);
-                }
-            }
-        } else {
-            eprintln!("Error: No input file specified for PDF export");
-            std::process::exit(1);
-        }
-    } else if stdout_mode || output_file.is_some() {
-        let mut app = App::new(format_mode);
-
-        // Load file if provided
-        if let Some(file_path) = matches.get_one::<String>("file") {
-            let path = PathBuf::from(file_path);
-            let content = fs::read_to_string(&path)
-                .map_err(|e| {
-                    eprintln!("Error: Cannot read file '{}': {}", file_path, e);
-                    std::process::exit(1);
-                })
-                .unwrap();
-
-            // Check if file is Markdown or Toon
-            let is_markdown = path.extension()
-                .and_then(|ext| ext.to_str())
-                .map(|ext| ext.eq_ignore_ascii_case("md"))
-                .unwrap_or(false);
-            let is_toon = path.extension()
-                .and_then(|ext| ext.to_str())
-                .map(|ext| ext.eq_ignore_ascii_case("toon"))
-                .unwrap_or(false);
-
-            if is_markdown {
-                app.file_path = Some(path);
-                app.markdown_input = content;
-                // Convert markdown to JSON for processing
-                if let Ok(json) = app.parse_markdown(&app.markdown_input) {
-                    app.json_input = json;
-                }
-                app.convert_json();
-            } else if is_toon {
-                app.file_path = Some(path);
-                app.toon_input = content;
-                // Convert toon to JSON for processing
-                if let Ok(json) = app.parse_toon(&app.toon_input) {
-                    app.json_input = json;
-                }
-                app.convert_json();
-            } else {
-                app.json_input = content;
-                app.convert_json();
-            }
-
             let output = if format_mode == FormatMode::Edit {
                 // In Edit mode, output the JSON as-is
                 app.json_input.clone()
@@ -318,6 +280,13 @@ fn main() -> Result<()> {
                     }
                 };
 
+                // Apply entry-level filter if --filter was provided
+                let json_value = if let Some(pattern) = &filter_pattern {
+                    json_ops::JsonOperations::filter_entries(&json_value, pattern)
+                } else {
+                    json_value
+                };
+
                 // Return appropriate output based on mode
                 if markdown_mode {
                     // Markdown mode: format entries as Markdown
@@ -325,7 +294,7 @@ fn main() -> Result<()> {
 
                     if let Some(obj) = json_value.as_object() {
                         // OUTSIDE section
-                        if !inside_only || outside_only {
+                        if !inside_only {
                             if let Some(outside) = obj.get("outside").and_then(|v| v.as_array()) {
                                 if !outside.is_empty() {
                                     output_lines.push("## OUTSIDE".to_string());
@@ -333,10 +302,17 @@ fn main() -> Result<()> {
 
                                     for item in outside {
                                         if let Some(item_obj) = item.as_object() {
-                                            let name = item_obj.get("name").and_then(|v| v.as_str()).unwrap_or("");
-                                            let context = item_obj.get("context").and_then(|v| v.as_str()).unwrap_or("");
+                                            let name = item_obj
+                                                .get("name")
+                                                .and_then(|v| v.as_str())
+                                                .unwrap_or("");
+                                            let context = item_obj
+                                                .get("context")
+                                                .and_then(|v| v.as_str())
+                                                .unwrap_or("");
                                             let url = item_obj.get("url").and_then(|v| v.as_str());
-                                            let percentage = item_obj.get("percentage").and_then(|v| v.as_i64());
+                                            let percentage =
+                                                item_obj.get("percentage").and_then(|v| v.as_i64());
 
                                             if !name.is_empty() {
                                                 output_lines.push(format!("### {}", name));
@@ -344,7 +320,8 @@ fn main() -> Result<()> {
 
                                             // Replace literal \n with actual newlines in context
                                             if !context.is_empty() {
-                                                let formatted_context = context.replace("\\n", "\n");
+                                                let formatted_context =
+                                                    context.replace("\\n", "\n");
                                                 output_lines.push(formatted_context);
                                             }
 
@@ -352,18 +329,24 @@ fn main() -> Result<()> {
                                             if let Some(url_str) = url {
                                                 if !url_str.is_empty() {
                                                     output_lines.push("".to_string());
-                                                    output_lines.push(format!("**URL:** {}", url_str));
+                                                    output_lines
+                                                        .push(format!("**URL:** {}", url_str));
                                                 }
                                             }
 
                                             // Only output percentage if it's not null
                                             if let Some(pct) = percentage {
                                                 output_lines.push("".to_string());
-                                                output_lines.push(format!("**Percentage:** {}%", pct));
+                                                output_lines
+                                                    .push(format!("**Percentage:** {}%", pct));
                                             }
 
                                             // Only add blank line if we had any content
-                                            if !name.is_empty() || !context.is_empty() || url.is_some() || percentage.is_some() {
+                                            if !name.is_empty()
+                                                || !context.is_empty()
+                                                || url.is_some()
+                                                || percentage.is_some()
+                                            {
                                                 output_lines.push("".to_string());
                                             }
                                         }
@@ -373,7 +356,7 @@ fn main() -> Result<()> {
                         }
 
                         // INSIDE section
-                        if !outside_only || inside_only {
+                        if !outside_only {
                             if let Some(inside) = obj.get("inside").and_then(|v| v.as_array()) {
                                 if !inside.is_empty() {
                                     output_lines.push("## INSIDE".to_string());
@@ -381,8 +364,14 @@ fn main() -> Result<()> {
 
                                     for item in inside {
                                         if let Some(item_obj) = item.as_object() {
-                                            let date = item_obj.get("date").and_then(|v| v.as_str()).unwrap_or("");
-                                            let context = item_obj.get("context").and_then(|v| v.as_str()).unwrap_or("");
+                                            let date = item_obj
+                                                .get("date")
+                                                .and_then(|v| v.as_str())
+                                                .unwrap_or("");
+                                            let context = item_obj
+                                                .get("context")
+                                                .and_then(|v| v.as_str())
+                                                .unwrap_or("");
 
                                             if !date.is_empty() {
                                                 output_lines.push(format!("### {}", date));
@@ -390,7 +379,8 @@ fn main() -> Result<()> {
 
                                             // Replace literal \n with actual newlines in context
                                             if !context.is_empty() {
-                                                let formatted_context = context.replace("\\n", "\n");
+                                                let formatted_context =
+                                                    context.replace("\\n", "\n");
                                                 output_lines.push(formatted_context);
                                             }
 
@@ -424,7 +414,8 @@ fn main() -> Result<()> {
                         json_value.clone()
                     };
 
-                    serde_json::to_string_pretty(&filtered_json).unwrap_or_else(|_| app.json_input.clone())
+                    serde_json::to_string_pretty(&filtered_json)
+                        .unwrap_or_else(|_| app.json_input.clone())
                 } else if toon_mode {
                     // Toon mode: convert JSON to Toon format
                     let json_to_convert = if inside_only || outside_only {
@@ -437,9 +428,11 @@ fn main() -> Result<()> {
                                 obj.remove("inside");
                             }
                         }
-                        serde_json::to_string(&json_clone).unwrap_or_else(|_| app.json_input.clone())
+                        serde_json::to_string(&json_clone)
+                            .unwrap_or_else(|_| app.json_input.clone())
                     } else {
-                        app.json_input.clone()
+                        serde_json::to_string(&json_value)
+                            .unwrap_or_else(|_| app.json_input.clone())
                     };
 
                     // Convert to Toon format
@@ -470,10 +463,20 @@ fn main() -> Result<()> {
                             if let Some(outside) = obj.get("outside").and_then(|v| v.as_array()) {
                                 for item in outside {
                                     if let Some(item_obj) = item.as_object() {
-                                        let name = item_obj.get("name").and_then(|v| v.as_str()).unwrap_or("");
-                                        let context = item_obj.get("context").and_then(|v| v.as_str()).unwrap_or("");
-                                        let url = item_obj.get("url").and_then(|v| v.as_str()).unwrap_or("");
-                                        let percentage = item_obj.get("percentage").and_then(|v| v.as_i64());
+                                        let name = item_obj
+                                            .get("name")
+                                            .and_then(|v| v.as_str())
+                                            .unwrap_or("");
+                                        let context = item_obj
+                                            .get("context")
+                                            .and_then(|v| v.as_str())
+                                            .unwrap_or("");
+                                        let url = item_obj
+                                            .get("url")
+                                            .and_then(|v| v.as_str())
+                                            .unwrap_or("");
+                                        let percentage =
+                                            item_obj.get("percentage").and_then(|v| v.as_i64());
 
                                         let mut entry = String::new();
                                         entry.push_str(name);
@@ -586,6 +589,12 @@ fn main() -> Result<()> {
             app.load_file(path);
         }
 
+        // Pre-apply filter from --filter flag
+        if let Some(pattern) = &filter_pattern {
+            app.filter_pattern = pattern.to_string();
+            app.convert_json();
+        }
+
         // Process input file if provided
         if let Some(input_path) = input_file {
             // Read from file
@@ -596,95 +605,115 @@ fn main() -> Result<()> {
                 })
                 .unwrap();
 
-            // Convert input content format if needed (JSON -> Markdown or Markdown -> JSON)
-            // Check if input is JSON and target is Markdown, or vice versa
+            // Convert input content format if needed (json/md/toon -> target format)
             let input_path_obj = PathBuf::from(input_path);
-            let input_is_json = input_path_obj.extension()
+            let input_ext = input_path_obj
+                .extension()
                 .and_then(|ext| ext.to_str())
-                .map(|ext| ext.eq_ignore_ascii_case("json"))
-                .unwrap_or(false);
+                .map(|ext| ext.to_ascii_lowercase());
 
-            let target_is_markdown = app.file_path.as_ref()
+            let target_ext = app
+                .file_path
+                .as_ref()
                 .and_then(|p| p.extension())
                 .and_then(|ext| ext.to_str())
-                .map(|ext| ext.eq_ignore_ascii_case("md"))
-                .unwrap_or(false);
+                .map(|ext| ext.to_ascii_lowercase())
+                .unwrap_or_else(|| "json".to_string());
 
-            let converted_content = if input_is_json && target_is_markdown {
-                // Convert JSON to Markdown format
-                if let Ok(json_val) = serde_json::from_str::<serde_json::Value>(&input_content) {
-                    let mut markdown_lines = Vec::new();
+            let json_to_markdown = |json_val: &serde_json::Value| {
+                let mut markdown_lines = Vec::new();
 
-                    if let Some(obj) = json_val.as_object() {
-                        // Convert OUTSIDE
-                        if let Some(outside) = obj.get("outside").and_then(|v| v.as_array()) {
-                            if !outside.is_empty() {
-                                markdown_lines.push("## OUTSIDE".to_string());
-                                for item in outside {
-                                    if let Some(item_obj) = item.as_object() {
-                                        let name = item_obj.get("name").and_then(|v| v.as_str()).unwrap_or("");
-                                        let context = item_obj.get("context").and_then(|v| v.as_str()).unwrap_or("");
-                                        let url = item_obj.get("url").and_then(|v| v.as_str());
-                                        let percentage = item_obj.get("percentage").and_then(|v| v.as_i64());
+                if let Some(obj) = json_val.as_object() {
+                    if let Some(outside) = obj.get("outside").and_then(|v| v.as_array()) {
+                        if !outside.is_empty() {
+                            markdown_lines.push("## OUTSIDE".to_string());
+                            for item in outside {
+                                if let Some(item_obj) = item.as_object() {
+                                    let name =
+                                        item_obj.get("name").and_then(|v| v.as_str()).unwrap_or("");
+                                    let context = item_obj
+                                        .get("context")
+                                        .and_then(|v| v.as_str())
+                                        .unwrap_or("");
+                                    let url = item_obj.get("url").and_then(|v| v.as_str());
+                                    let percentage =
+                                        item_obj.get("percentage").and_then(|v| v.as_i64());
 
-                                        if !name.is_empty() {
-                                            markdown_lines.push(format!("### {}", name));
-                                        }
-                                        if !context.is_empty() {
-                                            let formatted_context = context.replace("\\n", "\n");
-                                            markdown_lines.push(formatted_context);
-                                        }
-                                        if let Some(url_str) = url {
-                                            if !url_str.is_empty() {
-                                                markdown_lines.push("".to_string());
-                                                markdown_lines.push(format!("**URL:** {}", url_str));
-                                            }
-                                        }
-                                        if let Some(pct) = percentage {
+                                    if !name.is_empty() {
+                                        markdown_lines.push(format!("### {}", name));
+                                    }
+                                    if !context.is_empty() {
+                                        let formatted_context = context.replace("\\n", "\n");
+                                        markdown_lines.push(formatted_context);
+                                    }
+                                    if let Some(url_str) = url {
+                                        if !url_str.is_empty() {
                                             markdown_lines.push("".to_string());
-                                            markdown_lines.push(format!("**Percentage:** {}%", pct));
+                                            markdown_lines.push(format!("**URL:** {}", url_str));
                                         }
-                                        markdown_lines.push("".to_string());
                                     }
-                                }
-                            }
-                        }
-
-                        // Convert INSIDE
-                        if let Some(inside) = obj.get("inside").and_then(|v| v.as_array()) {
-                            if !inside.is_empty() {
-                                markdown_lines.push("## INSIDE".to_string());
-                                for item in inside {
-                                    if let Some(item_obj) = item.as_object() {
-                                        let date = item_obj.get("date").and_then(|v| v.as_str()).unwrap_or("");
-                                        let context = item_obj.get("context").and_then(|v| v.as_str()).unwrap_or("");
-
-                                        if !date.is_empty() {
-                                            markdown_lines.push(format!("### {}", date));
-                                        }
-                                        if !context.is_empty() {
-                                            let formatted_context = context.replace("\\n", "\n");
-                                            markdown_lines.push(formatted_context);
-                                        }
+                                    if let Some(pct) = percentage {
                                         markdown_lines.push("".to_string());
+                                        markdown_lines.push(format!("**Percentage:** {}%", pct));
                                     }
+                                    markdown_lines.push("".to_string());
                                 }
                             }
                         }
                     }
 
-                    markdown_lines.join("\n")
-                } else {
-                    input_content.clone()
+                    if let Some(inside) = obj.get("inside").and_then(|v| v.as_array()) {
+                        if !inside.is_empty() {
+                            markdown_lines.push("## INSIDE".to_string());
+                            for item in inside {
+                                if let Some(item_obj) = item.as_object() {
+                                    let date =
+                                        item_obj.get("date").and_then(|v| v.as_str()).unwrap_or("");
+                                    let context = item_obj
+                                        .get("context")
+                                        .and_then(|v| v.as_str())
+                                        .unwrap_or("");
+
+                                    if !date.is_empty() {
+                                        markdown_lines.push(format!("### {}", date));
+                                    }
+                                    if !context.is_empty() {
+                                        let formatted_context = context.replace("\\n", "\n");
+                                        markdown_lines.push(formatted_context);
+                                    }
+                                    markdown_lines.push("".to_string());
+                                }
+                            }
+                        }
+                    }
                 }
-            } else if !input_is_json && !target_is_markdown {
-                // Convert Markdown to JSON format
-                match app.parse_markdown(&input_content) {
-                    Ok(json) => json,
-                    Err(_) => input_content.clone()
+
+                markdown_lines.join("\n")
+            };
+
+            let converted_content = if target_ext == "md" {
+                match input_ext.as_deref() {
+                    Some("json") => serde_json::from_str::<serde_json::Value>(&input_content)
+                        .map(|v| json_to_markdown(&v))
+                        .unwrap_or_else(|_| input_content.clone()),
+                    Some("toon") => app
+                        .parse_toon(&input_content)
+                        .ok()
+                        .and_then(|json| serde_json::from_str::<serde_json::Value>(&json).ok())
+                        .map(|v| json_to_markdown(&v))
+                        .unwrap_or_else(|| input_content.clone()),
+                    _ => input_content.clone(),
                 }
             } else {
-                input_content.clone()
+                match input_ext.as_deref() {
+                    Some("md") => app
+                        .parse_markdown(&input_content)
+                        .unwrap_or_else(|_| input_content.clone()),
+                    Some("toon") => app
+                        .parse_toon(&input_content)
+                        .unwrap_or_else(|_| input_content.clone()),
+                    _ => input_content.clone(),
+                }
             };
 
             // Determine how to process the input based on flags

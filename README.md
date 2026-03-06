@@ -165,6 +165,26 @@ revw --pdf file.json                        # Export JSON to PDF
 revw --pdf file.md                          # Export Markdown to PDF
 revw --pdf file.toon                        # Export Toon to PDF
 
+# Filter entries
+revw --stdout --filter pattern file.json    # Filter and output to stdout
+revw --stdout --filter pattern file.md
+revw --stdout --filter pattern file.toon
+revw --stdout --filter pattern --inside file.json   # Filter INSIDE only
+revw --stdout --filter pattern --inside file.md
+revw --stdout --filter pattern --inside file.toon
+revw --stdout --filter pattern --outside file.json  # Filter OUTSIDE only
+revw --stdout --filter pattern --outside file.md
+revw --stdout --filter pattern --outside file.toon
+revw --stdout --filter pattern --markdown file.json # Filter in Markdown format
+revw --stdout --filter pattern --markdown file.md
+revw --stdout --filter pattern --markdown file.toon
+revw --stdout --filter pattern --json file.json     # Filter in JSON format
+revw --stdout --filter pattern --json file.md
+revw --stdout --filter pattern --json file.toon
+revw --stdout --filter pattern --toon file.json     # Filter in Toon format
+revw --stdout --filter pattern --toon file.md
+revw --stdout --filter pattern --toon file.toon
+
 # Token count
 revw --token file.json                      # Show token counts for all formats
 revw --token file.md
