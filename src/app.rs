@@ -133,6 +133,8 @@ pub struct App {
     pub show_relative_line_numbers: bool,
     // Maximum visible cards in View mode (1-10, default 5)
     pub max_visible_cards: usize,
+    // Total visual (wrapped) rows of the selected card's context - updated each render
+    pub card_context_rows: usize,
     // Show file extension in explorer
     pub show_extension: bool,
     // Command history buffers (max 10 entries each)
@@ -280,6 +282,7 @@ impl App {
             show_relative_line_numbers: rc_config.show_relative_line_numbers,
             show_extension: rc_config.show_extension,
             max_visible_cards: rc_config.max_visible_cards,
+            card_context_rows: 0,
             command_history: Vec::new(),
             search_history: Vec::new(),
             command_history_index: None,
@@ -319,6 +322,54 @@ impl App {
         };
 
         app
+    }
+
+    // --- Edit mode wrap helpers ---
+
+    /// Content width for wrapping in Edit mode, accounting for line-number gutter.
+    pub fn get_edit_wrap_width(&self) -> usize {
+        let w = self.content_width as usize;
+        // Reserve 1 column so the cursor character never clips the last visible char
+        if self.show_line_numbers {
+            let total_lines = self.rendered_content.len().max(1);
+            let gutter = format!("{}", total_lines).len().max(3) + 1;
+            w.saturating_sub(gutter + 1)
+        } else {
+            w.saturating_sub(1)
+        }
+    }
+
+    /// Convert (logical line, col) cursor to a flat char offset into `lines.join("\n")`.
+    pub fn cursor_to_flat(lines: &[String], line: usize, col: usize) -> usize {
+        let mut pos = 0;
+        for (i, l) in lines.iter().enumerate() {
+            if i >= line {
+                pos += col.min(l.chars().count());
+                break;
+            }
+            pos += l.chars().count() + 1; // +1 for '\n'
+        }
+        pos
+    }
+
+    /// Convert a flat char offset back to (logical line, col).
+    pub fn flat_to_cursor(lines: &[String], mut flat: usize) -> (usize, usize) {
+        for (i, l) in lines.iter().enumerate() {
+            let len = l.chars().count();
+            if flat <= len {
+                return (i, flat);
+            }
+            flat -= len + 1;
+        }
+        let last = lines.len().saturating_sub(1);
+        let last_len = lines.last().map(|l| l.chars().count()).unwrap_or(0);
+        (last, last_len)
+    }
+
+    /// Current cursor as flat char offset (for Edit mode).
+    pub fn cursor_flat_pos(&self) -> usize {
+        let lines = self.get_content_lines();
+        Self::cursor_to_flat(&lines, self.content_cursor_line, self.content_cursor_col)
     }
 
     // --- Display width helpers (unicode-aware) ---

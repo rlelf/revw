@@ -81,26 +81,15 @@ impl App {
     }
 
     pub fn relf_max_hscroll(&self) -> u16 {
-        // In View mode: calculate max vertical scroll for card context
-        // In Edit mode: calculate max horizontal scroll
+        // In View mode: calculate max vertical scroll for card context (in visual/wrapped rows)
+        // In Edit mode: not used (wrapping is enabled, no horizontal scroll)
         if self.format_mode == FormatMode::View {
-            // View mode: vertical scroll for card context
-            if !self.relf_entries.is_empty() {
-                // Check the selected card's context field
-                if self.selected_entry_index < self.relf_entries.len() {
-                    let entry = &self.relf_entries[self.selected_entry_index];
-                    // Check context field which can be vertically scrolled
-                    if let Some(context) = &entry.context {
-                        let context_with_newlines = context.replace("\\n", "\n");
-                        let total_lines = context_with_newlines.lines().count();
-                        // Estimate visible lines: total height divided by number of visible cards
-                        // Subtract 2 for card borders (top and bottom)
-                        let visible_lines = (self.visible_height as usize / self.max_visible_cards).saturating_sub(2);
-                        return total_lines.saturating_sub(visible_lines) as u16;
-                    }
-                }
-            }
-            0
+            // Use the pre-computed visual row count (updated each render frame)
+            let total_vis_rows = self.card_context_rows;
+            // Visible rows per card: (total inner height / cards), minus 2 for card borders
+            let card_inner_height =
+                (self.visible_height as usize / self.max_visible_cards.max(1)).saturating_sub(2);
+            return total_vis_rows.saturating_sub(card_inner_height) as u16;
         } else {
             // Edit mode: horizontal scroll
             let w = self.get_content_width() as usize;

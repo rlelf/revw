@@ -119,7 +119,13 @@ pub fn layout_wrapped_text(text: &str, cursor_pos: usize, width: usize) -> Wrapp
                     end_pos: row_end_pos,
                 });
 
-                if !cursor_found && cursor_pos >= row_start_pos && cursor_pos <= row_end_pos {
+                // cursor_pos < row_end_pos: strictly inside this visual row
+                // cursor_pos == row_end_pos && end_char == line_len: cursor at end of logical line (last visual row)
+                // cursor_pos == row_end_pos && end_char < line_len: at start of NEXT visual row — skip
+                if !cursor_found
+                    && cursor_pos >= row_start_pos
+                    && (cursor_pos < row_end_pos || (cursor_pos == row_end_pos && end_char == line_len))
+                {
                     let row_char_offset = cursor_pos.saturating_sub(row_start_pos);
                     let prefix: String = row_text.chars().take(row_char_offset).collect();
                     cursor = WrappedCursor {

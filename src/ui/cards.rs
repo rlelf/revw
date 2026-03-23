@@ -7,6 +7,7 @@ use ratatui::{
 };
 
 use crate::app::App;
+use crate::overlay_context;
 use crate::rendering::RelfEntry;
 use crate::syntax_highlight::SyntaxHighlighter;
 
@@ -60,6 +61,15 @@ pub fn render_relf_cards(f: &mut Frame, app: &mut App, area: Rect) {
 
     // Use selected_entry_index to determine which entries to show
     let selected = app.selected_entry_index;
+
+    // Compute visual row count for selected card (used by key handler for scroll bounds)
+    let card_inner_width = inner_area.width.saturating_sub(2) as usize;
+    {
+        let context = app.relf_entries.get(selected)
+            .and_then(|e| e.context.as_deref())
+            .unwrap_or("");
+        app.card_context_rows = overlay_context::total_rows(context, card_inner_width);
+    }
 
     // Limit number of visible cards (use app setting)
     let max_visible_cards = app.max_visible_cards;
@@ -202,46 +212,32 @@ fn render_outside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: R
     // Middle: context (inside the card)
     let context = entry.context.as_deref().unwrap_or("");
     if !context.is_empty() {
-        // Context already contains actual newline characters
-        let visible_lines = inner_area.height as usize;
-
         // Use syntax highlighting for context
-        let highlighted_lines = {
+        let highlighted_lines: Vec<Line> = {
             let highlighter = app.syntax_highlighter.as_ref();
             if let Some(h) = highlighter {
                 h.render_lines(context, Style::default().fg(app.colorscheme.card_content))
             } else {
-                // Fallback: no highlighting
                 context.lines().map(|line| {
                     Line::styled(line.to_string(), Style::default().fg(app.colorscheme.card_content))
                 }).collect()
             }
         };
 
-        let total_lines = highlighted_lines.len();
-        let max_scroll = total_lines;
+        // Count visual (wrapped) rows for accurate scroll-by-row behavior
+        let total_vis_rows = overlay_context::total_rows(context, inner_area.width as usize);
+        let visible_rows = inner_area.height as usize;
+        let max_vscroll = total_vis_rows.saturating_sub(visible_rows);
         let vscroll = if is_selected {
-            (app.hscroll as usize).min(max_scroll)
+            (app.hscroll as usize).min(max_vscroll)
         } else {
             0
         };
 
-        let context_lines: Vec<Line> = highlighted_lines
-            .into_iter()
-            .skip(vscroll)
-            .take(visible_lines)
-            .map(|line| {
-                if !app.search_query.is_empty() {
-                    // TODO: Apply search highlighting on top of syntax highlighting
-                    line
-                } else {
-                    line
-                }
-            })
-            .collect();
-
-        let context_para = Paragraph::new(context_lines)
+        // Pass all lines; Paragraph::scroll advances by visual rows (wrap-aware)
+        let context_para = Paragraph::new(highlighted_lines)
             .wrap(Wrap { trim: false })
+            .scroll((vscroll as u16, 0))
             .alignment(Alignment::Left);
         f.render_widget(context_para, inner_area);
     }
@@ -270,45 +266,32 @@ fn render_inside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: Re
 
     // Context inside the card
     if let Some(context) = &entry.context {
-        // Context already contains actual newline characters
-        let visible_lines = inner_area.height as usize;
-
         // Use syntax highlighting for context
-        let highlighted_lines = {
+        let highlighted_lines: Vec<Line> = {
             let highlighter = app.syntax_highlighter.as_ref();
             if let Some(h) = highlighter {
                 h.render_lines(context, Style::default().fg(app.colorscheme.card_content))
             } else {
-                // Fallback: no highlighting
                 context.lines().map(|line| {
                     Line::styled(line.to_string(), Style::default().fg(app.colorscheme.card_content))
                 }).collect()
             }
         };
 
-        let total_lines = highlighted_lines.len();
-        let max_scroll = total_lines;
+        // Count visual (wrapped) rows for accurate scroll-by-row behavior
+        let total_vis_rows = overlay_context::total_rows(context, inner_area.width as usize);
+        let visible_rows = inner_area.height as usize;
+        let max_vscroll = total_vis_rows.saturating_sub(visible_rows);
         let vscroll = if is_selected {
-            (app.hscroll as usize).min(max_scroll)
+            (app.hscroll as usize).min(max_vscroll)
         } else {
             0
         };
 
-        let context_lines: Vec<Line> = highlighted_lines
-            .into_iter()
-            .skip(vscroll)
-            .take(visible_lines)
-            .map(|line| {
-                if !app.search_query.is_empty() {
-                    // TODO: Apply search highlighting on top of syntax highlighting
-                    line
-                } else {
-                    line
-                }
-            })
-            .collect();
-
-        let context_para = Paragraph::new(context_lines).wrap(Wrap { trim: false });
+        // Pass all lines; Paragraph::scroll advances by visual rows (wrap-aware)
+        let context_para = Paragraph::new(highlighted_lines)
+            .wrap(Wrap { trim: false })
+            .scroll((vscroll as u16, 0));
         f.render_widget(context_para, inner_area);
     }
 }

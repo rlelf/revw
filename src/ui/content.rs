@@ -1,12 +1,13 @@
 use ratatui::{
     layout::{Margin, Rect},
-    style::{Color, Style},
+    style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph, Wrap},
     Frame,
 };
 
 use crate::app::{App, FormatMode, InputMode};
+use crate::overlay_context::layout_wrapped_text;
 
 use super::json_highlight::highlight_json_line;
 use super::markdown_highlight::highlight_markdown_line;
@@ -25,6 +26,12 @@ pub fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
         return;
     }
 
+    // Edit mode: use self-made wrap (like overlay) for proper visual-row navigation
+    if app.format_mode == FormatMode::Edit {
+        render_edit_wrapped(f, app, area);
+        return;
+    }
+
     let inner_area = area.inner(Margin {
         horizontal: 1,
         vertical: 1,
@@ -32,10 +39,8 @@ pub fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
     // Update the app's notion of the current content width for accurate wrapping
     // Use inner area width (inside borders and margins)
     app.content_width = inner_area.width;
-    // In View mode, disable horizontal scrolling entirely
-    if app.format_mode == FormatMode::View {
-        app.hscroll = 0;
-    }
+    // Disable horizontal scrolling in both View mode and Edit mode (Edit uses wrapping)
+    app.hscroll = 0;
     // Remember actual visible height for correct scroll math elsewhere
     app.visible_height = inner_area.height;
     // Build visual (wrapped) lines and compute scroll bounds in visual rows
@@ -57,11 +62,7 @@ pub fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
     // Build content with cursor and horizontal viewport
     let content_text = {
         let w_cols = app.get_content_width() as usize;
-        let off_cols = if app.format_mode == FormatMode::View {
-            0
-        } else {
-            app.hscroll as usize
-        };
+        let off_cols = app.hscroll as usize; // always 0 (wrapping handles overflow)
         let mut lines_vec: Vec<Line> = Vec::new();
 
         for (line_idx, s) in visible_content.iter().enumerate() {
@@ -90,10 +91,11 @@ pub fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
                 } else {
                     " ".repeat(line_num_width + 1)
                 };
-                let adjusted_width = w_cols.saturating_sub(line_num_width + 1);
-                (line_num_str, adjusted_width)
+                // Use a large value so spans aren't truncated; Wrap handles the overflow
+                let _ = w_cols.saturating_sub(line_num_width + 1);
+                (line_num_str, usize::MAX / 4)
             } else {
-                (String::new(), w_cols)
+                (String::new(), usize::MAX / 4)
             };
 
             let slice = app.slice_columns(s, off_cols, adjusted_w_cols);
@@ -296,8 +298,9 @@ pub fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
                 if actual_idx == app.content_cursor_line {
                     let cursor_char_pos = app.content_cursor_col;
                     let prefix_cols = app.prefix_display_width(s, cursor_char_pos);
-                    if prefix_cols >= off_cols && prefix_cols < off_cols + adjusted_w_cols {
+                    if prefix_cols >= off_cols {
                         // Insert cursor while preserving existing highlighting
+                        // (with wrapping enabled, cursor may be on a wrapped row - ratatui places it correctly)
                         let insert_col_in_view = prefix_cols - off_cols;
 
                         // Calculate display width position across all spans
@@ -408,17 +411,315 @@ pub fn render_content(f: &mut Frame, app: &mut App, area: Rect) {
         None => String::new(),
     };
 
-    let content = Paragraph::new(content_text).block(
-        Block::default()
-            .title(title)
-            .title_style(Style::default().fg(app.colorscheme.window_title))
-            .borders(Borders::ALL)
-            .border_type(app.border_style.to_border_type())
-            .border_style(Style::default().fg(app.colorscheme.window_border))
-            .style(Style::default().bg(app.colorscheme.background)),
-    );
+    let block = Block::default()
+        .title(title)
+        .title_style(Style::default().fg(app.colorscheme.window_title))
+        .borders(Borders::ALL)
+        .border_type(app.border_style.to_border_type())
+        .border_style(Style::default().fg(app.colorscheme.window_border))
+        .style(Style::default().bg(app.colorscheme.background));
+
+    let content = if app.format_mode == FormatMode::Edit {
+        // Edit mode: wrap long lines instead of horizontal scrolling
+        Paragraph::new(content_text).block(block).wrap(Wrap { trim: false })
+    } else {
+        Paragraph::new(content_text).block(block)
+    };
 
     f.render_widget(content, area);
+}
+
+/// Edit mode rendering using self-made wrap (like overlay_context), so j/k move by
+/// visual rows and line numbers are correctly accounted for in the wrap width.
+fn render_edit_wrapped(f: &mut Frame, app: &mut App, area: Rect) {
+    let inner_area = area.inner(Margin { horizontal: 1, vertical: 1 });
+    app.content_width = inner_area.width;
+    app.visible_height = inner_area.height;
+    app.hscroll = 0;
+
+    // --- Compute line-number gutter width ---
+    let lines = app.get_content_lines();
+    let total_logical = lines.len().max(1);
+    let (gutter_width, content_wrap_width) = if app.show_line_numbers {
+        let g = format!("{}", total_logical).len().max(3) + 1;
+        // Reserve 1 column so the cursor does not cover the last visible char
+        (g, (inner_area.width as usize).saturating_sub(g + 1))
+    } else {
+        // Reserve 1 column so the cursor does not cover the last visible char
+        (0, (inner_area.width as usize).saturating_sub(1))
+    };
+
+    // --- Build flat content string and layout ---
+    let flat_content = lines.join("\n");
+    let flat_cursor = app.cursor_flat_pos();
+    let wrap_width = content_wrap_width.max(1);
+    let layout = layout_wrapped_text(&flat_content, flat_cursor, wrap_width);
+
+    let total_vis_rows = layout.rows.len();
+    let vis_height = inner_area.height as usize;
+    let bottom_padding = 10usize;
+    app.max_scroll = (total_vis_rows + bottom_padding).saturating_sub(vis_height) as u16;
+    if app.scroll > app.max_scroll {
+        app.scroll = app.max_scroll;
+    }
+
+    // --- Pre-compute logical line start positions (flat char offsets) ---
+    let mut line_starts: Vec<usize> = Vec::with_capacity(lines.len());
+    {
+        let mut pos = 0usize;
+        for l in &lines {
+            line_starts.push(pos);
+            pos += l.chars().count() + 1;
+        }
+    }
+
+    // --- Render visible visual rows ---
+    let vscroll = app.scroll as usize;
+    let cursor_vis_row = layout.cursor.visual_row;
+    let cursor_is_active = app.show_cursor
+        && (app.input_mode == InputMode::Normal || app.input_mode == InputMode::Insert);
+
+    let mut lines_vec: Vec<Line> = Vec::with_capacity(vis_height);
+
+    for row_off in 0..vis_height {
+        let row_idx = vscroll + row_off;
+
+        if row_idx >= total_vis_rows {
+            lines_vec.push(Line::from(Span::raw("")));
+            continue;
+        }
+
+        let row = &layout.rows[row_idx];
+
+        // Determine logical line index (binary search over line_starts)
+        let logical_idx = line_starts.partition_point(|&s| s <= row.start_pos).saturating_sub(1);
+
+        // Is this the first visual row for its logical line?
+        let is_first_row_of_logical = row_idx == 0
+            || {
+                let prev = &layout.rows[row_idx - 1];
+                line_starts.partition_point(|&s| s <= prev.start_pos).saturating_sub(1)
+                    < logical_idx
+            };
+
+        // --- Line number span ---
+        let line_num_span: Option<Span> = if gutter_width > 0 {
+            let num_str = if is_first_row_of_logical {
+                let digits = gutter_width - 1;
+                if app.show_relative_line_numbers {
+                    let cursor_logical = line_starts
+                        .partition_point(|&s| s <= flat_cursor)
+                        .saturating_sub(1);
+                    if logical_idx == cursor_logical {
+                        format!("{:>width$} ", logical_idx + 1, width = digits)
+                    } else {
+                        let dist = (logical_idx as isize - cursor_logical as isize).unsigned_abs();
+                        format!("{:>width$} ", dist, width = digits)
+                    }
+                } else {
+                    format!("{:>width$} ", logical_idx + 1, width = digits)
+                }
+            } else {
+                " ".repeat(gutter_width)
+            };
+            Some(Span::styled(num_str, Style::default().fg(app.colorscheme.line_number)))
+        } else {
+            None
+        };
+
+        let display_text = row.text.clone();
+
+        // --- Syntax highlighting ---
+        let mut content_spans: Vec<Span> = if app.is_markdown_file() {
+            highlight_markdown_line(&display_text, &app.colorscheme)
+        } else {
+            highlight_json_line(&display_text, &app.colorscheme)
+        };
+
+        // --- Search highlighting (inline, applied over syntax spans) ---
+        if !app.search_query.is_empty() {
+            let query_lower = app.search_query.to_lowercase();
+            let text_lower = display_text.to_lowercase();
+            // Check if there's any match before rebuilding spans
+            if text_lower.contains(&query_lower) {
+                let actual_vis_row = row_idx;
+                content_spans = rebuild_spans_with_search(
+                    &display_text,
+                    content_spans,
+                    &app.search_query,
+                    &app.search_matches,
+                    app.current_match_index,
+                    logical_idx,
+                    // column offset of this visual row within the logical line
+                    row.start_pos.saturating_sub(*line_starts.get(logical_idx).unwrap_or(&0)),
+                    actual_vis_row,
+                );
+            }
+        }
+
+        if cursor_is_active && row_idx == cursor_vis_row {
+            content_spans = apply_block_cursor_to_spans(
+                content_spans,
+                layout.cursor.row_char_offset,
+            );
+        }
+
+        // Combine spans
+        let mut spans: Vec<Span> = Vec::new();
+        if let Some(ln) = line_num_span {
+            spans.push(ln);
+        }
+        spans.extend(content_spans);
+        lines_vec.push(Line::from(spans));
+    }
+
+    // --- Build block and render ---
+    let title = match &app.file_path {
+        Some(path) => {
+            let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+            let display_name = if !app.show_extension {
+                path.file_stem().and_then(|s| s.to_str()).unwrap_or(name).to_string()
+            } else {
+                name.to_string()
+            };
+            format!(" {} ", display_name)
+        }
+        None => String::new(),
+    };
+
+    let block = Block::default()
+        .title(title)
+        .title_style(Style::default().fg(app.colorscheme.window_title))
+        .borders(Borders::ALL)
+        .border_type(app.border_style.to_border_type())
+        .border_style(Style::default().fg(app.colorscheme.window_border))
+        .style(Style::default().bg(app.colorscheme.background));
+
+    f.render_widget(Paragraph::new(lines_vec).block(block), area);
+}
+
+fn apply_block_cursor_to_spans(
+    spans: Vec<Span<'static>>,
+    cursor_char_pos: usize,
+) -> Vec<Span<'static>> {
+    let cursor_style = Style::default()
+        .fg(Color::Black)
+        .bg(Color::Rgb(110, 170, 255))
+        .add_modifier(Modifier::BOLD);
+    let mut result = Vec::new();
+    let mut seen_chars = 0usize;
+
+    for span in spans {
+        let text = span.content.to_string();
+        let chars: Vec<char> = text.chars().collect();
+        let len = chars.len();
+
+        if cursor_char_pos >= seen_chars && cursor_char_pos < seen_chars + len {
+            let local = cursor_char_pos - seen_chars;
+            let before: String = chars[..local].iter().collect();
+            let at_cursor = chars[local].to_string();
+            let after: String = chars[local + 1..].iter().collect();
+
+            if !before.is_empty() {
+                result.push(Span::styled(before, span.style));
+            }
+            result.push(Span::styled(at_cursor, cursor_style));
+            if !after.is_empty() {
+                result.push(Span::styled(after, span.style));
+            }
+            seen_chars = cursor_char_pos + 1;
+        } else {
+            result.push(span);
+            seen_chars += len;
+        }
+    }
+
+    if cursor_char_pos >= seen_chars {
+        result.push(Span::styled(" ".to_string(), cursor_style));
+    }
+
+    result
+}
+
+/// Rebuild syntax-highlighted spans for a visual row, adding search match backgrounds.
+fn rebuild_spans_with_search(
+    display_text: &str,
+    syntax_spans: Vec<Span<'static>>,
+    query: &str,
+    search_matches: &[(usize, usize)],
+    current_match_index: Option<usize>,
+    logical_line: usize,
+    col_offset_in_line: usize,
+    _vis_row: usize,
+) -> Vec<Span<'static>> {
+    let query_lower = query.to_lowercase();
+    let text_lower = display_text.to_lowercase();
+    let mut result = Vec::new();
+    let mut char_pos = 0usize; // position within display_text (chars)
+
+    for span in syntax_spans {
+        let span_text = span.content.to_string();
+        let span_chars: Vec<char> = span_text.chars().collect();
+        let span_len = span_chars.len();
+        let mut seg_start = 0usize; // within span_text
+
+        let mut i = 0usize;
+        while i < span_len {
+            let abs_char = char_pos + i;
+            // Find query match starting at or after abs_char
+            let text_bytes_before: usize = display_text.chars().take(abs_char).map(|c| c.len_utf8()).sum();
+            let remaining = &text_lower[text_bytes_before..];
+            if let Some(match_off) = remaining.find(&query_lower) {
+                let match_start_char = abs_char + remaining[..match_off].chars().count();
+                let match_end_char = match_start_char + query.chars().count();
+
+                // Is this match within this span?
+                let span_char_start = char_pos;
+                let span_char_end = char_pos + span_len;
+                if match_start_char >= span_char_end {
+                    break; // match is in a later span
+                }
+
+                // Is this the current match?
+                let is_current = current_match_index
+                    .and_then(|idx| search_matches.get(idx))
+                    .map(|(l, c)| *l == logical_line && *c == col_offset_in_line + match_start_char)
+                    .unwrap_or(false);
+                let bg = if is_current {
+                    Color::Rgb(255, 255, 150)
+                } else {
+                    Color::Rgb(100, 180, 200)
+                };
+
+                // Before match
+                let before_in_span = match_start_char.saturating_sub(span_char_start);
+                if before_in_span > seg_start {
+                    let s: String = span_chars[seg_start..before_in_span].iter().collect();
+                    result.push(Span::styled(s, span.style));
+                }
+                // Match portion (clamped to this span)
+                let match_start_in_span = before_in_span;
+                let match_end_in_span = (match_end_char.saturating_sub(span_char_start)).min(span_len);
+                if match_end_in_span > match_start_in_span {
+                    let s: String = span_chars[match_start_in_span..match_end_in_span].iter().collect();
+                    result.push(Span::styled(s, span.style.bg(bg)));
+                }
+                seg_start = match_end_in_span;
+                i = seg_start;
+            } else {
+                break;
+            }
+        }
+
+        // Remaining text in span after last match
+        if seg_start < span_len {
+            let s: String = span_chars[seg_start..].iter().collect();
+            result.push(Span::styled(s, span.style));
+        }
+        char_pos += span_len;
+    }
+
+    result
 }
 
 fn render_help_content(f: &mut Frame, app: &mut App, area: Rect) {

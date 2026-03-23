@@ -1,7 +1,7 @@
 use ratatui::{
     layout::{Alignment, Rect},
     style::{Color, Modifier, Style},
-    text::Line,
+    text::{Line, Span},
     widgets::{Block, Borders, Clear, Paragraph},
     Frame,
 };
@@ -89,14 +89,12 @@ fn render_inside_overlay(f: &mut Frame, app: &App, card_area: Rect, inner_area: 
 
         let style = get_field_style(app, is_selected, is_placeholder);
 
-        let mut date_text = format!(" {} ", app.edit_buffer[0].clone());
-
-        // Add cursor if editing this field
-        if is_selected && (app.edit_insert_mode || app.edit_field_editing_mode) {
-            date_text = add_cursor_to_text(&date_text, app.edit_cursor_pos, 1); // offset by 1 for leading space
-        }
-
-        let date_line = Line::styled(date_text, style);
+        let date_text = format!(" {} ", app.edit_buffer[0].clone());
+        let date_line = if is_selected && (app.edit_insert_mode || app.edit_field_editing_mode) {
+            build_inline_block_cursor_line(&date_text, app.edit_cursor_pos, 1, style)
+        } else {
+            Line::styled(date_text, style)
+        };
         let date_area = Rect {
             x: card_area.x + 2,
             y: card_area.y,
@@ -131,13 +129,12 @@ fn render_outside_overlay(f: &mut Frame, app: &App, card_area: Rect, inner_area:
         };
 
         // Add cursor and handle horizontal scrolling if editing this field
-        let name_text = if is_selected && (app.edit_insert_mode || app.edit_field_editing_mode) {
-            render_scrollable_field(&app.edit_buffer[0], app.edit_cursor_pos, name_area.width as usize, 1)
+        let name_line = if is_selected && (app.edit_insert_mode || app.edit_field_editing_mode) {
+            render_scrollable_field_line(&app.edit_buffer[0], app.edit_cursor_pos, name_area.width as usize, 1, style)
         } else {
-            format!(" {} ", app.edit_buffer[0].clone())
+            Line::styled(format!(" {} ", app.edit_buffer[0].clone()), style)
         };
 
-        let name_line = Line::styled(name_text, style);
         let name_para = Paragraph::new(name_line).alignment(Alignment::Left);
         f.render_widget(name_para, name_area);
     }
@@ -157,13 +154,12 @@ fn render_outside_overlay(f: &mut Frame, app: &App, card_area: Rect, inner_area:
         };
 
         // Add cursor and handle horizontal scrolling if editing this field
-        let url_text = if is_selected && (app.edit_insert_mode || app.edit_field_editing_mode) {
-            render_scrollable_field(&app.edit_buffer[2], app.edit_cursor_pos, url_area.width as usize, 1)
+        let url_line = if is_selected && (app.edit_insert_mode || app.edit_field_editing_mode) {
+            render_scrollable_field_line(&app.edit_buffer[2], app.edit_cursor_pos, url_area.width as usize, 1, style)
         } else {
-            format!(" {} ", app.edit_buffer[2].clone())
+            Line::styled(format!(" {} ", app.edit_buffer[2].clone()), style)
         };
 
-        let url_line = Line::styled(url_text, style);
         let url_para = Paragraph::new(url_line).alignment(Alignment::Left);
         f.render_widget(url_para, url_area);
     }
@@ -176,18 +172,17 @@ fn render_outside_overlay(f: &mut Frame, app: &App, card_area: Rect, inner_area:
         let style = get_field_style(app, is_selected, is_placeholder);
 
         // Only show % when not a placeholder
-        let mut pct_text = if is_placeholder {
+        let pct_text = if is_placeholder {
             format!(" {} ", app.edit_buffer[3].clone())
         } else {
             format!(" {} % ", app.edit_buffer[3].clone())
         };
 
-        // Add cursor if editing this field
-        if is_selected && (app.edit_insert_mode || app.edit_field_editing_mode) {
-            pct_text = add_cursor_to_text(&pct_text, app.edit_cursor_pos, 1);
-        }
-
-        let pct_line = Line::styled(pct_text, style);
+        let pct_line = if is_selected && (app.edit_insert_mode || app.edit_field_editing_mode) {
+            build_inline_block_cursor_line(&pct_text, app.edit_cursor_pos, 1, style)
+        } else {
+            Line::styled(pct_text, style)
+        };
         let pct_area = Rect {
             x: card_area.x + 2,
             y: card_area.y + card_area.height.saturating_sub(1),
@@ -241,25 +236,20 @@ fn render_context_field(f: &mut Frame, app: &App, inner_area: Rect, field_index:
 
         for (visible_idx, row) in visible_lines.iter().enumerate() {
             let actual_row_idx = vscroll + visible_idx;
-            let mut display_line = row.text.clone();
+            let display_line = row.text.clone();
 
             if is_selected
                 && (app.edit_insert_mode || app.edit_field_editing_mode)
                 && actual_row_idx == layout.cursor.visual_row
             {
-                let char_count = display_line.chars().count();
-                let cursor_char_pos = layout.cursor.row_char_offset.min(char_count);
-                let byte_pos = if cursor_char_pos == 0 {
-                    0
-                } else if cursor_char_pos >= char_count {
-                    display_line.len()
-                } else {
-                    display_line.char_indices().nth(cursor_char_pos).map(|(i, _)| i).unwrap_or(display_line.len())
-                };
-                display_line.insert(byte_pos, '|');
+                content_lines.push(build_context_line_with_cursor(
+                    &display_line,
+                    style,
+                    layout.cursor.row_char_offset,
+                ));
+            } else {
+                content_lines.push(Line::styled(display_line, style));
             }
-
-            content_lines.push(Line::styled(display_line, style));
         }
 
         // Pad with empty lines if needed
@@ -306,26 +296,17 @@ fn render_context_field(f: &mut Frame, app: &App, inner_area: Rect, field_index:
         let mut content_lines: Vec<Line> = Vec::new();
         for (visible_idx, row) in visible_rows.iter().enumerate() {
             let actual_row_idx = vscroll + visible_idx;
-            let mut display_line = row.text.clone();
+            let display_line = row.text.clone();
 
             if actual_cursor.is_some() && actual_row_idx == layout.cursor.visual_row {
-                let char_count = display_line.chars().count();
-                let cursor_char_pos = layout.cursor.row_char_offset.min(char_count);
-                let byte_pos = if cursor_char_pos == 0 {
-                    0
-                } else if cursor_char_pos >= char_count {
-                    display_line.len()
-                } else {
-                    display_line
-                        .char_indices()
-                        .nth(cursor_char_pos)
-                        .map(|(i, _)| i)
-                        .unwrap_or(display_line.len())
-                };
-                display_line.insert(byte_pos, '|');
+                content_lines.push(build_context_line_with_cursor(
+                    &display_line,
+                    style,
+                    layout.cursor.row_char_offset,
+                ));
+            } else {
+                content_lines.push(Line::styled(display_line, style));
             }
-
-            content_lines.push(Line::styled(display_line, style));
         }
 
         for _ in content_lines.len()..visible_height {
@@ -353,31 +334,56 @@ fn get_field_style(app: &App, is_selected: bool, is_placeholder: bool) -> Style 
     }
 }
 
-fn add_cursor_to_text(text: &str, cursor_pos: usize, offset: usize) -> String {
-    let mut result = text.to_string();
+fn build_context_line_with_cursor(text: &str, base_style: Style, cursor_char_pos: usize) -> Line<'static> {
+    let chars: Vec<char> = text.chars().collect();
+    let char_count = chars.len();
+    let cursor_style = Style::default()
+        .fg(Color::Black)
+        .bg(Color::Rgb(110, 170, 255))
+        .add_modifier(Modifier::BOLD);
+
+    if cursor_char_pos >= char_count {
+        let mut spans = Vec::with_capacity(2);
+        if !text.is_empty() {
+            spans.push(Span::styled(text.to_string(), base_style));
+        }
+        spans.push(Span::styled(" ".to_string(), cursor_style));
+        return Line::from(spans);
+    }
+
+    let before: String = chars[..cursor_char_pos].iter().collect();
+    let at_cursor = chars[cursor_char_pos].to_string();
+    let after: String = chars[cursor_char_pos + 1..].iter().collect();
+
+    let mut spans = Vec::with_capacity(3);
+    if !before.is_empty() {
+        spans.push(Span::styled(before, base_style));
+    }
+    spans.push(Span::styled(at_cursor, cursor_style));
+    if !after.is_empty() {
+        spans.push(Span::styled(after, base_style));
+    }
+    Line::from(spans)
+}
+
+fn build_inline_block_cursor_line(text: &str, cursor_pos: usize, offset: usize, base_style: Style) -> Line<'static> {
     let adjusted_pos = cursor_pos + offset;
-    let char_count = result.chars().count();
-    let cursor_char_pos = adjusted_pos.min(char_count);
-
-    let byte_pos = if cursor_char_pos == 0 {
-        0
-    } else if cursor_char_pos >= char_count {
-        result.len()
-    } else {
-        result.char_indices().nth(cursor_char_pos).map(|(i, _)| i).unwrap_or(result.len())
-    };
-
-    result.insert(byte_pos, '|');
-    result
+    build_context_line_with_cursor(text, base_style, adjusted_pos)
 }
 
 // Render a field with horizontal scrolling to keep cursor visible
-fn render_scrollable_field(field_content: &str, cursor_pos: usize, width: usize, padding: usize) -> String {
-    // Account for leading/trailing spaces and cursor character
+fn render_scrollable_field_line(
+    field_content: &str,
+    cursor_pos: usize,
+    width: usize,
+    padding: usize,
+    base_style: Style,
+) -> Line<'static> {
+    // Account for leading/trailing spaces
     let available_width = width.saturating_sub(padding * 2);
 
     if available_width == 0 {
-        return format!(" {} ", field_content);
+        return Line::styled(format!(" {} ", field_content), base_style);
     }
 
     let field_chars: Vec<char> = field_content.chars().collect();
@@ -386,9 +392,7 @@ fn render_scrollable_field(field_content: &str, cursor_pos: usize, width: usize,
     // Calculate scroll offset to keep cursor visible
     let cursor_pos = cursor_pos.min(field_len);
 
-    // Reserve space for cursor (1 char) with extra margin
-    // Subtract 10 to ensure cursor is always visible with good margin
-    let content_width = available_width.saturating_sub(10);
+    let content_width = available_width.max(1);
 
     // Calculate the scroll offset to keep cursor in view
     let scroll_offset = if cursor_pos < content_width {
@@ -404,22 +408,8 @@ fn render_scrollable_field(field_content: &str, cursor_pos: usize, width: usize,
     let visible_start = scroll_offset;
     let visible_end = (scroll_offset + content_width).min(field_len);
     let visible_text: String = field_chars[visible_start..visible_end].iter().collect();
-
-    // Add cursor
     let cursor_in_visible = cursor_pos.saturating_sub(scroll_offset);
-    let mut display_text = format!(" {} ", visible_text);
+    let display_text = format!(" {} ", visible_text);
 
-    // Insert cursor at correct position (offset by 1 for leading space)
-    let cursor_byte_pos = if cursor_in_visible == 0 {
-        1 // After leading space
-    } else {
-        let prefix: String = field_chars[visible_start..(visible_start + cursor_in_visible).min(field_len)].iter().collect();
-        1 + prefix.len()
-    };
-
-    if cursor_byte_pos <= display_text.len() {
-        display_text.insert(cursor_byte_pos, '|');
-    }
-
-    display_text
+    build_inline_block_cursor_line(&display_text, cursor_in_visible, 1, base_style)
 }

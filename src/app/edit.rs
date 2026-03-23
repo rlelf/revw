@@ -479,50 +479,69 @@ impl App {
     }
 
     pub fn move_cursor_up(&mut self) {
-        if self.content_cursor_line > 0 {
-            self.content_cursor_line -= 1;
+        if self.format_mode == FormatMode::Edit {
+            // Move by visual (wrapped) rows using overlay_context
             let lines = self.get_content_lines();
-            if self.content_cursor_line < lines.len() {
-                let line_len = lines[self.content_cursor_line].chars().count();
-                self.content_cursor_col = self.content_cursor_col.min(line_len);
+            if lines.is_empty() { return; }
+            let content = lines.join("\n");
+            let flat_pos = Self::cursor_to_flat(&lines, self.content_cursor_line, self.content_cursor_col);
+            let wrap_width = self.get_edit_wrap_width().max(1);
+            let new_pos = crate::overlay_context::move_cursor_vertical(&content, flat_pos, wrap_width, -1);
+            if new_pos != flat_pos {
+                let (nl, nc) = Self::flat_to_cursor(&lines, new_pos);
+                self.content_cursor_line = nl;
+                self.content_cursor_col = nc;
+            }
+        } else {
+            if self.content_cursor_line > 0 {
+                self.content_cursor_line -= 1;
+                let lines = self.get_content_lines();
+                if self.content_cursor_line < lines.len() {
+                    let line_len = lines[self.content_cursor_line].chars().count();
+                    self.content_cursor_col = self.content_cursor_col.min(line_len);
+                }
             }
         }
         self.ensure_cursor_visible();
     }
 
     pub fn move_cursor_down(&mut self) {
+        if self.format_mode == FormatMode::Edit {
+            // Move by visual (wrapped) rows using overlay_context
+            let lines = self.get_content_lines();
+            if lines.is_empty() { return; }
+            let content = lines.join("\n");
+            let flat_pos = Self::cursor_to_flat(&lines, self.content_cursor_line, self.content_cursor_col);
+            let wrap_width = self.get_edit_wrap_width().max(1);
+            let new_pos = crate::overlay_context::move_cursor_vertical(&content, flat_pos, wrap_width, 1);
+            if new_pos != flat_pos {
+                let (nl, nc) = Self::flat_to_cursor(&lines, new_pos);
+                self.content_cursor_line = nl;
+                self.content_cursor_col = nc;
+            } else {
+                // Already at last visual row - scroll screen
+                if self.scroll < self.max_scroll {
+                    self.scroll += 1;
+                }
+            }
+            self.ensure_cursor_visible();
+            return;
+        }
+
         let lines = self.get_content_lines();
         if lines.is_empty() {
             return;
         }
-
-        // Keep cursor within actual content lines
-        let content_lines = if self.format_mode == FormatMode::Edit {
-            lines.len()
-        } else {
-            self.rendered_content.len()
-        };
-
-        // Move cursor down if there's content, otherwise just scroll screen
+        let content_lines = self.rendered_content.len();
         if self.content_cursor_line + 1 < content_lines {
-            // Normal cursor movement within content
             self.content_cursor_line += 1;
-
-            let line_len =
-                if self.format_mode == FormatMode::Edit && self.content_cursor_line < lines.len() {
-                    lines[self.content_cursor_line].chars().count()
-                } else if self.content_cursor_line < self.rendered_content.len() {
-                    self.rendered_content[self.content_cursor_line]
-                        .chars()
-                        .count()
-                } else {
-                    0
-                };
-
+            let line_len = if self.content_cursor_line < self.rendered_content.len() {
+                self.rendered_content[self.content_cursor_line].chars().count()
+            } else {
+                0
+            };
             self.content_cursor_col = self.content_cursor_col.min(line_len);
         } else {
-            // Cursor is at last line, just scroll the screen down (Mario style)
-            // Don't add virtual padding in help mode
             let virtual_padding = if self.showing_help { 0 } else { 10 };
             let max_scroll =
                 (content_lines as u16 + virtual_padding).saturating_sub(self.get_visible_height());
@@ -678,12 +697,18 @@ impl App {
             self.content_cursor_col = line_len;
         }
 
-        // Vertical scrolling
-        let cursor_line = if self.format_mode == FormatMode::Edit {
-            self.content_cursor_line as u16
+        // Vertical scrolling - Edit mode uses visual (wrapped) row for the cursor position
+        let (cursor_line, total_rows) = if self.format_mode == FormatMode::Edit {
+            let lines_ref = self.get_content_lines();
+            let content = lines_ref.join("\n");
+            let flat_pos = Self::cursor_to_flat(&lines_ref, self.content_cursor_line, self.content_cursor_col);
+            let wrap_width = self.get_edit_wrap_width().max(1);
+            let layout = crate::overlay_context::layout_wrapped_text(&content, flat_pos, wrap_width);
+            (layout.cursor.visual_row as u16, layout.rows.len())
         } else {
-            self.calculate_cursor_visual_position().0
+            (self.calculate_cursor_visual_position().0, content_lines)
         };
+
         let visible_height = self.get_visible_height();
         let scrolloff = 3u16;
         if cursor_line < self.scroll {
@@ -698,34 +723,10 @@ impl App {
             }
         }
 
-        // Allow scrolling into virtual padding
         let virtual_padding = 10;
-        let max_scroll = (content_lines as u16 + virtual_padding).saturating_sub(visible_height);
+        let max_scroll = (total_rows as u16 + virtual_padding).saturating_sub(visible_height);
         if self.scroll > max_scroll {
             self.scroll = max_scroll;
-        }
-
-        // Horizontal follow for Edit mode
-        if self.format_mode == FormatMode::Edit {
-            if self.content_cursor_line < lines.len() {
-                let current = &lines[self.content_cursor_line];
-                let cursor_display_col = self.prefix_display_width(current, self.content_cursor_col) as u16;
-                let w = self.get_content_width();
-
-                // Add margin to scroll before cursor reaches edge
-                let margin = 10u16;
-
-                // Only scroll if cursor is actually outside the visible window
-                // This prevents camera from jumping when typing
-                if cursor_display_col < self.hscroll {
-                    // Cursor off left edge - scroll left with margin
-                    self.hscroll = cursor_display_col.saturating_sub(margin);
-                } else if w > 0 && cursor_display_col >= self.hscroll + w {
-                    // Cursor off right edge - scroll right with margin
-                    self.hscroll = cursor_display_col.saturating_sub(w).saturating_add(margin);
-                }
-                // Otherwise, keep hscroll unchanged (camera stays put)
-            }
         }
     }
 

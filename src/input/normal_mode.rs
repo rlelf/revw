@@ -87,7 +87,7 @@ pub fn handle_normal_mode(app: &mut App, key: KeyEvent) -> Result<bool> {
             if key.modifiers.contains(KeyModifiers::CONTROL) {
                 if !app.showing_help && app.format_mode == FormatMode::View {
                     // Page scroll up (5 lines at a time, like Ctrl+h)
-                    app.hscroll = app.hscroll.saturating_sub(5);
+                    app.relf_hscroll_by(-5);
                 } else {
                     app.page_up();
                 }
@@ -99,7 +99,7 @@ pub fn handle_normal_mode(app: &mut App, key: KeyEvent) -> Result<bool> {
                         app.move_to_previous_word_start();
                     } else {
                         // Scroll card content up (like h key)
-                        app.hscroll = app.hscroll.saturating_sub(1);
+                        app.relf_hscroll_by(-1);
                     }
                 }
             }
@@ -109,14 +109,14 @@ pub fn handle_normal_mode(app: &mut App, key: KeyEvent) -> Result<bool> {
             if key.modifiers.contains(KeyModifiers::CONTROL) {
                 if !app.showing_help && app.format_mode == FormatMode::View {
                     // Page scroll down (5 lines at a time, like Ctrl+l)
-                    app.hscroll += 5;
+                    app.relf_hscroll_by(5);
                 } else {
                     app.page_down();
                 }
             } else {
                 // Scroll card content down in View mode (like l key)
                 if !app.showing_help && app.format_mode == FormatMode::View {
-                    app.hscroll += 1;
+                    app.relf_hscroll_by(1);
                 }
             }
         }
@@ -268,10 +268,10 @@ pub fn handle_normal_mode(app: &mut App, key: KeyEvent) -> Result<bool> {
                     // Check for Ctrl modifier for page scroll
                     if key.modifiers.contains(KeyModifiers::CONTROL) {
                         // Page scroll up (e.g., 5 lines at a time)
-                        app.hscroll = app.hscroll.saturating_sub(5);
+                        app.relf_hscroll_by(-5);
                     } else {
                         // Vertical scroll up in View mode (card context)
-                        app.hscroll = app.hscroll.saturating_sub(1);
+                        app.relf_hscroll_by(-1);
                     }
                 }
             }
@@ -284,10 +284,10 @@ pub fn handle_normal_mode(app: &mut App, key: KeyEvent) -> Result<bool> {
                     // Check for Ctrl modifier for page scroll
                     if key.modifiers.contains(KeyModifiers::CONTROL) {
                         // Page scroll down (e.g., 5 lines at a time)
-                        app.hscroll += 5;
+                        app.relf_hscroll_by(5);
                     } else {
                         // Vertical scroll down in View mode (card context)
-                        app.hscroll += 1;
+                        app.relf_hscroll_by(1);
                     }
                 }
             }
@@ -315,12 +315,12 @@ pub fn handle_normal_mode(app: &mut App, key: KeyEvent) -> Result<bool> {
                 // Allow scrolling to bottom in help mode (takes priority)
                 app.scroll_to_bottom();
             } else if app.format_mode == FormatMode::Edit {
-                app.scroll_to_bottom();
                 let lines = app.get_content_lines();
                 if !lines.is_empty() {
                     app.content_cursor_line = lines.len() - 1;
-                    app.content_cursor_col = 0;
+                    app.content_cursor_col = lines.last().map(|l| l.chars().count()).unwrap_or(0);
                 }
+                app.ensure_cursor_visible();
             } else if !app.relf_entries.is_empty() {
                 // Jump to last card
                 app.selected_entry_index = app.relf_entries.len() - 1;
