@@ -27,7 +27,6 @@ impl App {
                     Some("md") => {
                         self.file_mode = super::FileMode::Markdown;
                         self.markdown_input = content.clone();
-                        self.toon_input = String::new();
                         // Parse Markdown and convert to JSON
                         match self.parse_markdown(&content) {
                             Ok(json_content) => {
@@ -39,25 +38,9 @@ impl App {
                             }
                         }
                     }
-                    Some("toon") => {
-                        self.file_mode = super::FileMode::Toon;
-                        self.toon_input = content.clone();
-                        self.markdown_input = String::new();
-                        // Parse Toon and convert to JSON
-                        match self.parse_toon(&content) {
-                            Ok(json_content) => {
-                                self.json_input = json_content;
-                            }
-                            Err(e) => {
-                                self.set_status(&format!("Error parsing toon: {}", e));
-                                return;
-                            }
-                        }
-                    }
                     _ => {
                         self.file_mode = super::FileMode::Json;
                         self.markdown_input = String::new();
-                        self.toon_input = String::new();
                         // Load as JSON directly
                         self.json_input = content;
                     }
@@ -109,13 +92,6 @@ impl App {
                                 timestamp
                             )
                         }
-                        Some("toon") => {
-                            // Create Toon format
-                            format!(
-                                "outside[1]{{name,context,url,percentage}}:\n  ,,,\n\ninside[1]{{date,context}}:\n  {},\n",
-                                timestamp
-                            )
-                        }
                         _ => {
                             // Create formatted JSON with proper indentation
                             let default_value = json!({
@@ -145,7 +121,6 @@ impl App {
                                 Some("md") => {
                                     self.file_mode = super::FileMode::Markdown;
                                     self.markdown_input = default_content.clone();
-                                    self.toon_input = String::new();
                                     // Parse Markdown and convert to JSON
                                     match self.parse_markdown(&default_content) {
                                         Ok(json_content) => {
@@ -157,25 +132,9 @@ impl App {
                                         }
                                     }
                                 }
-                                Some("toon") => {
-                                    self.file_mode = super::FileMode::Toon;
-                                    self.toon_input = default_content.clone();
-                                    self.markdown_input = String::new();
-                                    // Parse Toon and convert to JSON
-                                    match self.parse_toon(&default_content) {
-                                        Ok(json_content) => {
-                                            self.json_input = json_content;
-                                        }
-                                        Err(e) => {
-                                            self.set_status(&format!("Error parsing toon: {}", e));
-                                            return;
-                                        }
-                                    }
-                                }
                                 _ => {
                                     self.file_mode = super::FileMode::Json;
                                     self.markdown_input = String::new();
-                                    self.toon_input = String::new();
                                     self.json_input = default_content;
                                 }
                             }
@@ -237,23 +196,6 @@ impl App {
                         self.markdown_input.clone()
                     }
                 }
-                Some("toon") => {
-                    // Convert to toon if we don't have toon content yet
-                    if self.toon_input.is_empty() {
-                        match self.convert_to_toon() {
-                            Ok(toon_content) => {
-                                self.toon_input = toon_content.clone();
-                                toon_content
-                            }
-                            Err(e) => {
-                                self.set_status(&format!("Error converting to toon: {}", e));
-                                return;
-                            }
-                        }
-                    } else {
-                        self.toon_input.clone()
-                    }
-                }
                 _ => {
                     // Save as JSON
                     self.json_input.clone()
@@ -307,25 +249,6 @@ impl App {
                     }
                 }
             }
-            Some("toon") => {
-                // If we already have Toon content, use it directly
-                // Otherwise, convert JSON to Toon
-                if self.is_toon_file() && !self.toon_input.is_empty() {
-                    self.toon_input.clone()
-                } else {
-                    match self.convert_to_toon() {
-                        Ok(toon_content) => {
-                            // Store the converted toon
-                            self.toon_input = toon_content.clone();
-                            toon_content
-                        }
-                        Err(e) => {
-                            self.set_status(&format!("Error converting to toon: {}", e));
-                            return;
-                        }
-                    }
-                }
-            }
             _ => {
                 // Save as JSON
                 self.json_input.clone()
@@ -365,7 +288,6 @@ impl App {
                     match extension.as_deref() {
                         Some("md") => {
                             self.markdown_input = content.clone();
-                            self.toon_input = String::new();
                             // Parse Markdown and convert to JSON
                             match self.parse_markdown(&content) {
                                 Ok(json_content) => {
@@ -377,23 +299,8 @@ impl App {
                                 }
                             }
                         }
-                        Some("toon") => {
-                            self.toon_input = content.clone();
-                            self.markdown_input = String::new();
-                            // Parse Toon and convert to JSON
-                            match self.parse_toon(&content) {
-                                Ok(json_content) => {
-                                    self.json_input = json_content;
-                                }
-                                Err(e) => {
-                                    self.set_status(&format!("Error parsing toon: {}", e));
-                                    return;
-                                }
-                            }
-                        }
                         _ => {
                             self.markdown_input = String::new();
-                            self.toon_input = String::new();
                             self.json_input = content;
                         }
                     }
@@ -561,34 +468,5 @@ impl App {
         }
     }
 
-    pub fn export_to_toon(&mut self) {
-        // Check if a file is currently open
-        if self.file_path.is_none() {
-            self.set_status("Error: No file open");
-            return;
-        }
-
-        let json_path = self.file_path.as_ref().unwrap();
-
-        // Create toon filename (same name, different extension)
-        let toon_path = json_path.with_extension("toon");
-
-        match self.convert_to_toon() {
-            Ok(toon_content) => {
-                match fs::write(&toon_path, toon_content) {
-                    Ok(()) => {
-                        self.set_status(&format!("Exported to: {}", toon_path.display()));
-                        if self.explorer_open {
-                            self.reload_explorer_entries();
-                        }
-                    }
-                    Err(e) => {
-                        self.set_status(&format!("Error exporting Toon: {}", e));
-                    }
-                }
-            }
-            Err(e) => self.set_status(&format!("Error converting to Toon: {}", e)),
-        }
-    }
-
 }
+

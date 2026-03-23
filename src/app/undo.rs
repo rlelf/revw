@@ -5,7 +5,6 @@ impl App {
         let state = UndoState {
             json_input: self.json_input.clone(),
             markdown_input: self.markdown_input.clone(),
-            toon_input: self.toon_input.clone(),
             content_cursor_line: self.content_cursor_line,
             content_cursor_col: self.content_cursor_col,
             scroll: self.scroll,
@@ -28,7 +27,6 @@ impl App {
             let current_state = UndoState {
                 json_input: self.json_input.clone(),
                 markdown_input: self.markdown_input.clone(),
-                toon_input: self.toon_input.clone(),
                 content_cursor_line: self.content_cursor_line,
                 content_cursor_col: self.content_cursor_col,
                 scroll: self.scroll,
@@ -38,7 +36,6 @@ impl App {
             // Restore previous state
             self.json_input = state.json_input;
             self.markdown_input = state.markdown_input;
-            self.toon_input = state.toon_input;
             self.content_cursor_line = state.content_cursor_line;
             self.content_cursor_col = state.content_cursor_col;
             self.scroll = state.scroll;
@@ -56,7 +53,6 @@ impl App {
             let current_state = UndoState {
                 json_input: self.json_input.clone(),
                 markdown_input: self.markdown_input.clone(),
-                toon_input: self.toon_input.clone(),
                 content_cursor_line: self.content_cursor_line,
                 content_cursor_col: self.content_cursor_col,
                 scroll: self.scroll,
@@ -66,7 +62,6 @@ impl App {
             // Restore next state
             self.json_input = state.json_input;
             self.markdown_input = state.markdown_input;
-            self.toon_input = state.toon_input;
             self.content_cursor_line = state.content_cursor_line;
             self.content_cursor_col = state.content_cursor_col;
             self.scroll = state.scroll;

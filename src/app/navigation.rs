@@ -237,21 +237,8 @@ impl App {
                                         self.markdown_input = Self::json_to_markdown_string(&json_value).unwrap_or_default();
                                     }
                                 }
-                                // If working with a toon file, sync toon_input
-                                else if self.is_toon_file() {
-                                    self.toon_input = self.convert_to_toon().unwrap_or_default();
-                                }
 
                                 self.convert_json();
-
-                                // Move selection up (to previous entry)
-                                if !self.relf_entries.is_empty() {
-                                    if self.selected_entry_index > 0 {
-                                        self.selected_entry_index -= 1;
-                                    } else if self.selected_entry_index >= self.relf_entries.len() {
-                                        self.selected_entry_index = self.relf_entries.len() - 1;
-                                    }
-                                }
 
                                 self.set_status("Entry deleted");
                             }
@@ -276,8 +263,6 @@ impl App {
         let ops = self.get_operations();
         let content = if self.is_markdown_file() && !self.markdown_input.is_empty() {
             &self.markdown_input
-        } else if self.is_toon_file() && !self.toon_input.is_empty() {
-            &self.toon_input
         } else {
             &self.json_input
         };
@@ -298,20 +283,9 @@ impl App {
                             eprintln!("Warning: Failed to parse markdown: {}", e);
                         }
                     }
-                } else if self.is_toon_file() {
-                    self.toon_input = formatted;
-                    match self.parse_toon(&self.toon_input) {
-                        Ok(json_content) => {
-                            self.json_input = json_content;
-                        }
-                        Err(e) => {
-                            eprintln!("Warning: Failed to parse toon: {}", e);
-                        }
-                    }
                 } else {
                     self.json_input = formatted;
                     self.sync_markdown_from_json();
-                    self.sync_toon_from_json();
                 }
                 self.convert_json();
 

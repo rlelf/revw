@@ -84,7 +84,7 @@ impl App {
     }
 
     /// Parse clipboard text and convert to JSON value
-    /// Supports JSON, Markdown, and Toon formats
+    /// Supports JSON and Markdown formats
     pub(super) fn clipboard_text_to_json_value(&self, clipboard_text: &str) -> Result<Value, String> {
         if let Ok(json_value) = serde_json::from_str::<Value>(clipboard_text) {
             return Ok(json_value);
@@ -98,22 +98,7 @@ impl App {
                 .map_err(|e| format!("Clipboard is not valid JSON: {}", e));
         }
 
-        let json_str = self
-            .parse_toon(clipboard_text)
-            .map_err(|e| format!("Clipboard is not valid JSON, Markdown, or Toon: {}", e))?;
-        serde_json::from_str::<Value>(&json_str)
-            .map_err(|e| format!("Clipboard is not valid JSON: {}", e))
-    }
-
-    /// Set JSON input and sync toon_input if this is a Toon file
-    pub(super) fn set_json_and_sync_toon(&mut self, formatted: String) -> Result<(), String> {
-        self.json_input = formatted;
-        let toon_content = self
-            .convert_to_toon()
-            .map_err(|e| format!("Toon conversion error: {}", e))?;
-        self.toon_input = toon_content;
-        self.is_modified = true;
-        self.convert_json();
-        Ok(())
+        Err("Clipboard is not valid JSON or Markdown".to_string())
     }
 }
+

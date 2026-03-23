@@ -8,7 +8,6 @@ mod navigation;
 mod overlay_context;
 mod rendering;
 mod syntax_highlight;
-mod toon_ops;
 mod ui;
 
 use anyhow::Result;
@@ -44,34 +43,29 @@ fn main() -> Result<()> {
             "EXAMPLES:\n  \
             # Open file in interactive mode\n  \
             revw file.json\n  \
-            revw file.md\n  \
-            revw file.toon\n\n  \
+            revw file.md\n\n  \
             # Output to stdout\n  \
             revw --stdout file.json\n  \
-            revw --stdout file.md\n  \
-            revw --stdout file.toon\n\n  \
+            revw --stdout file.md\n\n  \
             # Output to file\n  \
             revw --output output.txt file.json\n  \
-            revw --output output.txt file.md\n  \
-            revw --output output.txt file.toon\n\n  \
+            revw --output output.txt file.md\n\n  \
             # Output in different formats\n  \
             revw --stdout --markdown file.json\n  \
-            revw --stdout --json file.md\n  \
-            revw --stdout --toon file.json\n\n  \
-# Input from file (supports .json, .md, .toon)\n  \
+            revw --stdout --json file.md\n\n  \
+# Input from file (supports .json, .md)\n  \
             revw --input data.json file.json\n  \
-            revw --input data.toon file.md\n  \
-            revw --input data.md file.toon\n\n  \
+            revw --input data.md file.json\n  \
+            revw --input data.json file.md\n\n  \
             # Filter entries\n  \
             revw --stdout --filter pattern file.json\n  \
             revw --stdout --filter pattern file.md\n  \
-            revw --stdout --filter pattern file.toon\n  \
             revw --stdout --filter pattern --inside file.json\n  \
             revw --stdout --filter pattern --markdown file.json\n\n  \
             # Section-specific operations\n  \
             revw --input data.json --inside file.json\n  \
-            revw --input data.toon --outside file.md\n  \
-            revw --input data.json --append --inside file.toon\n\n\
+            revw --input data.md --outside file.json\n  \
+            revw --input data.json --append --inside file.md\n\n\
             SUPPORTED FILE FORMATS:\n  \
             JSON (file.json):\n  \
             {\n    \
@@ -86,15 +80,10 @@ fn main() -> Result<()> {
             **Percentage:** 100%\n  \
             ## INSIDE\n  \
             ### 2025-01-01 00:00:00\n  \
-            Note content\n\n  \
-            Toon (file.toon):\n  \
-            outside[1]{name,context,url,percentage}:\n    \
-            \"Resource\",\"Description\",https://...,100\n  \
-            inside[1]{date,context}:\n    \
-            \"2025-01-01 00:00:00\",\"Note content\"\n\n\
+            Note content\n\n\
             For interactive help, run 'revw' and press :h or ?"
         )
-        .arg(Arg::new("file").help("JSON, Markdown, or Toon file to view").index(1))
+        .arg(Arg::new("file").help("JSON or Markdown file to view").index(1))
         .arg(
             Arg::new("edit")
                 .long("edit")
@@ -144,12 +133,6 @@ fn main() -> Result<()> {
                 .action(clap::ArgAction::SetTrue),
         )
         .arg(
-            Arg::new("toon")
-                .long("toon")
-                .help("Output in Toon format")
-                .action(clap::ArgAction::SetTrue),
-        )
-        .arg(
             Arg::new("input")
                 .long("input")
                 .help("Input from file")
@@ -168,7 +151,7 @@ fn main() -> Result<()> {
         )
         .group(
             ArgGroup::new("output_format")
-                .args(["markdown", "json", "toon"])
+                .args(["markdown", "json"])
                 .multiple(false),
         )
         .arg(
@@ -198,7 +181,6 @@ fn main() -> Result<()> {
     let outside_only = matches.get_flag("outside");
     let markdown_mode = matches.get_flag("markdown");
     let json_mode = matches.get_flag("json");
-    let toon_mode = matches.get_flag("toon");
     let input_file = matches.get_one::<String>("input");
     let append_mode = matches.get_flag("append");
     let token_mode = matches.get_flag("token");
@@ -234,16 +216,11 @@ fn main() -> Result<()> {
                 })
                 .unwrap();
 
-            // Check if file is Markdown or Toon
+            // Check if file is Markdown
             let is_markdown = path
                 .extension()
                 .and_then(|ext| ext.to_str())
                 .map(|ext| ext.eq_ignore_ascii_case("md"))
-                .unwrap_or(false);
-            let is_toon = path
-                .extension()
-                .and_then(|ext| ext.to_str())
-                .map(|ext| ext.eq_ignore_ascii_case("toon"))
                 .unwrap_or(false);
 
             if is_markdown {
@@ -251,14 +228,6 @@ fn main() -> Result<()> {
                 app.markdown_input = content;
                 // Convert markdown to JSON for processing
                 if let Ok(json) = app.parse_markdown(&app.markdown_input) {
-                    app.json_input = json;
-                }
-                app.convert_json();
-            } else if is_toon {
-                app.file_path = Some(path);
-                app.toon_input = content;
-                // Convert toon to JSON for processing
-                if let Ok(json) = app.parse_toon(&app.toon_input) {
                     app.json_input = json;
                 }
                 app.convert_json();
@@ -416,33 +385,6 @@ fn main() -> Result<()> {
 
                     serde_json::to_string_pretty(&filtered_json)
                         .unwrap_or_else(|_| app.json_input.clone())
-                } else if toon_mode {
-                    // Toon mode: convert JSON to Toon format
-                    let json_to_convert = if inside_only || outside_only {
-                        let mut json_clone = json_value.clone();
-                        if let Some(obj) = json_clone.as_object_mut() {
-                            if inside_only {
-                                obj.remove("outside");
-                            }
-                            if outside_only {
-                                obj.remove("inside");
-                            }
-                        }
-                        serde_json::to_string(&json_clone)
-                            .unwrap_or_else(|_| app.json_input.clone())
-                    } else {
-                        serde_json::to_string(&json_value)
-                            .unwrap_or_else(|_| app.json_input.clone())
-                    };
-
-                    // Convert to Toon format
-                    match toon_ops::ToonOperations::json_to_toon(&json_to_convert) {
-                        Ok(toon_content) => toon_content,
-                        Err(e) => {
-                            eprintln!("Error converting to Toon: {}", e);
-                            std::process::exit(1);
-                        }
-                    }
                 } else {
                     // In View mode, format the entries for text output
                     if app.relf_entries.is_empty() {
@@ -605,7 +547,7 @@ fn main() -> Result<()> {
                 })
                 .unwrap();
 
-            // Convert input content format if needed (json/md/toon -> target format)
+            // Convert input content format if needed (json/md -> target format)
             let input_path_obj = PathBuf::from(input_path);
             let input_ext = input_path_obj
                 .extension()
@@ -696,21 +638,12 @@ fn main() -> Result<()> {
                     Some("json") => serde_json::from_str::<serde_json::Value>(&input_content)
                         .map(|v| json_to_markdown(&v))
                         .unwrap_or_else(|_| input_content.clone()),
-                    Some("toon") => app
-                        .parse_toon(&input_content)
-                        .ok()
-                        .and_then(|json| serde_json::from_str::<serde_json::Value>(&json).ok())
-                        .map(|v| json_to_markdown(&v))
-                        .unwrap_or_else(|| input_content.clone()),
                     _ => input_content.clone(),
                 }
             } else {
                 match input_ext.as_deref() {
                     Some("md") => app
                         .parse_markdown(&input_content)
-                        .unwrap_or_else(|_| input_content.clone()),
-                    Some("toon") => app
-                        .parse_toon(&input_content)
                         .unwrap_or_else(|_| input_content.clone()),
                     _ => input_content.clone(),
                 }

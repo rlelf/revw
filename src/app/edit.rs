@@ -207,15 +207,6 @@ impl App {
                                             eprintln!("Warning: Failed to convert to markdown: {}", e);
                                         }
                                     }
-                                } else if self.is_toon_file() {
-                                    match self.convert_to_toon() {
-                                        Ok(toon_content) => {
-                                            self.toon_input = toon_content;
-                                        }
-                                        Err(e) => {
-                                            eprintln!("Warning: Failed to convert to toon: {}", e);
-                                        }
-                                    }
                                 }
 
                                 self.is_modified = true;
@@ -546,8 +537,6 @@ impl App {
         let ops = self.get_operations();
         let content = if self.is_markdown_file() {
             &self.markdown_input
-        } else if self.is_toon_file() {
-            &self.toon_input
         } else {
             &self.json_input
         };
@@ -557,17 +546,6 @@ impl App {
                 if self.is_markdown_file() {
                     self.markdown_input = formatted;
                     match self.parse_markdown(&self.markdown_input) {
-                        Ok(json_content) => {
-                            self.json_input = json_content;
-                        }
-                        Err(e) => {
-                            eprintln!("Warning: Parse error: {}", e);
-                        }
-                    }
-                } else if self.is_toon_file() {
-                    self.toon_input = formatted.clone();
-                    // Also update json_input by parsing the toon content
-                    match self.parse_toon(&formatted) {
                         Ok(json_content) => {
                             self.json_input = json_content;
                         }
@@ -614,8 +592,6 @@ impl App {
         let ops = self.get_operations();
         let content = if self.is_markdown_file() {
             &self.markdown_input
-        } else if self.is_toon_file() {
-            &self.toon_input
         } else {
             &self.json_input
         };
@@ -625,17 +601,6 @@ impl App {
                 if self.is_markdown_file() {
                     self.markdown_input = formatted;
                     match self.parse_markdown(&self.markdown_input) {
-                        Ok(json_content) => {
-                            self.json_input = json_content;
-                        }
-                        Err(e) => {
-                            eprintln!("Warning: Parse error: {}", e);
-                        }
-                    }
-                } else if self.is_toon_file() {
-                    self.toon_input = formatted.clone();
-                    // Also update json_input by parsing the toon content
-                    match self.parse_toon(&formatted) {
                         Ok(json_content) => {
                             self.json_input = json_content;
                         }
@@ -768,8 +733,6 @@ impl App {
         let ops = self.get_operations();
         let content = if self.is_markdown_file() && !self.markdown_input.is_empty() {
             &self.markdown_input
-        } else if self.is_toon_file() && !self.toon_input.is_empty() {
-            &self.toon_input
         } else {
             &self.json_input
         };
@@ -779,16 +742,6 @@ impl App {
                 if self.is_markdown_file() {
                     self.markdown_input = formatted;
                     match self.parse_markdown(&self.markdown_input) {
-                        Ok(json_content) => {
-                            self.json_input = json_content;
-                        }
-                        Err(e) => {
-                            eprintln!("Warning: Parse error: {}", e);
-                        }
-                    }
-                } else if self.is_toon_file() {
-                    self.toon_input = formatted.clone();
-                    match self.parse_toon(&formatted) {
                         Ok(json_content) => {
                             self.json_input = json_content;
                         }
@@ -818,8 +771,6 @@ impl App {
         let ops = self.get_operations();
         let content = if self.is_markdown_file() && !self.markdown_input.is_empty() {
             &self.markdown_input
-        } else if self.is_toon_file() && !self.toon_input.is_empty() {
-            &self.toon_input
         } else {
             &self.json_input
         };
@@ -829,16 +780,6 @@ impl App {
                 if self.is_markdown_file() {
                     self.markdown_input = formatted;
                     match self.parse_markdown(&self.markdown_input) {
-                        Ok(json_content) => {
-                            self.json_input = json_content;
-                        }
-                        Err(e) => {
-                            eprintln!("Warning: Parse error: {}", e);
-                        }
-                    }
-                } else if self.is_toon_file() {
-                    self.toon_input = formatted.clone();
-                    match self.parse_toon(&formatted) {
                         Ok(json_content) => {
                             self.json_input = json_content;
                         }
@@ -868,8 +809,6 @@ impl App {
         let ops = self.get_operations();
         let content = if self.is_markdown_file() && !self.markdown_input.is_empty() {
             &self.markdown_input
-        } else if self.is_toon_file() && !self.toon_input.is_empty() {
-            &self.toon_input
         } else {
             &self.json_input
         };
@@ -879,16 +818,6 @@ impl App {
                 if self.is_markdown_file() {
                     self.markdown_input = formatted;
                     match self.parse_markdown(&self.markdown_input) {
-                        Ok(json_content) => {
-                            self.json_input = json_content;
-                        }
-                        Err(e) => {
-                            eprintln!("Warning: Parse error: {}", e);
-                        }
-                    }
-                } else if self.is_toon_file() {
-                    self.toon_input = formatted.clone();
-                    match self.parse_toon(&formatted) {
                         Ok(json_content) => {
                             self.json_input = json_content;
                         }
@@ -918,8 +847,6 @@ impl App {
         let ops = self.get_operations();
         let content = if self.is_markdown_file() && !self.markdown_input.is_empty() {
             &self.markdown_input
-        } else if self.is_toon_file() && !self.toon_input.is_empty() {
-            &self.toon_input
         } else {
             &self.json_input
         };
@@ -929,16 +856,6 @@ impl App {
                 if self.is_markdown_file() {
                     self.markdown_input = formatted;
                     match self.parse_markdown(&self.markdown_input) {
-                        Ok(json_content) => {
-                            self.json_input = json_content;
-                        }
-                        Err(e) => {
-                            eprintln!("Warning: Parse error: {}", e);
-                        }
-                    }
-                } else if self.is_toon_file() {
-                    self.toon_input = formatted.clone();
-                    match self.parse_toon(&formatted) {
                         Ok(json_content) => {
                             self.json_input = json_content;
                         }

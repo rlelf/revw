@@ -31,20 +31,5 @@ impl App {
         }
     }
 
-    /// Copy content as Toon format
-    pub fn copy_toon(&mut self) {
-        // Copy current content as Toon (works in both Edit and View modes)
-        match self.convert_to_toon() {
-            Ok(toon_content) => {
-                match Clipboard::new() {
-                    Ok(mut clipboard) => match clipboard.set_text(toon_content) {
-                        Ok(()) => self.set_status("Copied as Toon"),
-                        Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
-                    },
-                    Err(e) => self.set_status(&format!("Clipboard error: {}", e)),
-                }
-            }
-            Err(e) => self.set_status(&format!("Failed to convert to Toon: {}", e)),
-        }
-    }
 }
+

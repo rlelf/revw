@@ -15,35 +15,6 @@ impl App {
             return;
         }
 
-        // For Toon files
-        if self.is_toon_file() {
-            match serde_json::from_str::<Value>(&self.json_input) {
-                Ok(mut current_json) => {
-                    if let Some(obj) = current_json.as_object_mut() {
-                        obj.insert("inside".to_string(), Value::Array(vec![]));
-
-                        match serde_json::to_string_pretty(&current_json) {
-                            Ok(formatted) => {
-                                self.json_input = formatted;
-                                self.is_modified = true;
-                                self.sync_toon_from_json();
-                                self.convert_json();
-                                if !self.relf_entries.is_empty() && self.selected_entry_index >= self.relf_entries.len() {
-                                    self.selected_entry_index = 0;
-                                }
-                                self.set_status("INSIDE section cleared");
-                            }
-                            Err(e) => self.set_status(&format!("Format error: {}", e)),
-                        }
-                    } else {
-                        self.set_status("Current JSON is not an object");
-                    }
-                }
-                Err(e) => self.set_status(&format!("Invalid JSON: {}", e)),
-            }
-            return;
-        }
-
         // For JSON files
         match serde_json::from_str::<Value>(&self.json_input) {
             Ok(mut current_json) => {
@@ -84,35 +55,6 @@ impl App {
         // For Markdown files
         if self.is_markdown_file() {
             self.clear_markdown_section("OUTSIDE");
-            return;
-        }
-
-        // For Toon files
-        if self.is_toon_file() {
-            match serde_json::from_str::<Value>(&self.json_input) {
-                Ok(mut current_json) => {
-                    if let Some(obj) = current_json.as_object_mut() {
-                        obj.insert("outside".to_string(), Value::Array(vec![]));
-
-                        match serde_json::to_string_pretty(&current_json) {
-                            Ok(formatted) => {
-                                self.json_input = formatted;
-                                self.is_modified = true;
-                                self.sync_toon_from_json();
-                                self.convert_json();
-                                if !self.relf_entries.is_empty() && self.selected_entry_index >= self.relf_entries.len() {
-                                    self.selected_entry_index = 0;
-                                }
-                                self.set_status("OUTSIDE section cleared");
-                            }
-                            Err(e) => self.set_status(&format!("Format error: {}", e)),
-                        }
-                    } else {
-                        self.set_status("Current JSON is not an object");
-                    }
-                }
-                Err(e) => self.set_status(&format!("Invalid JSON: {}", e)),
-            }
             return;
         }
 
@@ -226,7 +168,6 @@ impl App {
                         self.save_undo_state();
                         self.json_input = formatted;
                         self.is_modified = true;
-                        self.sync_toon_from_json();
                         self.sync_markdown_from_json();
                         self.convert_json();
 

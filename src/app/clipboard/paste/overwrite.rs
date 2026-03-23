@@ -8,7 +8,7 @@ impl App {
         match Clipboard::new() {
             Ok(mut clipboard) => match clipboard.get_text() {
                 Ok(clipboard_text) => {
-                    // For Markdown files, check if clipboard contains JSON, Toon, or Markdown
+                    // For Markdown files, check if clipboard contains JSON or Markdown
                     if self.is_markdown_file() {
                         let trimmed = clipboard_text.trim();
 
@@ -28,57 +28,8 @@ impl App {
                             return;
                         }
 
-                        // Try to parse as Toon
-                        if let Ok(clipboard_json) = self.clipboard_text_to_json_value(&clipboard_text) {
-                            if let Ok(md_text) = Self::json_to_markdown_string(&clipboard_json) {
-                                self.paste_markdown_section_overwrite(&md_text, "INSIDE");
-                                return;
-                            }
-                        }
-
                         // Otherwise treat as Markdown
                         self.paste_markdown_section_overwrite(&clipboard_text, "INSIDE");
-                        return;
-                    }
-
-                    // For Toon files, parse Toon or JSON format
-                    if self.is_toon_file() {
-                        match self.clipboard_text_to_json_value(&clipboard_text) {
-                            Ok(clipboard_json) => {
-                                let new_inside = if let Some(obj) = clipboard_json.as_object() {
-                                    obj.get("inside").cloned()
-                                } else {
-                                    None
-                                };
-
-                                if let Some(new_inside) = new_inside {
-                                    match serde_json::from_str::<Value>(&self.json_input) {
-                                        Ok(mut current_json) => {
-                                            if let Some(obj) = current_json.as_object_mut() {
-                                                obj.insert("inside".to_string(), new_inside);
-
-                                                match serde_json::to_string_pretty(&current_json) {
-                                                    Ok(formatted) => {
-                                                        if let Err(e) = self.set_json_and_sync_toon(formatted) {
-                                                            self.set_status(&e);
-                                                            return;
-                                                        }
-                                                        self.set_status("INSIDE section overwritten from clipboard");
-                                                    }
-                                                    Err(e) => self.set_status(&format!("Format error: {}", e)),
-                                                }
-                                            } else {
-                                                self.set_status("Current JSON is not an object");
-                                            }
-                                        }
-                                        Err(e) => self.set_status(&format!("Invalid current JSON: {}", e)),
-                                    }
-                                } else {
-                                    self.set_status("No 'inside' field in clipboard JSON");
-                                }
-                            }
-                            Err(e) => self.set_status(&e),
-                        }
                         return;
                     }
 
@@ -106,7 +57,6 @@ impl App {
                                                 Ok(formatted) => {
                                                     self.json_input = formatted;
                                                     self.is_modified = true;
-                                                    self.sync_toon_from_json();
                                                     self.sync_markdown_from_json();
                                                     self.convert_json();
                                                     self.set_status("INSIDE section overwritten from clipboard");
@@ -137,7 +87,7 @@ impl App {
         match Clipboard::new() {
             Ok(mut clipboard) => match clipboard.get_text() {
                 Ok(clipboard_text) => {
-                    // For Markdown files, check if clipboard contains JSON, Toon, or Markdown
+                    // For Markdown files, check if clipboard contains JSON or Markdown
                     if self.is_markdown_file() {
                         let trimmed = clipboard_text.trim();
 
@@ -157,57 +107,8 @@ impl App {
                             return;
                         }
 
-                        // Try to parse as Toon
-                        if let Ok(clipboard_json) = self.clipboard_text_to_json_value(&clipboard_text) {
-                            if let Ok(md_text) = Self::json_to_markdown_string(&clipboard_json) {
-                                self.paste_markdown_section_overwrite(&md_text, "OUTSIDE");
-                                return;
-                            }
-                        }
-
                         // Otherwise treat as Markdown
                         self.paste_markdown_section_overwrite(&clipboard_text, "OUTSIDE");
-                        return;
-                    }
-
-                    // For Toon files, parse Toon or JSON format
-                    if self.is_toon_file() {
-                        match self.clipboard_text_to_json_value(&clipboard_text) {
-                            Ok(clipboard_json) => {
-                                let new_outside = if let Some(obj) = clipboard_json.as_object() {
-                                    obj.get("outside").cloned()
-                                } else {
-                                    None
-                                };
-
-                                if let Some(new_outside) = new_outside {
-                                    match serde_json::from_str::<Value>(&self.json_input) {
-                                        Ok(mut current_json) => {
-                                            if let Some(obj) = current_json.as_object_mut() {
-                                                obj.insert("outside".to_string(), new_outside);
-
-                                                match serde_json::to_string_pretty(&current_json) {
-                                                    Ok(formatted) => {
-                                                        if let Err(e) = self.set_json_and_sync_toon(formatted) {
-                                                            self.set_status(&e);
-                                                            return;
-                                                        }
-                                                        self.set_status("OUTSIDE section overwritten from clipboard");
-                                                    }
-                                                    Err(e) => self.set_status(&format!("Format error: {}", e)),
-                                                }
-                                            } else {
-                                                self.set_status("Current JSON is not an object");
-                                            }
-                                        }
-                                        Err(e) => self.set_status(&format!("Invalid current JSON: {}", e)),
-                                    }
-                                } else {
-                                    self.set_status("No 'outside' field in clipboard JSON");
-                                }
-                            }
-                            Err(e) => self.set_status(&e),
-                        }
                         return;
                     }
 
@@ -235,7 +136,6 @@ impl App {
                                                 Ok(formatted) => {
                                                     self.json_input = formatted;
                                                     self.is_modified = true;
-                                                    self.sync_toon_from_json();
                                                     self.sync_markdown_from_json();
                                                     self.convert_json();
                                                     self.set_status("OUTSIDE section overwritten from clipboard");

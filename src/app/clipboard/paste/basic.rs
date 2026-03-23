@@ -53,26 +53,13 @@ impl App {
                         self.json_input = text;
                         self.is_modified = true;
                         self.sync_markdown_from_json();
-                        self.sync_toon_from_json();
                         self.set_status("Pasted JSON content");
-                        self.convert_json();
-                    }
-                    // Try to parse as Toon format
-                    else if let Ok(json_content) = self.parse_toon(&text) {
-                        if self.is_toon_file() {
-                            self.toon_input = text;
-                        }
-                        self.json_input = json_content;
-                        self.is_modified = true;
-                        self.sync_markdown_from_json();
-                        self.sync_toon_from_json();
-                        self.set_status("Pasted Toon content");
                         self.convert_json();
                     }
                     // Ignore status messages and other non-JSON text
                     else {
                         self.set_status(
-                            "Clipboard doesn't contain JSON, Markdown, Toon, or file path",
+                            "Clipboard doesn't contain JSON, Markdown, or file path",
                         );
                     }
                 }
@@ -96,7 +83,6 @@ impl App {
                 Ok(json_content) => {
                     self.json_input = json_content;
                     self.is_modified = true;
-                    self.sync_toon_from_json();
                     self.convert_json();
                     self.set_status("Pasted Markdown content");
                 }
@@ -109,24 +95,11 @@ impl App {
         else if trimmed.starts_with('{') || trimmed.starts_with('[') {
             self.json_input = text.to_string();
             self.is_modified = true;
-            self.sync_toon_from_json();
             self.sync_markdown_from_json();
             self.convert_json();
             self.set_status("Pasted JSON content");
-        }
-        // Try to parse as Toon format
-        else if let Ok(json_content) = self.parse_toon(text) {
-            if self.is_toon_file() {
-                self.toon_input = text.to_string();
-            }
-            self.json_input = json_content;
-            self.is_modified = true;
-            self.sync_toon_from_json();
-            self.sync_markdown_from_json();
-            self.convert_json();
-            self.set_status("Pasted Toon content");
         } else {
-            self.set_status("Content doesn't contain JSON, Markdown, or Toon");
+            self.set_status("Content doesn't contain JSON or Markdown");
         }
     }
 }

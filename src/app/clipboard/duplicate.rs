@@ -32,7 +32,6 @@ impl App {
                                         self.save_undo_state();
                                         self.json_input = formatted;
                                         self.is_modified = true;
-                                        self.sync_toon_from_json();
                                         self.sync_markdown_from_json();
                                         self.convert_json();
                                         self.selected_entry_index += 1; // Move to duplicated entry
@@ -57,7 +56,6 @@ impl App {
                                         self.save_undo_state();
                                         self.json_input = formatted;
                                         self.is_modified = true;
-                                        self.sync_toon_from_json();
                                         self.sync_markdown_from_json();
                                         self.convert_json();
                                         self.selected_entry_index += 1; // Move to duplicated entry
@@ -79,8 +77,6 @@ impl App {
             let ops = self.get_operations();
             let content = if self.is_markdown_file() && !self.markdown_input.is_empty() {
                 &self.markdown_input
-            } else if self.is_toon_file() && !self.toon_input.is_empty() {
-                &self.toon_input
             } else {
                 &self.json_input
             };
@@ -101,20 +97,9 @@ impl App {
                                 eprintln!("Warning: Failed to parse markdown: {}", e);
                             }
                         }
-                    } else if self.is_toon_file() {
-                        self.toon_input = formatted;
-                        match self.parse_toon(&self.toon_input) {
-                            Ok(json_content) => {
-                                self.json_input = json_content;
-                            }
-                            Err(e) => {
-                                eprintln!("Warning: Failed to parse toon: {}", e);
-                            }
-                        }
                     } else {
                         self.json_input = formatted;
                         self.sync_markdown_from_json();
-                        self.sync_toon_from_json();
                     }
                     self.convert_json();
                     self.is_modified = true;

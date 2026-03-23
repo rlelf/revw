@@ -8,5 +8,4 @@ pub mod navigation;
 pub mod overlay_context;
 pub mod rendering;
 pub mod syntax_highlight;
-pub mod toon_ops;
 pub mod ui;

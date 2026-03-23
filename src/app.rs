@@ -13,7 +13,6 @@ mod outline;
 mod search;
 mod substitute;
 mod token;
-mod toon;
 mod undo;
 
 use crate::config::{BorderStyle, ColorScheme, RcConfig};
@@ -21,7 +20,6 @@ use crate::content_ops::ContentOperations;
 use crate::json_ops::JsonOperations;
 use crate::markdown_ops::MarkdownOperations;
 use crate::navigation::Navigator;
-use crate::toon_ops::ToonOperations;
 use crate::rendering::{RelfEntry, RelfLineStyle, RelfRenderResult, Renderer};
 use crate::syntax_highlight::SyntaxHighlighter;
 use crate::ui::markdown_highlight::highlight_markdown_with_code_blocks;
@@ -50,7 +48,6 @@ pub enum FormatMode {
 pub enum FileMode {
     Json,
     Markdown,
-    Toon,
 }
 
 #[derive(Clone)]
@@ -65,7 +62,6 @@ pub struct App {
     pub input_mode: InputMode,
     pub json_input: String,
     pub markdown_input: String,
-    pub toon_input: String,
     pub rendered_content: Vec<String>,
     pub relf_line_styles: Vec<RelfLineStyle>,
     pub relf_visual_styles: Vec<RelfLineStyle>,
@@ -210,7 +206,6 @@ pub enum ScrollbarType {
 pub struct UndoState {
     pub json_input: String,
     pub markdown_input: String,
-    pub toon_input: String,
     pub content_cursor_line: usize,
     pub content_cursor_col: usize,
     pub scroll: u16,
@@ -225,7 +220,6 @@ impl App {
             input_mode: InputMode::Normal,
             json_input: String::new(),
             markdown_input: String::new(),
-            toon_input: String::new(),
             rendered_content: vec![],
             relf_line_styles: Vec::new(),
             relf_visual_styles: Vec::new(),
@@ -343,8 +337,6 @@ impl App {
     pub fn convert_json(&mut self) {
         let active_is_empty = if self.is_markdown_file() {
             self.markdown_input.is_empty()
-        } else if self.is_toon_file() {
-            self.toon_input.is_empty()
         } else {
             self.json_input.is_empty()
         };
@@ -368,8 +360,6 @@ impl App {
                     // Update highlight cache for markdown
                     self.update_markdown_highlight_cache();
                     self.render_markdown()
-                } else if self.is_toon_file() {
-                    self.render_toon()
                 } else {
                     self.render_json()
                 };
@@ -406,7 +396,6 @@ impl App {
                         || (self.rendered_content.len() >= 2
                             && self.rendered_content[0].contains("Not valid JSON")))
                     && !self.is_markdown_file()
-                    && !self.is_toon_file()
                 {
                     // Only show error if we have input content, it's not markdown, and parsing failed
                     if !self.status_message.contains("Not a JSON file") {
@@ -429,10 +418,6 @@ impl App {
 
     fn render_markdown(&self) -> Vec<String> {
         self.markdown_input.lines().map(|line| line.to_string()).collect()
-    }
-
-    fn render_toon(&self) -> Vec<String> {
-        self.toon_input.lines().map(|line| line.to_string()).collect()
     }
 
     pub fn set_status(&mut self, message: &str) {
@@ -465,7 +450,6 @@ impl App {
     fn get_operations(&self) -> Box<dyn ContentOperations> {
         match self.file_mode {
             FileMode::Markdown => Box::new(MarkdownOperations),
-            FileMode::Toon => Box::new(ToonOperations),
             FileMode::Json => Box::new(JsonOperations),
         }
     }
@@ -484,8 +468,6 @@ impl App {
     pub fn get_content_lines(&self) -> Vec<String> {
         let content = if self.is_markdown_file() && !self.markdown_input.is_empty() {
             &self.markdown_input
-        } else if self.is_toon_file() && !self.toon_input.is_empty() {
-            &self.toon_input
         } else {
             &self.json_input
         };
@@ -515,21 +497,6 @@ impl App {
                 Err(e) => {
                     // Keep the old json_input but set a status message
                     self.set_status(&format!("Markdown parse error: {}", e));
-                }
-            }
-        } else if self.is_toon_file() {
-            self.toon_input = lines.join("\n");
-            // Always add trailing newline for consistency
-            if !self.toon_input.is_empty() {
-                self.toon_input.push('\n');
-            }
-            match self.parse_toon(&self.toon_input) {
-                Ok(json_content) => {
-                    self.json_input = json_content;
-                }
-                Err(e) => {
-                    // Keep the old json_input but set a status message
-                    self.set_status(&format!("Toon parse error: {}", e));
                 }
             }
         } else {
@@ -623,7 +590,6 @@ impl App {
         self.save_undo_state();
         self.json_input = String::new();
         self.markdown_input = String::new();
-        self.toon_input = String::new();
         self.content_cursor_line = 0;
         self.content_cursor_col = 0;
         self.scroll = 0;

@@ -91,7 +91,7 @@ impl App {
 
         self.file_op_pending = Some(FileOperation::Create);
         self.file_op_prompt_buffer = String::new();
-        self.set_status("New file name (must end with .json, .md, or .toon):");
+        self.set_status("New file name (must end with .json or .md):");
     }
 
     // Start create new directory operation
@@ -169,9 +169,9 @@ impl App {
                 }
             }
             Some(FileOperation::Create) => {
-                // Validate .json, .md, or .toon extension for files
-                if !filename.ends_with(".json") && !filename.ends_with(".md") && !filename.ends_with(".toon") {
-                    self.set_status("Error: Filename must end with .json, .md, or .toon");
+                // Validate .json or .md extension for files
+                if !filename.ends_with(".json") && !filename.ends_with(".md") {
+                    self.set_status("Error: Filename must end with .json or .md");
                     self.file_op_pending = None;
                     self.file_op_prompt_buffer.clear();
                     return;
@@ -189,12 +189,6 @@ impl App {
                         // Create Markdown format
                         format!(
                             "## OUTSIDE\n### \n\n**URL:** \n\n**Percentage:** \n\n## INSIDE\n### {}\n",
-                            timestamp
-                        )
-                    } else if filename.ends_with(".toon") {
-                        // Create Toon format
-                        format!(
-                            "outside[1]{{name,context,url,percentage}}:\n  ,,,\n\ninside[1]{{date,context}}:\n  {},\n",
                             timestamp
                         )
                     } else {
@@ -235,9 +229,9 @@ impl App {
             Some(FileOperation::Copy(source_path)) => {
                 let is_dir = source_path.is_dir();
 
-                // Validate .json, .md, or .toon extension for files only
-                if !is_dir && !filename.ends_with(".json") && !filename.ends_with(".md") && !filename.ends_with(".toon") {
-                    self.set_status("Error: Filename must end with .json, .md, or .toon");
+                // Validate .json or .md extension for files only
+                if !is_dir && !filename.ends_with(".json") && !filename.ends_with(".md") {
+                    self.set_status("Error: Filename must end with .json or .md");
                     self.file_op_pending = None;
                     self.file_op_prompt_buffer.clear();
                     return;
@@ -293,12 +287,12 @@ impl App {
                         .unwrap_or_else(|| self.explorer_current_dir.join(&filename))
                 };
 
-                // Validation: only validate .json, .md, or .toon for files (not directories)
+                // Validation: only validate .json or .md for files (not directories)
                 if !is_dir {
-                    // Source is a file: must end with .json, .md, or .toon
+                    // Source is a file: must end with .json or .md
                     let path_str = new_path.to_string_lossy();
-                    if !path_str.ends_with(".json") && !path_str.ends_with(".md") && !path_str.ends_with(".toon") {
-                        self.set_status("Error: File must end with .json, .md, or .toon");
+                    if !path_str.ends_with(".json") && !path_str.ends_with(".md") {
+                        self.set_status("Error: File must end with .json or .md");
                         self.file_op_pending = None;
                         self.file_op_prompt_buffer.clear();
                         return;

@@ -95,15 +95,15 @@ impl App {
             }
         } else if cmd.starts_with("w ") {
             let filename = cmd.strip_prefix("w ").unwrap().trim().to_string();
-            if !filename.ends_with(".json") && !filename.ends_with(".md") && !filename.ends_with(".toon") {
-                self.set_status("Error: Filename must end with .json, .md, or .toon");
+            if !filename.ends_with(".json") && !filename.ends_with(".md") {
+                self.set_status("Error: Filename must end with .json or .md");
             } else {
                 self.save_file_as(&filename);
             }
         } else if cmd.starts_with("wq ") {
             let filename = cmd.strip_prefix("wq ").unwrap().trim().to_string();
-            if !filename.ends_with(".json") && !filename.ends_with(".md") && !filename.ends_with(".toon") {
-                self.set_status("Error: Filename must end with .json, .md, or .toon");
+            if !filename.ends_with(".json") && !filename.ends_with(".md") {
+                self.set_status("Error: Filename must end with .json or .md");
                 return false; // Don't quit on error
             } else {
                 self.save_file_as(&filename);
@@ -115,8 +115,8 @@ impl App {
         } else if cmd.starts_with("e ") {
             // Open a different file
             let filename = cmd.strip_prefix("e ").unwrap().trim().to_string();
-            if !filename.ends_with(".json") && !filename.ends_with(".md") && !filename.ends_with(".toon") {
-                self.set_status("Error: Filename must end with .json, .md, or .toon");
+            if !filename.ends_with(".json") && !filename.ends_with(".md") {
+                self.set_status("Error: Filename must end with .json or .md");
             } else {
                 let path = PathBuf::from(filename);
                 self.load_file(path);
@@ -125,7 +125,6 @@ impl App {
             // Clear file window (like vim :enew)
             self.json_input = String::new();
             self.markdown_input = String::new();
-            self.toon_input = String::new();
             self.file_path = None;
             self.file_path_changed = false;
             self.is_modified = false;
@@ -183,9 +182,6 @@ impl App {
         } else if cmd == "ccj" {
             // Copy card(s) as JSON
             self.copy_cards_json();
-        } else if cmd == "cct" {
-            // Copy card(s) as Toon
-            self.copy_cards_toon();
         } else if cmd == "cj" {
             // Copy JSON (current content in JSON format)
             self.copy_json();
@@ -195,9 +191,6 @@ impl App {
         } else if cmd == "cm" {
             // Copy Markdown (current content in Markdown format)
             self.copy_markdown();
-        } else if cmd == "ct" {
-            // Copy Toon (current content in Toon format)
-            self.copy_toon();
         } else if cmd == "dc" {
             // Delete card(s)
             self.delete_cards();
@@ -351,21 +344,9 @@ impl App {
             } else {
                 self.set_status("Format set to Markdown (use :w to save)");
             }
-        } else if cmd == "set toon" {
-            // Set format to Toon (useful for unnamed files)
-            use crate::app::FileMode;
-            self.file_mode = FileMode::Toon;
-            if self.file_path.is_none() {
-                self.set_status("Format set to Toon");
-            } else {
-                self.set_status("Format set to Toon (use :w to save)");
-            }
         } else if cmd == "markdown" {
             // Export current file to Markdown format
             self.export_to_markdown();
-        } else if cmd == "toon" {
-            // Export current file to Toon format
-            self.export_to_toon();
         } else if cmd == "json" {
             // Export current file to JSON format
             self.export_to_json();
