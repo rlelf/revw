@@ -114,53 +114,65 @@ revw --version
 revw
 
 # View mode
-revw file.json
 revw file.md
+revw file.json
 
 # Edit mode
-revw --edit file.json
 revw --edit file.md
+revw --edit file.json
 ```
 
 **File Operations:**
 
 ```bash
-# Output to stdout
-revw --stdout file.json
-revw --stdout file.md
-revw --stdout --inside file.json            # Output only INSIDE section
-revw --stdout --outside file.json           # Output only OUTSIDE section
-revw --stdout --markdown file.json          # Output in Markdown format
-revw --stdout --json file.md                # Output in JSON format
+# Stdout and stdin
+revw --stdout file.md                       # file → stdout
+revw --stdout file.json                     # file → stdout
+revw --stdout --inside file.md              # Output only INSIDE section
+revw --stdout --outside file.md             # Output only OUTSIDE section
+cat file.md | revw --stdout                 # stdin → stdout
+cat file.json | revw --stdout               # stdin → stdout
+cat file.md | revw --stdout --inside        # stdin → INSIDE only
+cat file.md | revw --stdout --outside       # stdin → OUTSIDE only
 
-# Pipe via stdin
-cat file.json | revw --stdout               # Read from stdin, output to stdout
-cat file.md | revw --stdout --markdown      # stdin → Markdown output
-cat file.json | revw --stdout --inside      # stdin → INSIDE only
-revw --stdout file.json | grep "pattern"    # Pipe to other tools
+# Format conversion (JSON ↔ Markdown)
+revw --stdout --json file.md                # Markdown → JSON
+revw --stdout --markdown file.json          # JSON → Markdown
+cat file.md | revw --stdout --json          # stdin Markdown → JSON
+cat file.json | revw --stdout --markdown    # stdin JSON → Markdown
 
 # Filter entries
-revw --stdout --filter pattern file.json    # Filter and output to stdout
-revw --stdout --filter pattern --inside file.json
-revw --stdout --filter pattern --markdown file.json
-revw --stdout --filter pattern --json file.json
-revw --stdout --filter pattern --context 100 file.json # Show 100 chars around match in context
-revw --stdout --filter pattern --context 100 *.md      # Works with multiple files
+revw --stdout --filter pattern file.md      # Filter and output to stdout
+revw --stdout --filter pattern file.json
+revw --stdout --filter pattern --inside file.md
+revw --stdout --filter pattern --outside file.json
+revw --stdout --filter pattern --context 100 file.md   # Show 100 chars around match in context
+revw --stdout --filter pattern --context 100 file.json
+
+# Order entries, writes in-place
+revw --order file.md                        # Order by percentage then name
+revw --order file.json
+revw --order-percentage file.md             # Order by percentage only
+revw --order-name file.json                 # Order by name only
+revw --order-random file.md                 # Order randomly
 
 # Append entries from stdin (JSON or Markdown) into file, writes in-place
-cat new_entries.json | revw --append file.json          # Append both inside and outside
-cat new_entries.json | revw --append --inside file.json # Append inside only
-cat new_entries.md   | revw --append --outside file.md  # Append outside only (Markdown)
+cat new_entries.md   | revw --append file.md            # Append both inside and outside
+cat new_entries.json | revw --append file.json
+cat new_entries.md   | revw --append --inside file.md   # Append inside only
+cat new_entries.json | revw --append --outside file.json # Append outside only
 
-# Delete entries matching pattern, writes in-place
-revw --delete --filter "pattern" file.json              # Delete from both sections
-revw --delete --filter "pattern" --inside file.json     # Delete from inside only
-revw --delete --filter "pattern" --outside file.md      # Delete from outside only
+# Delete entries by field, writes in-place
+revw --delete-outside-name "pattern" file.md
+revw --delete-outside-context "pattern" file.json
+revw --delete-inside-date "pattern" file.md
+revw --delete-inside-context "pattern" file.json
 
 # Token count
-revw --token file.json                      # Show token counts for all formats
-revw --token file.md
-cat file.json | revw --token                # Token count from stdin
+revw --token file.md                        # Show token counts for all formats
+revw --token file.json
+cat file.md | revw --token                  # Token count from stdin
+cat file.json | revw --token
 ```
 
 ## Controls

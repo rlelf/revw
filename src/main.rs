@@ -42,35 +42,37 @@ fn main() -> Result<()> {
         .after_help(
             "EXAMPLES:\n  \
             # Open file in interactive mode\n  \
-            revw file.json\n  \
-            revw file.md\n\n  \
+            revw file.md\n  \
+            revw file.json\n\n  \
             # Output to stdout\n  \
-            revw --stdout file.json\n  \
-            revw --stdout file.md\n\n  \
-            # Output in different formats\n  \
-            revw --stdout --markdown file.json\n  \
-            revw --stdout --json file.md\n\n  \
+            revw --stdout file.md\n  \
+            revw --stdout file.json\n\n  \
+            # Format conversion\n  \
+            revw --stdout --json file.md\n  \
+            revw --stdout --markdown file.json\n\n  \
             # Pipe from stdin\n  \
-            cat file.json | revw --stdout\n  \
-            cat file.md | revw --stdout --markdown\n\n  \
+            cat file.md | revw --stdout\n  \
+            cat file.json | revw --stdout\n\n  \
             # Filter entries\n  \
-            revw --stdout --filter pattern file.json\n  \
             revw --stdout --filter pattern file.md\n  \
-            revw --stdout --filter pattern --inside file.json\n  \
-            revw --stdout --filter pattern --context 100 file.json\n\n  \
+            revw --stdout --filter pattern file.json\n  \
+            revw --stdout --filter pattern --inside file.md\n  \
+            revw --stdout --filter pattern --context 100 file.md\n\n  \
+            # Order entries (writes back in-place)\n  \
+            revw --order file.md\n  \
+            revw --order-percentage file.json\n  \
+            revw --order-name file.md\n  \
+            revw --order-random file.json\n\n  \
             # Append entries from stdin (JSON or Markdown) into file\n  \
+            cat new.md   | revw --append file.md\n  \
             cat new.json | revw --append file.json\n  \
-            cat new.json | revw --append --inside file.json\n  \
-            cat new.md   | revw --append --outside file.md\n\n  \
-            # Delete entries matching pattern (writes back in-place)\n  \
-            revw --delete --filter pattern file.json\n  \
-            revw --delete --filter pattern --inside file.json\n\n\
+            cat new.md   | revw --append --inside file.md\n\n  \
+            # Delete entries by field (writes back in-place)\n  \
+            revw --delete-outside-name pattern file.md\n  \
+            revw --delete-outside-context pattern file.json\n  \
+            revw --delete-inside-date pattern file.md\n  \
+            revw --delete-inside-context pattern file.json\n\n\
             SUPPORTED FILE FORMATS:\n  \
-            JSON (file.json):\n  \
-            {\n    \
-            \"outside\": [{\"name\": \"Resource\", \"context\": \"Description\", \"url\": \"https://...\", \"percentage\": 100}],\n    \
-            \"inside\": [{\"date\": \"2025-01-01 00:00:00\", \"context\": \"Note content\"}]\n  \
-            }\n\n  \
             Markdown (file.md):\n  \
             ## OUTSIDE\n  \
             ### Resource\n  \
@@ -79,7 +81,12 @@ fn main() -> Result<()> {
             **Percentage:** 100%\n  \
             ## INSIDE\n  \
             ### 2025-01-01 00:00:00\n  \
-            Note content\n\n\
+            Note content\n\n  \
+            JSON (file.json):\n  \
+            {\n    \
+            \"outside\": [{\"name\": \"Resource\", \"context\": \"Description\", \"url\": \"https://...\", \"percentage\": 100}],\n    \
+            \"inside\": [{\"date\": \"2025-01-01 00:00:00\", \"context\": \"Note content\"}]\n  \
+            }\n\n\
             For interactive help, run 'revw' and press :h or ?"
         )
         .arg(
@@ -158,11 +165,62 @@ fn main() -> Result<()> {
                 .action(clap::ArgAction::SetTrue),
         )
         .arg(
-            Arg::new("delete")
-                .long("delete")
-                .help("Delete entries matching --filter from file (writes back in-place)")
-                .requires("filter")
+            Arg::new("order")
+                .long("order")
+                .help("Order entries by percentage then name and write back in-place")
                 .action(clap::ArgAction::SetTrue),
+        )
+        .arg(
+            Arg::new("order-percentage")
+                .long("order-percentage")
+                .help("Order entries by percentage only and write back in-place")
+                .action(clap::ArgAction::SetTrue),
+        )
+        .arg(
+            Arg::new("order-name")
+                .long("order-name")
+                .help("Order entries by name only and write back in-place")
+                .action(clap::ArgAction::SetTrue),
+        )
+        .arg(
+            Arg::new("order-random")
+                .long("order-random")
+                .help("Order entries randomly and write back in-place")
+                .action(clap::ArgAction::SetTrue),
+        )
+        .group(
+            ArgGroup::new("order_ops")
+                .args(["order", "order-percentage", "order-name", "order-random"])
+                .multiple(false),
+        )
+        .arg(
+            Arg::new("delete-outside-name")
+                .long("delete-outside-name")
+                .help("Delete outside entries where 'name' matches PATTERN (writes back in-place)")
+                .value_name("PATTERN"),
+        )
+        .arg(
+            Arg::new("delete-outside-context")
+                .long("delete-outside-context")
+                .help("Delete outside entries where 'context' matches PATTERN (writes back in-place)")
+                .value_name("PATTERN"),
+        )
+        .arg(
+            Arg::new("delete-inside-date")
+                .long("delete-inside-date")
+                .help("Delete inside entries where 'date' matches PATTERN (writes back in-place)")
+                .value_name("PATTERN"),
+        )
+        .arg(
+            Arg::new("delete-inside-context")
+                .long("delete-inside-context")
+                .help("Delete inside entries where 'context' matches PATTERN (writes back in-place)")
+                .value_name("PATTERN"),
+        )
+        .group(
+            ArgGroup::new("delete_ops")
+                .args(["delete-outside-name", "delete-outside-context", "delete-inside-date", "delete-inside-context"])
+                .multiple(false),
         )
         .get_matches();
 
@@ -181,7 +239,25 @@ fn main() -> Result<()> {
     let filter_pattern = matches.get_one::<String>("filter");
     let context_chars = matches.get_one::<usize>("context").copied();
     let append_mode = matches.get_flag("append");
-    let delete_mode = matches.get_flag("delete");
+    let order_op: Option<&str> = if matches.get_flag("order") {
+        Some("order")
+    } else if matches.get_flag("order-percentage") {
+        Some("order-percentage")
+    } else if matches.get_flag("order-name") {
+        Some("order-name")
+    } else if matches.get_flag("order-random") {
+        Some("order-random")
+    } else {
+        None
+    };
+    let delete_outside_name = matches.get_one::<String>("delete-outside-name");
+    let delete_outside_context = matches.get_one::<String>("delete-outside-context");
+    let delete_inside_date = matches.get_one::<String>("delete-inside-date");
+    let delete_inside_context = matches.get_one::<String>("delete-inside-context");
+    let delete_op: Option<(&str, &str)> = delete_outside_name.map(|p| ("outside-name", p.as_str()))
+        .or_else(|| delete_outside_context.map(|p| ("outside-context", p.as_str())))
+        .or_else(|| delete_inside_date.map(|p| ("inside-date", p.as_str())))
+        .or_else(|| delete_inside_context.map(|p| ("inside-context", p.as_str())));
 
     // Detect if stdin is a pipe (not a tty)
     use std::io::IsTerminal;
@@ -497,6 +573,37 @@ fn main() -> Result<()> {
             }
     };
 
+    // --order / --order-percentage / --order-name / --order-random
+    if let Some(op) = order_op {
+        if file_paths.is_empty() {
+            eprintln!("Error: --order* requires a file argument");
+            std::process::exit(1);
+        }
+        for file_path in &file_paths {
+            let path = PathBuf::from(file_path);
+            let mut app = App::new(FormatMode::View);
+            app.load_file(path.clone());
+            match op {
+                "order"            => app.order_entries(),
+                "order-percentage" => app.order_by_percentage(),
+                "order-name"       => app.order_by_name(),
+                "order-random"     => app.order_random(),
+                _ => unreachable!(),
+            }
+            // Write back (save_file uses app.file_path internally, already set by load_file)
+            let output = if app.is_markdown_file() {
+                app.markdown_input.clone()
+            } else {
+                app.json_input.clone()
+            };
+            fs::write(&path, output).unwrap_or_else(|e| {
+                eprintln!("Error: Cannot write '{}': {}", file_path, e);
+                std::process::exit(1);
+            });
+        }
+        return Ok(());
+    }
+
     // --append: read stdin, merge into file(s), write back in-place
     if append_mode {
         if file_paths.is_empty() {
@@ -584,15 +691,10 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    // --delete --filter: remove matching entries and write back in-place
-    if delete_mode {
-        let pattern = filter_pattern.map(|s| s.as_str()).unwrap_or("");
-        if pattern.is_empty() {
-            eprintln!("Error: --delete requires --filter <PATTERN>");
-            std::process::exit(1);
-        }
+    // --delete-outside-name / --delete-outside-context / --delete-inside-date / --delete-inside-context
+    if let Some((op, pattern)) = delete_op {
         if file_paths.is_empty() {
-            eprintln!("Error: --delete requires a file argument");
+            eprintln!("Error: --delete-* requires a file argument");
             std::process::exit(1);
         }
         for file_path in &file_paths {
@@ -606,7 +708,13 @@ fn main() -> Result<()> {
                 eprintln!("Error: Invalid JSON in '{}': {}", file_path, e); std::process::exit(1);
             });
 
-            let result = json_ops::JsonOperations::delete_matching_entries(&current, pattern, inside_only, outside_only);
+            let result = match op {
+                "outside-name"    => json_ops::JsonOperations::delete_outside_by_name(&current, pattern),
+                "outside-context" => json_ops::JsonOperations::delete_outside_by_context(&current, pattern),
+                "inside-date"     => json_ops::JsonOperations::delete_inside_by_date(&current, pattern),
+                "inside-context"  => json_ops::JsonOperations::delete_inside_by_context(&current, pattern),
+                _ => unreachable!(),
+            };
             let output = serde_json::to_string_pretty(&result).unwrap();
 
             if app.is_markdown_file() {
@@ -624,6 +732,21 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
+    // Helper: apply filter to app's json_input (and sync markdown if needed)
+    let apply_filter_to_app = |app: &mut App| {
+        if let Some(pattern) = &filter_pattern {
+            if let Ok(json_val) = serde_json::from_str::<serde_json::Value>(&app.json_input) {
+                let filtered = json_ops::JsonOperations::filter_entries(&json_val, pattern);
+                if let Ok(s) = serde_json::to_string_pretty(&filtered) {
+                    app.json_input = s;
+                    if app.is_markdown_file() {
+                        app.sync_markdown_from_json();
+                    }
+                }
+            }
+        }
+    };
+
     // If token mode, show token counts and exit
     if token_mode {
         if file_paths.is_empty() && stdin_piped {
@@ -631,6 +754,7 @@ fn main() -> Result<()> {
             let mut content = String::new();
             io::stdin().read_to_string(&mut content)?;
             load_content(&mut app, content, None);
+            apply_filter_to_app(&mut app);
             app.print_token_count();
         } else if file_paths.is_empty() {
             eprintln!("Error: No file specified for token count");
@@ -640,6 +764,7 @@ fn main() -> Result<()> {
                 let path = PathBuf::from(file_path);
                 let mut app = App::new(format_mode);
                 app.load_file(path);
+                apply_filter_to_app(&mut app);
                 if file_paths.len() > 1 {
                     println!("=== {} ===", file_path);
                 }

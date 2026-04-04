@@ -614,14 +614,8 @@ impl JsonOperations {
         result
     }
 
-    /// Delete entries matching pattern (inverse of filter_entries).
-    /// inside_only/outside_only limit which sections are affected.
-    pub fn delete_matching_entries(json_value: &Value, pattern: &str, inside_only: bool, outside_only: bool) -> Value {
-        if pattern.is_empty() {
-            return json_value.clone();
-        }
-
-        let re = RegexBuilder::new(pattern)
+    fn build_re(pattern: &str) -> regex::Regex {
+        RegexBuilder::new(pattern)
             .case_insensitive(true)
             .build()
             .unwrap_or_else(|_| {
@@ -629,47 +623,78 @@ impl JsonOperations {
                     .case_insensitive(true)
                     .build()
                     .expect("escaped pattern must compile")
-            });
+            })
+    }
 
-        let matches_re = |s: &str| re.is_match(s);
-
+    /// Delete outside entries where the `name` field matches pattern.
+    pub fn delete_outside_by_name(json_value: &Value, pattern: &str) -> Value {
+        let re = Self::build_re(pattern);
         let mut result = json_value.clone();
-
         if let Some(obj) = result.as_object_mut() {
-            if !inside_only {
-                if let Some(outside) = obj.get_mut("outside").and_then(|v| v.as_array_mut()) {
-                    outside.retain(|item| {
-                        if let Some(item_obj) = item.as_object() {
-                            let name = item_obj.get("name").and_then(|v| v.as_str()).unwrap_or("");
-                            let context = item_obj.get("context").and_then(|v| v.as_str()).unwrap_or("");
-                            let url = item_obj.get("url").and_then(|v| v.as_str()).unwrap_or("");
-                            let percentage = item_obj.get("percentage")
-                                .and_then(|v| v.as_i64())
-                                .map(|p| format!("{}%", p))
-                                .unwrap_or_default();
-                            !(matches_re(name) || matches_re(context) || matches_re(url) || matches_re(&percentage))
-                        } else {
-                            true
-                        }
-                    });
-                }
-            }
-
-            if !outside_only {
-                if let Some(inside) = obj.get_mut("inside").and_then(|v| v.as_array_mut()) {
-                    inside.retain(|item| {
-                        if let Some(item_obj) = item.as_object() {
-                            let date = item_obj.get("date").and_then(|v| v.as_str()).unwrap_or("");
-                            let context = item_obj.get("context").and_then(|v| v.as_str()).unwrap_or("");
-                            !(matches_re(date) || matches_re(context))
-                        } else {
-                            true
-                        }
-                    });
-                }
+            if let Some(outside) = obj.get_mut("outside").and_then(|v| v.as_array_mut()) {
+                outside.retain(|item| {
+                    let name = item.as_object()
+                        .and_then(|o| o.get("name"))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("");
+                    !re.is_match(name)
+                });
             }
         }
+        result
+    }
 
+    /// Delete outside entries where the `context` field matches pattern.
+    pub fn delete_outside_by_context(json_value: &Value, pattern: &str) -> Value {
+        let re = Self::build_re(pattern);
+        let mut result = json_value.clone();
+        if let Some(obj) = result.as_object_mut() {
+            if let Some(outside) = obj.get_mut("outside").and_then(|v| v.as_array_mut()) {
+                outside.retain(|item| {
+                    let context = item.as_object()
+                        .and_then(|o| o.get("context"))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("");
+                    !re.is_match(context)
+                });
+            }
+        }
+        result
+    }
+
+    /// Delete inside entries where the `date` field matches pattern.
+    pub fn delete_inside_by_date(json_value: &Value, pattern: &str) -> Value {
+        let re = Self::build_re(pattern);
+        let mut result = json_value.clone();
+        if let Some(obj) = result.as_object_mut() {
+            if let Some(inside) = obj.get_mut("inside").and_then(|v| v.as_array_mut()) {
+                inside.retain(|item| {
+                    let date = item.as_object()
+                        .and_then(|o| o.get("date"))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("");
+                    !re.is_match(date)
+                });
+            }
+        }
+        result
+    }
+
+    /// Delete inside entries where the `context` field matches pattern.
+    pub fn delete_inside_by_context(json_value: &Value, pattern: &str) -> Value {
+        let re = Self::build_re(pattern);
+        let mut result = json_value.clone();
+        if let Some(obj) = result.as_object_mut() {
+            if let Some(inside) = obj.get_mut("inside").and_then(|v| v.as_array_mut()) {
+                inside.retain(|item| {
+                    let context = item.as_object()
+                        .and_then(|o| o.get("context"))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("");
+                    !re.is_match(context)
+                });
+            }
+        }
         result
     }
 
