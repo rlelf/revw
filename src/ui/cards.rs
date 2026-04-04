@@ -7,7 +7,7 @@ use ratatui::{
 };
 
 use crate::app::App;
-use crate::overlay_context;
+use crate::wrap;
 use crate::rendering::RelfEntry;
 use crate::syntax_highlight::SyntaxHighlighter;
 
@@ -68,7 +68,7 @@ pub fn render_relf_cards(f: &mut Frame, app: &mut App, area: Rect) {
         let context = app.relf_entries.get(selected)
             .and_then(|e| e.context.as_deref())
             .unwrap_or("");
-        app.card_context_rows = overlay_context::total_rows(context, card_inner_width);
+        app.card_context_rows = wrap::total_rows(context, card_inner_width);
     }
 
     // Limit number of visible cards (use app setting)
@@ -225,7 +225,7 @@ fn render_outside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: R
         };
 
         // Count visual (wrapped) rows for accurate scroll-by-row behavior
-        let total_vis_rows = overlay_context::total_rows(context, inner_area.width as usize);
+        let total_vis_rows = wrap::total_rows(context, inner_area.width as usize);
         let visible_rows = inner_area.height as usize;
         let max_vscroll = total_vis_rows.saturating_sub(visible_rows);
         let vscroll = if is_selected {
@@ -279,7 +279,7 @@ fn render_inside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: Re
         };
 
         // Count visual (wrapped) rows for accurate scroll-by-row behavior
-        let total_vis_rows = overlay_context::total_rows(context, inner_area.width as usize);
+        let total_vis_rows = wrap::total_rows(context, inner_area.width as usize);
         let visible_rows = inner_area.height as usize;
         let max_vscroll = total_vis_rows.saturating_sub(visible_rows);
         let vscroll = if is_selected {

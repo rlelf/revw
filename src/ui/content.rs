@@ -7,7 +7,7 @@ use ratatui::{
 };
 
 use crate::app::{App, FormatMode, InputMode};
-use crate::overlay_context::layout_wrapped_text;
+use crate::wrap::layout_wrapped_text;
 
 use super::json_highlight::highlight_json_line;
 use super::markdown_highlight::highlight_markdown_line;

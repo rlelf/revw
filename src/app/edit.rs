@@ -1,5 +1,5 @@
 use super::{App, FormatMode};
-use crate::overlay_context::layout_wrapped_text;
+use crate::wrap::layout_wrapped_text;
 use serde_json::Value;
 
 impl App {
@@ -486,7 +486,7 @@ impl App {
             let content = lines.join("\n");
             let flat_pos = Self::cursor_to_flat(&lines, self.content_cursor_line, self.content_cursor_col);
             let wrap_width = self.get_edit_wrap_width().max(1);
-            let new_pos = crate::overlay_context::move_cursor_vertical(&content, flat_pos, wrap_width, -1);
+            let new_pos = crate::wrap::move_cursor_vertical(&content, flat_pos, wrap_width, -1);
             if new_pos != flat_pos {
                 let (nl, nc) = Self::flat_to_cursor(&lines, new_pos);
                 self.content_cursor_line = nl;
@@ -513,7 +513,7 @@ impl App {
             let content = lines.join("\n");
             let flat_pos = Self::cursor_to_flat(&lines, self.content_cursor_line, self.content_cursor_col);
             let wrap_width = self.get_edit_wrap_width().max(1);
-            let new_pos = crate::overlay_context::move_cursor_vertical(&content, flat_pos, wrap_width, 1);
+            let new_pos = crate::wrap::move_cursor_vertical(&content, flat_pos, wrap_width, 1);
             if new_pos != flat_pos {
                 let (nl, nc) = Self::flat_to_cursor(&lines, new_pos);
                 self.content_cursor_line = nl;
@@ -703,7 +703,7 @@ impl App {
             let content = lines_ref.join("\n");
             let flat_pos = Self::cursor_to_flat(&lines_ref, self.content_cursor_line, self.content_cursor_col);
             let wrap_width = self.get_edit_wrap_width().max(1);
-            let layout = crate::overlay_context::layout_wrapped_text(&content, flat_pos, wrap_width);
+            let layout = crate::wrap::layout_wrapped_text(&content, flat_pos, wrap_width);
             (layout.cursor.visual_row as u16, layout.rows.len())
         } else {
             (self.calculate_cursor_visual_position().0, content_lines)

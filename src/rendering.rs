@@ -1,4 +1,5 @@
 use ratatui::style::Color;
+use regex::RegexBuilder;
 use unicode_width::UnicodeWidthChar;
 
 #[derive(Clone, Debug, Default)]
@@ -74,6 +75,21 @@ impl Renderer {
     }
 
     pub fn render_relf(json_input: &str, filter_pattern: &str) -> RelfRenderResult {
+        let filter_re = if !filter_pattern.is_empty() {
+            RegexBuilder::new(filter_pattern)
+                .case_insensitive(true)
+                .build()
+                .ok()
+                .or_else(|| {
+                    RegexBuilder::new(&regex::escape(filter_pattern))
+                        .case_insensitive(true)
+                        .build()
+                        .ok()
+                })
+        } else {
+            None
+        };
+
         if let Ok(json_value) = serde_json::from_str::<serde_json::Value>(json_input) {
             let mut result = RelfRenderResult::default();
 
@@ -121,10 +137,8 @@ impl Renderer {
                                         }
 
                                         // Apply filter if pattern is provided
-                                        if !filter_pattern.is_empty() {
-                                            let matches = entry_lines.iter().any(|line| {
-                                                line.to_lowercase().contains(&filter_pattern.to_lowercase())
-                                            });
+                                        if let Some(ref re) = filter_re {
+                                            let matches = entry_lines.iter().any(|line| re.is_match(line));
                                             if !matches {
                                                 continue; // Skip this entry
                                             }
@@ -158,10 +172,8 @@ impl Renderer {
                                         }
 
                                         // Apply filter if pattern is provided
-                                        if !filter_pattern.is_empty() {
-                                            let matches = entry_lines.iter().any(|line| {
-                                                line.to_lowercase().contains(&filter_pattern.to_lowercase())
-                                            });
+                                        if let Some(ref re) = filter_re {
+                                            let matches = entry_lines.iter().any(|line| re.is_match(line));
                                             if !matches {
                                                 continue; // Skip this entry
                                             }

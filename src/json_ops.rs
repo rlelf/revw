@@ -1,5 +1,6 @@
 use chrono::Local;
 use serde_json::Value;
+use regex::RegexBuilder;
 use crate::content_ops::ContentOperations;
 
 pub struct JsonOperations;
@@ -493,12 +494,88 @@ impl JsonOperations {
 
         Ok((formatted, message.to_string()))
     }
+    /// Expand entries: produce one entry per match in `context`, each with that snippet.
+    pub fn trim_context_around_match(json_value: &Value, pattern: &str, chars: usize) -> Value {
+        if pattern.is_empty() {
+            return json_value.clone();
+        }
+
+        let re = RegexBuilder::new(pattern)
+            .case_insensitive(true)
+            .build()
+            .or_else(|_| {
+                RegexBuilder::new(&regex::escape(pattern))
+                    .case_insensitive(true)
+                    .build()
+            });
+
+        let snippets_for = |context: &str| -> Vec<String> {
+            let total_chars = context.chars().count();
+            let chars_vec: Vec<char> = context.chars().collect();
+            let mut result = Vec::new();
+            if let Ok(ref re) = re {
+                for m in re.find_iter(context) {
+                    let match_char = context[..m.start()].chars().count();
+                    let match_end_char = match_char + m.as_str().chars().count();
+                    let start = match_char.saturating_sub(chars);
+                    let end = (match_end_char + chars).min(total_chars);
+                    result.push(chars_vec[start..end].iter().collect());
+                }
+            }
+            result
+        };
+
+        let expand_section = |arr: &[Value]| -> Vec<Value> {
+            let mut out = Vec::new();
+            for item in arr {
+                if let Some(item_obj) = item.as_object() {
+                    let ctx = item_obj.get("context").and_then(|v| v.as_str()).unwrap_or("");
+                    let snips = snippets_for(ctx);
+                    if snips.is_empty() {
+                        out.push(item.clone());
+                    } else {
+                        for snip in snips {
+                            let mut entry = item_obj.clone();
+                            entry.insert("context".to_string(), Value::String(snip));
+                            out.push(Value::Object(entry));
+                        }
+                    }
+                } else {
+                    out.push(item.clone());
+                }
+            }
+            out
+        };
+
+        let mut result = json_value.clone();
+        if let Some(obj) = result.as_object_mut() {
+            for section in ["outside", "inside"] {
+                if let Some(arr) = obj.get(section).and_then(|v| v.as_array()) {
+                    let expanded = expand_section(arr);
+                    obj.insert(section.to_string(), Value::Array(expanded));
+                }
+            }
+        }
+        result
+    }
+
     pub fn filter_entries(json_value: &Value, pattern: &str) -> Value {
         if pattern.is_empty() {
             return json_value.clone();
         }
 
-        let pattern_lower = pattern.to_lowercase();
+        let re = RegexBuilder::new(pattern)
+            .case_insensitive(true)
+            .build()
+            .unwrap_or_else(|_| {
+                RegexBuilder::new(&regex::escape(pattern))
+                    .case_insensitive(true)
+                    .build()
+                    .expect("escaped pattern must compile")
+            });
+
+        let matches_re = |s: &str| re.is_match(s);
+
         let mut result = json_value.clone();
 
         if let Some(obj) = result.as_object_mut() {
@@ -513,10 +590,7 @@ impl JsonOperations {
                             .map(|p| format!("{}%", p))
                             .unwrap_or_default();
 
-                        name.to_lowercase().contains(&pattern_lower)
-                            || context.to_lowercase().contains(&pattern_lower)
-                            || url.to_lowercase().contains(&pattern_lower)
-                            || percentage.to_lowercase().contains(&pattern_lower)
+                        matches_re(name) || matches_re(context) || matches_re(url) || matches_re(&percentage)
                     } else {
                         false
                     }
@@ -529,8 +603,7 @@ impl JsonOperations {
                         let date = item_obj.get("date").and_then(|v| v.as_str()).unwrap_or("");
                         let context = item_obj.get("context").and_then(|v| v.as_str()).unwrap_or("");
 
-                        date.to_lowercase().contains(&pattern_lower)
-                            || context.to_lowercase().contains(&pattern_lower)
+                        matches_re(date) || matches_re(context)
                     } else {
                         false
                     }

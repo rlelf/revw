@@ -69,37 +69,4 @@ impl App {
         }
     }
 
-    pub fn paste_from_text(&mut self, text: &str) {
-        let trimmed = text.trim();
-
-        // For Markdown files, check if it looks like Markdown content
-        if self.is_markdown_file()
-            && (trimmed.contains("## INSIDE")
-                || trimmed.contains("## OUTSIDE")
-                || trimmed.starts_with("### "))
-        {
-            self.markdown_input = text.to_string();
-            match self.parse_markdown(&self.markdown_input) {
-                Ok(json_content) => {
-                    self.json_input = json_content;
-                    self.is_modified = true;
-                    self.convert_json();
-                    self.set_status("Pasted Markdown content");
-                }
-                Err(e) => {
-                    self.set_status(&format!("Failed to parse Markdown: {}", e));
-                }
-            }
-        }
-        // Check if it looks like JSON
-        else if trimmed.starts_with('{') || trimmed.starts_with('[') {
-            self.json_input = text.to_string();
-            self.is_modified = true;
-            self.sync_markdown_from_json();
-            self.convert_json();
-            self.set_status("Pasted JSON content");
-        } else {
-            self.set_status("Content doesn't contain JSON or Markdown");
-        }
-    }
 }

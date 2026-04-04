@@ -7,7 +7,7 @@ use ratatui::{
 };
 
 use crate::app::App;
-use crate::overlay_context::layout_wrapped_text;
+use crate::wrap::layout_wrapped_text;
 
 pub fn overlay_layout(area: Rect) -> (Rect, Rect, Rect) {
     let popup_width = area.width.min(80);

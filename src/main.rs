@@ -5,7 +5,7 @@ mod input;
 mod json_ops;
 mod markdown_ops;
 mod navigation;
-mod overlay_context;
+mod wrap;
 mod rendering;
 mod syntax_highlight;
 mod ui;
@@ -19,7 +19,7 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use ratatui::{backend::CrosstermBackend, Terminal};
-use std::{fs, io::stdout, panic, path::PathBuf};
+use std::{fs, io::{self, stdout, Read}, panic, path::PathBuf};
 
 use app::{App, FormatMode};
 
@@ -47,25 +47,17 @@ fn main() -> Result<()> {
             # Output to stdout\n  \
             revw --stdout file.json\n  \
             revw --stdout file.md\n\n  \
-            # Output to file\n  \
-            revw --output output.txt file.json\n  \
-            revw --output output.txt file.md\n\n  \
             # Output in different formats\n  \
             revw --stdout --markdown file.json\n  \
             revw --stdout --json file.md\n\n  \
-# Input from file (supports .json, .md)\n  \
-            revw --input data.json file.json\n  \
-            revw --input data.md file.json\n  \
-            revw --input data.json file.md\n\n  \
+            # Pipe from stdin\n  \
+            cat file.json | revw --stdout\n  \
+            cat file.md | revw --stdout --markdown\n\n  \
             # Filter entries\n  \
             revw --stdout --filter pattern file.json\n  \
             revw --stdout --filter pattern file.md\n  \
             revw --stdout --filter pattern --inside file.json\n  \
-            revw --stdout --filter pattern --markdown file.json\n\n  \
-            # Section-specific operations\n  \
-            revw --input data.json --inside file.json\n  \
-            revw --input data.md --outside file.json\n  \
-            revw --input data.json --append --inside file.md\n\n\
+            revw --stdout --filter pattern --markdown file.json\n\n\
             SUPPORTED FILE FORMATS:\n  \
             JSON (file.json):\n  \
             {\n    \
@@ -83,7 +75,12 @@ fn main() -> Result<()> {
             Note content\n\n\
             For interactive help, run 'revw' and press :h or ?"
         )
-        .arg(Arg::new("file").help("JSON or Markdown file to view").index(1))
+        .arg(
+            Arg::new("file")
+                .help("JSON or Markdown file(s) to view (supports multiple files / shell globs)")
+                .num_args(0..)
+                .index(1),
+        )
         .arg(
             Arg::new("edit")
                 .long("edit")
@@ -93,18 +90,8 @@ fn main() -> Result<()> {
         .arg(
             Arg::new("stdout")
                 .long("stdout")
-                .help("Output to stdout instead of interactive mode")
-                .conflicts_with("output")
-                .conflicts_with("input")
+                .help("Output to stdout (also reads from stdin if no file given)")
                 .action(clap::ArgAction::SetTrue),
-        )
-        .arg(
-            Arg::new("output")
-                .long("output")
-                .help("Output to file (use '-' for stdout)")
-                .conflicts_with("stdout")
-                .conflicts_with("input")
-                .value_name("FILE"),
         )
         .arg(
             Arg::new("inside")
@@ -132,23 +119,6 @@ fn main() -> Result<()> {
                 .help("Output in JSON format")
                 .action(clap::ArgAction::SetTrue),
         )
-        .arg(
-            Arg::new("input")
-                .long("input")
-                .help("Input from file")
-                .conflicts_with("stdout")
-                .conflicts_with("output")
-                .conflicts_with("token")
-                .requires("file")
-                .value_name("FILE"),
-        )
-        .arg(
-            Arg::new("append")
-                .long("append")
-                .help("Append mode - append input instead of overwriting")
-                .requires("input")
-                .action(clap::ArgAction::SetTrue),
-        )
         .group(
             ArgGroup::new("output_format")
                 .args(["markdown", "json"])
@@ -158,7 +128,6 @@ fn main() -> Result<()> {
             Arg::new("token")
                 .long("token")
                 .help("Show token counts for all formats and exit")
-                .conflicts_with("input")
                 .action(clap::ArgAction::SetTrue),
         )
         .arg(
@@ -166,6 +135,14 @@ fn main() -> Result<()> {
                 .long("filter")
                 .help("Filter entries by pattern")
                 .value_name("PATTERN"),
+        )
+        .arg(
+            Arg::new("context")
+                .long("context")
+                .help("Show N chars before/after match in context field (requires --filter)")
+                .requires("filter")
+                .value_name("N")
+                .value_parser(clap::value_parser!(usize)),
         )
         .get_matches();
 
@@ -176,67 +153,52 @@ fn main() -> Result<()> {
     };
 
     let stdout_mode = matches.get_flag("stdout");
-    let output_file = matches.get_one::<String>("output");
     let inside_only = matches.get_flag("inside");
     let outside_only = matches.get_flag("outside");
     let markdown_mode = matches.get_flag("markdown");
     let json_mode = matches.get_flag("json");
-    let input_file = matches.get_one::<String>("input");
-    let append_mode = matches.get_flag("append");
     let token_mode = matches.get_flag("token");
     let filter_pattern = matches.get_one::<String>("filter");
+    let context_chars = matches.get_one::<usize>("context").copied();
 
-    // If token mode, show token counts and exit
-    if token_mode {
-        let mut app = App::new(format_mode);
+    // Detect if stdin is a pipe (not a tty)
+    use std::io::IsTerminal;
+    let stdin_piped = !io::stdin().is_terminal();
 
-        // Load file if provided
-        if let Some(file_path) = matches.get_one::<String>("file") {
-            let path = PathBuf::from(file_path);
-            app.load_file(path);
-        } else {
-            eprintln!("Error: No file specified for token count");
-            std::process::exit(1);
-        }
+    // Helper: load content into app from a string, detecting format by path or content
+    let load_content = |app: &mut App, content: String, path: Option<PathBuf>| {
+        let is_markdown = path.as_ref()
+            .and_then(|p| p.extension())
+            .and_then(|ext| ext.to_str())
+            .map(|ext| ext.eq_ignore_ascii_case("md"))
+            .unwrap_or_else(|| {
+                // Heuristic: if no extension, check content
+                content.trim_start().starts_with("## ")
+            });
 
-        app.print_token_count();
-        return Ok(());
-    }
-
-    if stdout_mode || output_file.is_some() {
-        let mut app = App::new(format_mode);
-
-        // Load file if provided
-        if let Some(file_path) = matches.get_one::<String>("file") {
-            let path = PathBuf::from(file_path);
-            let content = fs::read_to_string(&path)
-                .map_err(|e| {
-                    eprintln!("Error: Cannot read file '{}': {}", file_path, e);
-                    std::process::exit(1);
-                })
-                .unwrap();
-
-            // Check if file is Markdown
-            let is_markdown = path
-                .extension()
-                .and_then(|ext| ext.to_str())
-                .map(|ext| ext.eq_ignore_ascii_case("md"))
-                .unwrap_or(false);
-
-            if is_markdown {
-                app.file_path = Some(path);
-                app.markdown_input = content;
-                // Convert markdown to JSON for processing
-                if let Ok(json) = app.parse_markdown(&app.markdown_input) {
-                    app.json_input = json;
-                }
-                app.convert_json();
-            } else {
-                app.file_path = Some(path);
-                app.json_input = content;
-                app.convert_json();
+        if is_markdown {
+            app.file_path = path;
+            app.markdown_input = content;
+            if let Ok(json) = app.parse_markdown(&app.markdown_input) {
+                app.json_input = json;
             }
-            let output = if format_mode == FormatMode::Edit {
+        } else {
+            app.file_path = path;
+            app.json_input = content;
+        }
+        app.convert_json();
+    };
+
+    // Collect file paths
+    let file_paths: Vec<String> = matches
+        .get_many::<String>("file")
+        .unwrap_or_default()
+        .cloned()
+        .collect();
+
+    // Generate text output for a loaded app
+    let generate_output = |app: &App| -> String {
+        if format_mode == FormatMode::Edit {
                 // In Edit mode, output the JSON as-is
                 app.json_input.clone()
             } else {
@@ -252,6 +214,13 @@ fn main() -> Result<()> {
                 // Apply entry-level filter if --filter was provided
                 let json_value = if let Some(pattern) = &filter_pattern {
                     json_ops::JsonOperations::filter_entries(&json_value, pattern)
+                } else {
+                    json_value
+                };
+
+                // Trim context fields around match if --context N was provided
+                let json_value = if let (Some(pattern), Some(chars)) = (&filter_pattern, context_chars) {
+                    json_ops::JsonOperations::trim_context_around_match(&json_value, pattern, chars)
                 } else {
                     json_value
                 };
@@ -503,30 +472,70 @@ fn main() -> Result<()> {
                         output_lines.join("\n")
                     }
                 }
-            };
-
-            if let Some(output_path) = output_file {
-                if output_path == "-" {
-                    // Output to stdout
-                    println!("{}", output);
-                } else {
-                    // Output to file
-                    fs::write(output_path, output)?;
-                }
-            } else {
-                // stdout flag was used
-                println!("{}", output);
             }
-        } else {
-            eprintln!("Error: No input file specified");
+    };
+
+    // If token mode, show token counts and exit
+    if token_mode {
+        if file_paths.is_empty() && stdin_piped {
+            let mut app = App::new(format_mode);
+            let mut content = String::new();
+            io::stdin().read_to_string(&mut content)?;
+            load_content(&mut app, content, None);
+            app.print_token_count();
+        } else if file_paths.is_empty() {
+            eprintln!("Error: No file specified for token count");
             std::process::exit(1);
+        } else {
+            for file_path in &file_paths {
+                let path = PathBuf::from(file_path);
+                let mut app = App::new(format_mode);
+                app.load_file(path);
+                if file_paths.len() > 1 {
+                    println!("=== {} ===", file_path);
+                }
+                app.print_token_count();
+            }
+        }
+        return Ok(());
+    }
+
+    if stdout_mode || stdin_piped {
+        if file_paths.is_empty() && stdin_piped {
+            // Read from stdin
+            let mut app = App::new(format_mode);
+            let mut content = String::new();
+            io::stdin().read_to_string(&mut content)?;
+            load_content(&mut app, content, None);
+            println!("{}", generate_output(&app));
+        } else if file_paths.is_empty() {
+            eprintln!("Error: No input file specified and no stdin data");
+            std::process::exit(1);
+        } else {
+            // Process each file
+            for (idx, file_path) in file_paths.iter().enumerate() {
+                let path = PathBuf::from(file_path);
+                let content = fs::read_to_string(&path)
+                    .map_err(|e| {
+                        eprintln!("Error: Cannot read file '{}': {}", file_path, e);
+                        std::process::exit(1);
+                    })
+                    .unwrap();
+                let mut app = App::new(format_mode);
+                load_content(&mut app, content, Some(path));
+                if file_paths.len() > 1 {
+                    if idx > 0 { println!(); }
+                    println!("=== {} ===", file_path);
+                }
+                println!("{}", generate_output(&app));
+            }
         }
     } else {
         // Interactive mode with better error handling
         let mut app = App::new(format_mode);
 
-        // Load file if provided - no existence check for quick loading
-        if let Some(file_path) = matches.get_one::<String>("file") {
+        // Load file if provided (first file only for interactive mode)
+        if let Some(file_path) = file_paths.first() {
             let path = PathBuf::from(file_path);
             app.load_file(path);
         }
@@ -535,150 +544,6 @@ fn main() -> Result<()> {
         if let Some(pattern) = &filter_pattern {
             app.filter_pattern = pattern.to_string();
             app.convert_json();
-        }
-
-        // Process input file if provided
-        if let Some(input_path) = input_file {
-            // Read from file
-            let input_content = fs::read_to_string(input_path)
-                .map_err(|e| {
-                    eprintln!("Error: Cannot read input file '{}': {}", input_path, e);
-                    std::process::exit(1);
-                })
-                .unwrap();
-
-            // Convert input content format if needed (json/md -> target format)
-            let input_path_obj = PathBuf::from(input_path);
-            let input_ext = input_path_obj
-                .extension()
-                .and_then(|ext| ext.to_str())
-                .map(|ext| ext.to_ascii_lowercase());
-
-            let target_ext = app
-                .file_path
-                .as_ref()
-                .and_then(|p| p.extension())
-                .and_then(|ext| ext.to_str())
-                .map(|ext| ext.to_ascii_lowercase())
-                .unwrap_or_else(|| "json".to_string());
-
-            let json_to_markdown = |json_val: &serde_json::Value| {
-                let mut markdown_lines = Vec::new();
-
-                if let Some(obj) = json_val.as_object() {
-                    if let Some(outside) = obj.get("outside").and_then(|v| v.as_array()) {
-                        if !outside.is_empty() {
-                            markdown_lines.push("## OUTSIDE".to_string());
-                            for item in outside {
-                                if let Some(item_obj) = item.as_object() {
-                                    let name =
-                                        item_obj.get("name").and_then(|v| v.as_str()).unwrap_or("");
-                                    let context = item_obj
-                                        .get("context")
-                                        .and_then(|v| v.as_str())
-                                        .unwrap_or("");
-                                    let url = item_obj.get("url").and_then(|v| v.as_str());
-                                    let percentage =
-                                        item_obj.get("percentage").and_then(|v| v.as_i64());
-
-                                    if !name.is_empty() {
-                                        markdown_lines.push(format!("### {}", name));
-                                    }
-                                    if !context.is_empty() {
-                                        let formatted_context = context.replace("\\n", "\n");
-                                        markdown_lines.push(formatted_context);
-                                    }
-                                    if let Some(url_str) = url {
-                                        if !url_str.is_empty() {
-                                            markdown_lines.push("".to_string());
-                                            markdown_lines.push(format!("**URL:** {}", url_str));
-                                        }
-                                    }
-                                    if let Some(pct) = percentage {
-                                        markdown_lines.push("".to_string());
-                                        markdown_lines.push(format!("**Percentage:** {}%", pct));
-                                    }
-                                    markdown_lines.push("".to_string());
-                                }
-                            }
-                        }
-                    }
-
-                    if let Some(inside) = obj.get("inside").and_then(|v| v.as_array()) {
-                        if !inside.is_empty() {
-                            markdown_lines.push("## INSIDE".to_string());
-                            for item in inside {
-                                if let Some(item_obj) = item.as_object() {
-                                    let date =
-                                        item_obj.get("date").and_then(|v| v.as_str()).unwrap_or("");
-                                    let context = item_obj
-                                        .get("context")
-                                        .and_then(|v| v.as_str())
-                                        .unwrap_or("");
-
-                                    if !date.is_empty() {
-                                        markdown_lines.push(format!("### {}", date));
-                                    }
-                                    if !context.is_empty() {
-                                        let formatted_context = context.replace("\\n", "\n");
-                                        markdown_lines.push(formatted_context);
-                                    }
-                                    markdown_lines.push("".to_string());
-                                }
-                            }
-                        }
-                    }
-                }
-
-                markdown_lines.join("\n")
-            };
-
-            let converted_content = if target_ext == "md" {
-                match input_ext.as_deref() {
-                    Some("json") => serde_json::from_str::<serde_json::Value>(&input_content)
-                        .map(|v| json_to_markdown(&v))
-                        .unwrap_or_else(|_| input_content.clone()),
-                    _ => input_content.clone(),
-                }
-            } else {
-                match input_ext.as_deref() {
-                    Some("md") => app
-                        .parse_markdown(&input_content)
-                        .unwrap_or_else(|_| input_content.clone()),
-                    _ => input_content.clone(),
-                }
-            };
-
-            // Determine how to process the input based on flags
-            if append_mode {
-                // Append mode: :va/:vai/:vao behavior
-                if inside_only {
-                    // Append INSIDE only (:vai)
-                    app.paste_inside_append_from_text(&converted_content);
-                } else if outside_only {
-                    // Append OUTSIDE only (:vao)
-                    app.paste_outside_append_from_text(&converted_content);
-                } else {
-                    // Append both (:va)
-                    app.paste_all_append_from_text(&converted_content);
-                }
-            } else {
-                // Overwrite mode: :v/:vi/:vo behavior
-                if inside_only {
-                    // Overwrite INSIDE only (:vi)
-                    app.paste_inside_from_text(&converted_content);
-                } else if outside_only {
-                    // Overwrite OUTSIDE only (:vo)
-                    app.paste_outside_from_text(&converted_content);
-                } else {
-                    // Overwrite all (:v)
-                    app.paste_from_text(&converted_content);
-                }
-            }
-
-            // Save and exit immediately when --input is used
-            app.save_file();
-            return Ok(());
         }
 
         // Set up terminal with error handling

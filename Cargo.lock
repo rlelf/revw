@@ -1739,6 +1739,7 @@ dependencies = [
  "notify",
  "rand 0.10.0",
  "ratatui",
+ "regex",
  "serde",
  "serde_json",
  "syntect",

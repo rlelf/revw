@@ -1,7 +1,7 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use crate::app::App;
-use crate::overlay_context::{move_cursor_vertical, total_rows};
+use crate::wrap::{move_cursor_vertical, total_rows};
 
 pub fn handle_overlay_keyboard(app: &mut App, key: KeyEvent) {
     if app.edit_insert_mode {
