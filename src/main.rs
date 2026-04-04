@@ -57,7 +57,14 @@ fn main() -> Result<()> {
             revw --stdout --filter pattern file.json\n  \
             revw --stdout --filter pattern file.md\n  \
             revw --stdout --filter pattern --inside file.json\n  \
-            revw --stdout --filter pattern --markdown file.json\n\n\
+            revw --stdout --filter pattern --context 100 file.json\n\n  \
+            # Append entries from stdin (JSON or Markdown) into file\n  \
+            cat new.json | revw --append file.json\n  \
+            cat new.json | revw --append --inside file.json\n  \
+            cat new.md   | revw --append --outside file.md\n\n  \
+            # Delete entries matching pattern (writes back in-place)\n  \
+            revw --delete --filter pattern file.json\n  \
+            revw --delete --filter pattern --inside file.json\n\n\
             SUPPORTED FILE FORMATS:\n  \
             JSON (file.json):\n  \
             {\n    \
@@ -144,6 +151,19 @@ fn main() -> Result<()> {
                 .value_name("N")
                 .value_parser(clap::value_parser!(usize)),
         )
+        .arg(
+            Arg::new("append")
+                .long("append")
+                .help("Append entries from stdin (JSON or Markdown) into file; use with --inside/--outside to limit section")
+                .action(clap::ArgAction::SetTrue),
+        )
+        .arg(
+            Arg::new("delete")
+                .long("delete")
+                .help("Delete entries matching --filter from file (writes back in-place)")
+                .requires("filter")
+                .action(clap::ArgAction::SetTrue),
+        )
         .get_matches();
 
     let format_mode = if matches.get_flag("edit") {
@@ -160,6 +180,8 @@ fn main() -> Result<()> {
     let token_mode = matches.get_flag("token");
     let filter_pattern = matches.get_one::<String>("filter");
     let context_chars = matches.get_one::<usize>("context").copied();
+    let append_mode = matches.get_flag("append");
+    let delete_mode = matches.get_flag("delete");
 
     // Detect if stdin is a pipe (not a tty)
     use std::io::IsTerminal;
@@ -474,6 +496,133 @@ fn main() -> Result<()> {
                 }
             }
     };
+
+    // --append: read stdin, merge into file(s), write back in-place
+    if append_mode {
+        if file_paths.is_empty() {
+            eprintln!("Error: --append requires a file argument");
+            std::process::exit(1);
+        }
+        if !stdin_piped {
+            eprintln!("Error: --append requires stdin input");
+            std::process::exit(1);
+        }
+        let mut stdin_content = String::new();
+        io::stdin().read_to_string(&mut stdin_content)?;
+
+        // Parse stdin as JSON or Markdown using a temp app
+        let tmp = App::new(format_mode);
+        let stdin_json: serde_json::Value = if stdin_content.trim_start().starts_with('{') || stdin_content.trim_start().starts_with('[') {
+            let v: serde_json::Value = match serde_json::from_str(&stdin_content) {
+                Ok(v) => v,
+                Err(e) => { eprintln!("Error: stdin is not valid JSON: {}", e); std::process::exit(1); }
+            };
+            // Validate: must be an object with at least one of "inside"/"outside" arrays
+            if let Some(obj) = v.as_object() {
+                let has_inside = obj.get("inside").and_then(|v| v.as_array()).is_some();
+                let has_outside = obj.get("outside").and_then(|v| v.as_array()).is_some();
+                if !has_inside && !has_outside {
+                    eprintln!("Error: stdin JSON must be an object with \"inside\" and/or \"outside\" arrays");
+                    eprintln!("  Expected: {{\"inside\": [...], \"outside\": [...]}}");
+                    std::process::exit(1);
+                }
+            } else {
+                eprintln!("Error: stdin JSON must be an object with \"inside\" and/or \"outside\" arrays");
+                eprintln!("  Expected: {{\"inside\": [...], \"outside\": [...]}}");
+                std::process::exit(1);
+            }
+            v
+        } else {
+            // Markdown input: if --inside or --outside is specified and input lacks section headers,
+            // auto-wrap the content with the appropriate header
+            let section = if inside_only { Some("INSIDE") } else if outside_only { Some("OUTSIDE") } else { None };
+            let processed = if let Some(sec) = section {
+                if !stdin_content.contains("## OUTSIDE") && !stdin_content.contains("## INSIDE") {
+                    format!("## {}\n{}", sec, stdin_content)
+                } else {
+                    stdin_content.clone()
+                }
+            } else {
+                stdin_content.clone()
+            };
+            match tmp.parse_markdown(&processed) {
+                Ok(json_str) => match serde_json::from_str(&json_str) {
+                    Ok(v) => v,
+                    Err(e) => { eprintln!("Error parsing stdin Markdown: {}", e); std::process::exit(1); }
+                },
+                Err(e) => { eprintln!("Error: stdin is not valid JSON or Markdown: {}", e); std::process::exit(1); }
+            }
+        };
+
+        for file_path in &file_paths {
+            let path = PathBuf::from(file_path);
+            let mut app = App::new(format_mode);
+            load_content(&mut app, fs::read_to_string(&path).unwrap_or_else(|e| {
+                eprintln!("Error: Cannot read '{}': {}", file_path, e); std::process::exit(1);
+            }), Some(path.clone()));
+
+            let current: serde_json::Value = serde_json::from_str(&app.json_input).unwrap_or_else(|e| {
+                eprintln!("Error: Invalid JSON in '{}': {}", file_path, e); std::process::exit(1);
+            });
+
+            let merged = json_ops::JsonOperations::append_entries(&current, &stdin_json, inside_only, outside_only);
+            let output = serde_json::to_string_pretty(&merged).unwrap();
+
+            if app.is_markdown_file() {
+                // Write back as Markdown
+                app.json_input = output;
+                app.sync_markdown_from_json();
+                fs::write(&path, &app.markdown_input).unwrap_or_else(|e| {
+                    eprintln!("Error: Cannot write '{}': {}", file_path, e); std::process::exit(1);
+                });
+            } else {
+                fs::write(&path, output).unwrap_or_else(|e| {
+                    eprintln!("Error: Cannot write '{}': {}", file_path, e); std::process::exit(1);
+                });
+            }
+        }
+        return Ok(());
+    }
+
+    // --delete --filter: remove matching entries and write back in-place
+    if delete_mode {
+        let pattern = filter_pattern.map(|s| s.as_str()).unwrap_or("");
+        if pattern.is_empty() {
+            eprintln!("Error: --delete requires --filter <PATTERN>");
+            std::process::exit(1);
+        }
+        if file_paths.is_empty() {
+            eprintln!("Error: --delete requires a file argument");
+            std::process::exit(1);
+        }
+        for file_path in &file_paths {
+            let path = PathBuf::from(file_path);
+            let mut app = App::new(format_mode);
+            load_content(&mut app, fs::read_to_string(&path).unwrap_or_else(|e| {
+                eprintln!("Error: Cannot read '{}': {}", file_path, e); std::process::exit(1);
+            }), Some(path.clone()));
+
+            let current: serde_json::Value = serde_json::from_str(&app.json_input).unwrap_or_else(|e| {
+                eprintln!("Error: Invalid JSON in '{}': {}", file_path, e); std::process::exit(1);
+            });
+
+            let result = json_ops::JsonOperations::delete_matching_entries(&current, pattern, inside_only, outside_only);
+            let output = serde_json::to_string_pretty(&result).unwrap();
+
+            if app.is_markdown_file() {
+                app.json_input = output;
+                app.sync_markdown_from_json();
+                fs::write(&path, &app.markdown_input).unwrap_or_else(|e| {
+                    eprintln!("Error: Cannot write '{}': {}", file_path, e); std::process::exit(1);
+                });
+            } else {
+                fs::write(&path, output).unwrap_or_else(|e| {
+                    eprintln!("Error: Cannot write '{}': {}", file_path, e); std::process::exit(1);
+                });
+            }
+        }
+        return Ok(());
+    }
 
     // If token mode, show token counts and exit
     if token_mode {

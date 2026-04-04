@@ -147,6 +147,16 @@ revw --stdout --filter pattern --json file.json
 revw --stdout --filter pattern --context 100 file.json # Show 100 chars around match in context
 revw --stdout --filter pattern --context 100 *.md      # Works with multiple files
 
+# Append entries from stdin (JSON or Markdown) into file, writes in-place
+cat new_entries.json | revw --append file.json          # Append both inside and outside
+cat new_entries.json | revw --append --inside file.json # Append inside only
+cat new_entries.md   | revw --append --outside file.md  # Append outside only (Markdown)
+
+# Delete entries matching pattern, writes in-place
+revw --delete --filter "pattern" file.json              # Delete from both sections
+revw --delete --filter "pattern" --inside file.json     # Delete from inside only
+revw --delete --filter "pattern" --outside file.md      # Delete from outside only
+
 # Token count
 revw --token file.json                      # Show token counts for all formats
 revw --token file.md

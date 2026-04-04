@@ -613,6 +613,99 @@ impl JsonOperations {
 
         result
     }
+
+    /// Delete entries matching pattern (inverse of filter_entries).
+    /// inside_only/outside_only limit which sections are affected.
+    pub fn delete_matching_entries(json_value: &Value, pattern: &str, inside_only: bool, outside_only: bool) -> Value {
+        if pattern.is_empty() {
+            return json_value.clone();
+        }
+
+        let re = RegexBuilder::new(pattern)
+            .case_insensitive(true)
+            .build()
+            .unwrap_or_else(|_| {
+                RegexBuilder::new(&regex::escape(pattern))
+                    .case_insensitive(true)
+                    .build()
+                    .expect("escaped pattern must compile")
+            });
+
+        let matches_re = |s: &str| re.is_match(s);
+
+        let mut result = json_value.clone();
+
+        if let Some(obj) = result.as_object_mut() {
+            if !inside_only {
+                if let Some(outside) = obj.get_mut("outside").and_then(|v| v.as_array_mut()) {
+                    outside.retain(|item| {
+                        if let Some(item_obj) = item.as_object() {
+                            let name = item_obj.get("name").and_then(|v| v.as_str()).unwrap_or("");
+                            let context = item_obj.get("context").and_then(|v| v.as_str()).unwrap_or("");
+                            let url = item_obj.get("url").and_then(|v| v.as_str()).unwrap_or("");
+                            let percentage = item_obj.get("percentage")
+                                .and_then(|v| v.as_i64())
+                                .map(|p| format!("{}%", p))
+                                .unwrap_or_default();
+                            !(matches_re(name) || matches_re(context) || matches_re(url) || matches_re(&percentage))
+                        } else {
+                            true
+                        }
+                    });
+                }
+            }
+
+            if !outside_only {
+                if let Some(inside) = obj.get_mut("inside").and_then(|v| v.as_array_mut()) {
+                    inside.retain(|item| {
+                        if let Some(item_obj) = item.as_object() {
+                            let date = item_obj.get("date").and_then(|v| v.as_str()).unwrap_or("");
+                            let context = item_obj.get("context").and_then(|v| v.as_str()).unwrap_or("");
+                            !(matches_re(date) || matches_re(context))
+                        } else {
+                            true
+                        }
+                    });
+                }
+            }
+        }
+
+        result
+    }
+
+    /// Append entries from new_json into current_json.
+    /// inside_only/outside_only control which sections are merged.
+    /// Inside entries are prepended (newest first); outside entries are appended.
+    pub fn append_entries(current_json: &Value, new_json: &Value, inside_only: bool, outside_only: bool) -> Value {
+        let mut result = current_json.clone();
+        let both = !inside_only && !outside_only;
+
+        if let Some(obj) = result.as_object_mut() {
+            if inside_only || both {
+                if let Some(new_inside) = new_json.get("inside").and_then(|v| v.as_array()) {
+                    let inside_arr = obj.entry("inside".to_string()).or_insert(Value::Array(vec![]));
+                    if let Some(arr) = inside_arr.as_array_mut() {
+                        for (i, item) in new_inside.iter().enumerate() {
+                            arr.insert(i, item.clone());
+                        }
+                    }
+                }
+            }
+
+            if outside_only || both {
+                if let Some(new_outside) = new_json.get("outside").and_then(|v| v.as_array()) {
+                    let outside_arr = obj.entry("outside".to_string()).or_insert(Value::Array(vec![]));
+                    if let Some(arr) = outside_arr.as_array_mut() {
+                        for item in new_outside {
+                            arr.push(item.clone());
+                        }
+                    }
+                }
+            }
+        }
+
+        result
+    }
 }
 
 // Implement ContentOperations trait for JsonOperations
