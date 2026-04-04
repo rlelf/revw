@@ -212,8 +212,11 @@ fn render_outside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: R
     // Middle: context (inside the card)
     let context = entry.context.as_deref().unwrap_or("");
     if !context.is_empty() {
-        // Use syntax highlighting for context
-        let highlighted_lines: Vec<Line> = {
+        let highlighted_lines: Vec<Line> = if !app.search_query.is_empty() {
+            context.lines().map(|line| {
+                highlight_search_in_line(line, &app.search_query, Style::default().fg(app.colorscheme.card_content))
+            }).collect()
+        } else {
             let highlighter = app.syntax_highlighter.as_ref();
             if let Some(h) = highlighter {
                 h.render_lines(context, Style::default().fg(app.colorscheme.card_content))
@@ -266,8 +269,11 @@ fn render_inside_card(f: &mut Frame, app: &App, entry: &RelfEntry, card_area: Re
 
     // Context inside the card
     if let Some(context) = &entry.context {
-        // Use syntax highlighting for context
-        let highlighted_lines: Vec<Line> = {
+        let highlighted_lines: Vec<Line> = if !app.search_query.is_empty() {
+            context.lines().map(|line| {
+                highlight_search_in_line(line, &app.search_query, Style::default().fg(app.colorscheme.card_content))
+            }).collect()
+        } else {
             let highlighter = app.syntax_highlighter.as_ref();
             if let Some(h) = highlighter {
                 h.render_lines(context, Style::default().fg(app.colorscheme.card_content))

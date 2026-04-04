@@ -29,6 +29,10 @@ impl App {
                             self.is_modified = true;
                             self.sync_markdown_from_json();
                             self.convert_json();
+                            if self.format_mode == FormatMode::Edit {
+                                self.content_cursor_line = 0;
+                                self.content_cursor_col = 0;
+                            }
                             // Reset selection to first entry if current selection is out of bounds
                             if !self.relf_entries.is_empty() && self.selected_entry_index >= self.relf_entries.len() {
                                 self.selected_entry_index = 0;
@@ -72,6 +76,10 @@ impl App {
                             self.is_modified = true;
                             self.sync_markdown_from_json();
                             self.convert_json();
+                            if self.format_mode == FormatMode::Edit {
+                                self.content_cursor_line = 0;
+                                self.content_cursor_col = 0;
+                            }
                             // Reset selection to first entry if current selection is out of bounds
                             if !self.relf_entries.is_empty() && self.selected_entry_index >= self.relf_entries.len() {
                                 self.selected_entry_index = 0;

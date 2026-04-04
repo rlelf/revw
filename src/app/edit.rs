@@ -595,8 +595,7 @@ impl App {
                             self.scroll = 0;
                         }
                     }
-                } else {
-                    // In Edit mode, just move cursor to the new entry
+                } else if self.format_mode == FormatMode::Edit {
                     self.content_cursor_line = line;
                     self.content_cursor_col = col;
                     self.ensure_cursor_visible();
@@ -650,8 +649,7 @@ impl App {
                             self.scroll = 0;
                         }
                     }
-                } else {
-                    // In Edit mode, just move cursor to the new entry
+                } else if self.format_mode == FormatMode::Edit {
                     self.content_cursor_line = line;
                     self.content_cursor_col = col;
                     self.ensure_cursor_visible();
